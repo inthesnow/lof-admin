@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.StaffMapper">
+
+    <resultMap id="staffResultMap" type="Staff">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="phone" column="phone"/>
+        <result property="email" column="email"/>
+        <result property="role" column="role"/>
+        <result property="hireDate" column="hire_date"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="staffResultMap">
+        SELECT * FROM staff
+        <where>
+            <if test="role != null and role != ''">
+                AND role = #{role}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM staff
+        <where>
+            <if test="role != null and role != ''">
+                AND role = #{role}
+            </if>
+        </where>
+    </select>
+
+    <select id="findById" resultMap="staffResultMap">
+        SELECT * FROM staff WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO staff (name, phone, email, role, hire_date, status)
+        VALUES (#{name}, #{phone}, #{email}, #{role}, #{hireDate}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE staff SET name=#{name}, phone=#{phone}, email=#{email}, role=#{role}
+        WHERE id=#{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM staff WHERE id=#{id}
+    </delete>
+
+    <update id="updateRole">
+        UPDATE staff SET role=#{role} WHERE id=#{id}
+    </update>
+
+</mapper>

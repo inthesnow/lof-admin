@@ -1,0 +1,36 @@
+package com.linkfit.admin.domain;
+
+import java.time.LocalDate;
+
+public class Member {
+    private Long id;
+    private String name;
+    private String phone;
+    private String gender;
+    private LocalDate birthDate;
+    private String status;       // ACTIVE, EXPIRED, SUSPENDED
+    private LocalDate joinDate;
+    private LocalDate membershipEnd;
+    private String memo;
+
+    public Member() {}
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public LocalDate getBirthDate() { return birthDate; }
+    public void setBirthDate(LocalDate birthDate) { this.birthDate = birthDate; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public LocalDate getJoinDate() { return joinDate; }
+    public void setJoinDate(LocalDate joinDate) { this.joinDate = joinDate; }
+    public LocalDate getMembershipEnd() { return membershipEnd; }
+    public void setMembershipEnd(LocalDate membershipEnd) { this.membershipEnd = membershipEnd; }
+    public String getMemo() { return memo; }
+    public void setMemo(String memo) { this.memo = memo; }
+}

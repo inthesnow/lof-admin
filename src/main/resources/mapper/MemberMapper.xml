@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.MemberMapper">
+
+    <resultMap id="memberResultMap" type="Member">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="phone" column="phone"/>
+        <result property="gender" column="gender"/>
+        <result property="birthDate" column="birth_date"/>
+        <result property="status" column="status"/>
+        <result property="joinDate" column="join_date"/>
+        <result property="membershipEnd" column="membership_end"/>
+        <result property="memo" column="memo"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="memberResultMap">
+        SELECT * FROM member
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%') OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM member
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%') OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="findById" resultMap="memberResultMap">
+        SELECT * FROM member WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO member (name, phone, gender, birth_date, status, join_date, membership_end, memo)
+        VALUES (#{name}, #{phone}, #{gender}, #{birthDate}, #{status}, #{joinDate}, #{membershipEnd}, #{memo})
+    </insert>
+
+    <update id="update">
+        UPDATE member SET name=#{name}, phone=#{phone}, gender=#{gender},
+            birth_date=#{birthDate}, membership_end=#{membershipEnd}, memo=#{memo}
+        WHERE id=#{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM member WHERE id=#{id}
+    </delete>
+
+    <update id="updateStatus">
+        UPDATE member SET status=#{status} WHERE id=#{id}
+    </update>
+
+</mapper>
