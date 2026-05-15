@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — 상품 관리</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('products')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">상품 관리</h1>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" onclick="openModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                상품 등록
+            </button>
+        </div>
+    </header>
+
+    <div class="search-bar">
+        <select class="filter-select" id="typeFilter" onchange="loadProducts()">
+            <option value="">전체 유형</option>
+            <option value="MEMBERSHIP">회원권</option>
+            <option value="GROUP">그룹 수업</option>
+            <option value="PT">개인 레슨</option>
+            <option value="LOCKER">락커</option>
+            <option value="ITEM">공동 물품</option>
+        </select>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>상품명</th>
+                    <th>유형</th>
+                    <th>가격</th>
+                    <th>기간(일)</th>
+                    <th>상태</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="productTableBody">
+                <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- 상품 등록/수정 모달 -->
+<div class="modal-overlay" id="productModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalTitle">상품 등록</span>
+            <button class="modal-close" onclick="closeModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">상품명 *</label>
+                    <input type="text" class="form-input" id="pName" placeholder="헬스 1개월">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">유형</label>
+                    <select class="form-select" id="pType">
+                        <option value="MEMBERSHIP">회원권</option>
+                        <option value="GROUP">그룹 수업</option>
+                        <option value="PT">개인 레슨</option>
+                        <option value="LOCKER">락커</option>
+                        <option value="ITEM">공동 물품</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">가격 (원)</label>
+                    <input type="number" class="form-input" id="pPrice" placeholder="80000" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">기간 (일, 0=무기한)</label>
+                    <input type="number" class="form-input" id="pDuration" placeholder="30" min="0">
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">설명</label>
+                    <textarea class="form-textarea" id="pDescription" placeholder="상품 설명..."></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+            <button class="btn btn-primary" onclick="saveProduct()">저장</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 0;
+const pageSize = 20;
+let editingId = null;
+
+const typeLabel = { MEMBERSHIP: '회원권', GROUP: '그룹수업', PT: '개인레슨', LOCKER: '락커', ITEM: '공동물품' };
+const typeBadge = { MEMBERSHIP: 'badge-active', GROUP: 'badge-admin', PT: 'badge-super', LOCKER: 'badge-pending', ITEM: 'badge-trainer' };
+
+async function loadProducts() {
+    const type = document.getElementById('typeFilter').value;
+    const res = await fetch(`/api/products?type=${type}&page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTable(json.data.products, json.data.total);
+}
+
+function renderTable(products, total) {
+    const tbody = document.getElementById('productTableBody');
+    if (!products.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">상품 데이터가 없습니다.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = products.map(p => `
+        <tr>
+            <td>${p.name}</td>
+            <td><span class="badge ${typeBadge[p.type]}">${typeLabel[p.type]}</span></td>
+            <td style="color:var(--success);font-weight:600">${p.price.toLocaleString()}원</td>
+            <td>${p.durationDays > 0 ? p.durationDays + '일' : '무기한'}</td>
+            <td><span class="badge ${p.active ? 'badge-active' : 'badge-expired'}">${p.active ? '판매중' : '판매중지'}</span></td>
+            <td style="display:flex;gap:6px">
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editProduct(${p.id})">수정</button>
+                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteProduct(${p.id}, '${p.name}')">삭제</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openModal() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = '상품 등록';
+    ['pName','pPrice','pDuration','pDescription'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('productModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('productModal').classList.remove('open'); }
+
+async function editProduct(id) {
+    const res = await fetch(`/api/products/${id}`);
+    const json = await res.json();
+    const p = json.data;
+    editingId = id;
+    document.getElementById('modalTitle').textContent = '상품 수정';
+    document.getElementById('pName').value = p.name || '';
+    document.getElementById('pType').value = p.type || 'MEMBERSHIP';
+    document.getElementById('pPrice').value = p.price || 0;
+    document.getElementById('pDuration').value = p.durationDays || 0;
+    document.getElementById('pDescription').value = p.description || '';
+    document.getElementById('productModal').classList.add('open');
+}
+
+async function saveProduct() {
+    const body = {
+        name: document.getElementById('pName').value,
+        type: document.getElementById('pType').value,
+        price: parseInt(document.getElementById('pPrice').value) || 0,
+        durationDays: parseInt(document.getElementById('pDuration').value) || 0,
+        description: document.getElementById('pDescription').value,
+        active: true,
+    };
+    const url = editingId ? `/api/products/${editingId}` : '/api/products';
+    const method = editingId ? 'PUT' : 'POST';
+    await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    closeModal();
+    loadProducts();
+}
+
+async function deleteProduct(id, name) {
+    if (!confirm(`${name} 상품을 삭제하시겠습니까?`)) return;
+    await fetch(`/api/products/${id}`, { method: 'DELETE' });
+    loadProducts();
+}
+
+function openSidebar() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+loadProducts();
+</script>
+</body>
+</html>

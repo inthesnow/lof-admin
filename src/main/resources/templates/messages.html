@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — 메시지</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('messages')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">메시지</h1>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" onclick="openModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                메시지 발송
+            </button>
+        </div>
+    </header>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>제목</th>
+                    <th>대상</th>
+                    <th>수신자 수</th>
+                    <th>상태</th>
+                    <th>발송 시간</th>
+                    <th>발송자</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="messageTableBody">
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- 메시지 발송 모달 -->
+<div class="modal-overlay" id="messageModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">메시지 발송</span>
+            <button class="modal-close" onclick="closeModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">제목 *</label>
+                    <input type="text" class="form-input" id="mTitle" placeholder="메시지 제목">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">발송 대상</label>
+                    <select class="form-select" id="mTargetType">
+                        <option value="ALL">전체 회원</option>
+                        <option value="MEMBER">유효 회원만</option>
+                        <option value="INDIVIDUAL">개별 지정</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">내용 *</label>
+                    <textarea class="form-textarea" id="mContent" placeholder="메시지 내용..." style="min-height:120px"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+            <button class="btn btn-primary" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                발송
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 0;
+const pageSize = 10;
+
+const targetLabel = { ALL: '전체 회원', MEMBER: '유효 회원', INDIVIDUAL: '개별 지정' };
+const statusBadge = { SENT: 'badge-sent', SCHEDULED: 'badge-pending', FAILED: 'badge-expired' };
+const statusLabel = { SENT: '발송 완료', SCHEDULED: '예약', FAILED: '실패' };
+
+async function loadMessages() {
+    const res = await fetch(`/api/messages?page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTable(json.data.messages, json.data.total);
+}
+
+function renderTable(messages, total) {
+    const tbody = document.getElementById('messageTableBody');
+    if (!messages.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">메시지 내역이 없습니다.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = messages.map(m => `
+        <tr>
+            <td>${m.title}</td>
+            <td>${targetLabel[m.targetType] || m.targetType}</td>
+            <td>${m.recipientCount}명</td>
+            <td><span class="badge ${statusBadge[m.status]}">${statusLabel[m.status]}</span></td>
+            <td>${m.sentAt ? m.sentAt.replace('T', ' ').substring(0,16) : '-'}</td>
+            <td>${m.senderName || '-'}</td>
+            <td>
+                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteMessage(${m.id})">삭제</button>
+            </td>
+        </tr>
+    `).join('');
+
+    const totalPages = Math.ceil(total / pageSize);
+    const pag = document.getElementById('pagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>&#8249;</button>`;
+    for (let i = 0; i < totalPages; i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i + 1}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>`;
+    pag.innerHTML = html;
+}
+
+function goPage(p) { currentPage = p; loadMessages(); }
+
+function openModal() { document.getElementById('messageModal').classList.add('open'); }
+function closeModal() { document.getElementById('messageModal').classList.remove('open'); }
+
+async function sendMessage() {
+    const body = {
+        title: document.getElementById('mTitle').value,
+        content: document.getElementById('mContent').value,
+        targetType: document.getElementById('mTargetType').value,
+        senderName: '관리자',
+    };
+    await fetch('/api/messages', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    closeModal();
+    loadMessages();
+}
+
+async function deleteMessage(id) {
+    if (!confirm('메시지를 삭제하시겠습니까?')) return;
+    await fetch(`/api/messages/${id}`, { method: 'DELETE' });
+    loadMessages();
+}
+
+function openSidebar() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+loadMessages();
+</script>
+</body>
+</html>

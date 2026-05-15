@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — 상담 관리</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('consults')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">상담 관리</h1>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" onclick="openModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                상담 등록
+            </button>
+        </div>
+    </header>
+
+    <div class="search-bar">
+        <select class="filter-select" id="typeFilter" onchange="loadConsults()">
+            <option value="">전체</option>
+            <option value="NEW">신규 상담</option>
+            <option value="EXISTING">기존 회원 상담</option>
+        </select>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>유형</th>
+                    <th>이름</th>
+                    <th>전화번호</th>
+                    <th>성별</th>
+                    <th>관심 분야</th>
+                    <th>결과</th>
+                    <th>상담일</th>
+                    <th>담당자</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="consultTableBody">
+                <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- 상담 등록 모달 -->
+<div class="modal-overlay" id="consultModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalTitle">상담 등록</span>
+            <button class="modal-close" onclick="closeModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">상담 유형</label>
+                    <select class="form-select" id="cType">
+                        <option value="NEW">신규 상담</option>
+                        <option value="EXISTING">기존 회원 상담</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">결과</label>
+                    <select class="form-select" id="cResult">
+                        <option value="PENDING">미결정</option>
+                        <option value="REGISTERED">등록 완료</option>
+                        <option value="NO_SHOW">노쇼</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">이름 *</label>
+                    <input type="text" class="form-input" id="cName" placeholder="홍길동">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">전화번호</label>
+                    <input type="text" class="form-input" id="cPhone" placeholder="010-0000-0000">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">성별</label>
+                    <select class="form-select" id="cGender">
+                        <option value="M">남성</option>
+                        <option value="F">여성</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">관심 분야</label>
+                    <select class="form-select" id="cInterest">
+                        <option value="헬스">헬스</option>
+                        <option value="필라테스">필라테스</option>
+                        <option value="PT">PT</option>
+                        <option value="골프">골프</option>
+                        <option value="기타">기타</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">상담 내용</label>
+                    <textarea class="form-textarea" id="cContent" placeholder="상담 내용 입력..."></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+            <button class="btn btn-primary" onclick="saveConsult()">저장</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 0;
+const pageSize = 10;
+let editingId = null;
+
+const typeLabel = { NEW: '신규', EXISTING: '기존 회원' };
+const typeBadge = { NEW: 'badge-active', EXISTING: 'badge-admin' };
+const resultLabel = { REGISTERED: '등록 완료', PENDING: '미결정', NO_SHOW: '노쇼' };
+const resultBadge = { REGISTERED: 'badge-active', PENDING: 'badge-pending', NO_SHOW: 'badge-expired' };
+const genderLabel = { M: '남성', F: '여성' };
+
+async function loadConsults() {
+    const type = document.getElementById('typeFilter').value;
+    const res = await fetch(`/api/consults?type=${type}&page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTable(json.data.consults, json.data.total);
+}
+
+function renderTable(consults, total) {
+    const tbody = document.getElementById('consultTableBody');
+    if (!consults.length) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">상담 데이터가 없습니다.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = consults.map(c => `
+        <tr>
+            <td><span class="badge ${typeBadge[c.type]}">${typeLabel[c.type]}</span></td>
+            <td>${c.name}</td>
+            <td>${c.phone || '-'}</td>
+            <td>${genderLabel[c.gender] || '-'}</td>
+            <td>${c.interest || '-'}</td>
+            <td><span class="badge ${resultBadge[c.result]}">${resultLabel[c.result]}</span></td>
+            <td>${c.consultDate || '-'}</td>
+            <td>${c.staffName || '-'}</td>
+            <td style="display:flex;gap:6px">
+                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteConsult(${c.id})">삭제</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openModal() {
+    document.getElementById('modalTitle').textContent = '상담 등록';
+    document.getElementById('consultModal').classList.add('open');
+}
+
+function closeModal() { document.getElementById('consultModal').classList.remove('open'); }
+
+async function saveConsult() {
+    const body = {
+        name: document.getElementById('cName').value,
+        phone: document.getElementById('cPhone').value,
+        gender: document.getElementById('cGender').value,
+        interest: document.getElementById('cInterest').value,
+        result: document.getElementById('cResult').value,
+        content: document.getElementById('cContent').value,
+    };
+    const type = document.getElementById('cType').value;
+    const url = type === 'NEW' ? '/api/consults' : '/api/consults/existing';
+    await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    closeModal();
+    loadConsults();
+}
+
+async function deleteConsult(id) {
+    if (!confirm('상담 내역을 삭제하시겠습니까?')) return;
+    await fetch(`/api/consults/${id}`, { method: 'DELETE' });
+    loadConsults();
+}
+
+function openSidebar() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+loadConsults();
+</script>
+</body>
+</html>
