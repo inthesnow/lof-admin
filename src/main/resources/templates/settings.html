@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — 헬스장 설정</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+    <style>
+        /* ── Settings layout ── */
+        .settings-body {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 860px;
+        }
+
+        /* ── Open status card ── */
+        .open-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            transition: border-color 0.3s;
+        }
+        .open-card.is-open  { border-color: var(--success); }
+        .open-card.is-closed{ border-color: var(--error); }
+
+        .open-card-left { display: flex; align-items: center; gap: 16px; }
+
+        .open-indicator {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.3s;
+        }
+        .open-indicator svg { width: 26px; height: 26px; }
+        .is-open  .open-indicator { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); }
+        .is-closed .open-indicator { background: color-mix(in srgb, var(--error) 15%, transparent); color: var(--error); }
+
+        .open-text {}
+        .open-label {
+            font-size: 11px; font-weight: 600; letter-spacing: 0.7px;
+            text-transform: uppercase; color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .open-status {
+            font-size: 20px; font-weight: 700;
+            transition: color 0.3s;
+        }
+        .is-open  .open-status { color: var(--success); }
+        .is-closed .open-status { color: var(--error); }
+        .open-sub {
+            font-size: 12px; color: var(--text-muted); margin-top: 3px;
+        }
+
+        /* Toggle switch */
+        .toggle-wrap { display: flex; align-items: center; gap: 12px; }
+        .toggle-label { font-size: 13px; color: var(--text-secondary); }
+        .toggle {
+            position: relative;
+            width: 52px; height: 28px;
+            flex-shrink: 0;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute; inset: 0;
+            background: var(--surface-up);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: background 0.25s, border-color 0.25s;
+        }
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 20px; height: 20px;
+            left: 3px; top: 3px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: transform 0.25s, background 0.25s;
+        }
+        .toggle input:checked + .toggle-slider { background: var(--success); border-color: var(--success); }
+        .toggle input:checked + .toggle-slider::before { transform: translateX(24px); background: #fff; }
+
+        /* ── Section card ── */
+        .setting-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .setting-card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .setting-card-header svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+        .setting-card-title { font-size: 14px; font-weight: 700; }
+        .setting-card-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+        /* ── Form fields ── */
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .field-row.single { grid-template-columns: 1fr; }
+
+        .field-group { display: flex; flex-direction: column; gap: 6px; }
+        .field-label {
+            font-size: 11px; font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.5px; text-transform: uppercase;
+        }
+        .field-input {
+            background: var(--surface-up);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            padding: 9px 12px;
+            outline: none;
+            transition: border-color 0.15s;
+            width: 100%;
+        }
+        .field-input:focus { border-color: var(--accent); }
+        .field-input::placeholder { color: var(--text-muted); }
+        textarea.field-input { resize: vertical; min-height: 88px; font-family: inherit; line-height: 1.5; }
+
+        /* ── Operating hours ── */
+        .hours-table { width: 100%; border-collapse: collapse; }
+        .hours-table th {
+            text-align: left;
+            font-size: 10px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.6px; color: var(--text-muted);
+            padding: 0 8px 10px;
+        }
+        .hours-table th:first-child { padding-left: 0; }
+        .hours-table td {
+            padding: 5px 8px;
+            vertical-align: middle;
+        }
+        .hours-table td:first-child { padding-left: 0; }
+        .hours-table tr { border-bottom: 1px solid var(--border); }
+        .hours-table tr:last-child { border-bottom: none; }
+
+        .day-label {
+            font-size: 13px; font-weight: 600; color: var(--text-primary);
+            width: 32px;
+        }
+        .day-label.weekend { color: var(--warning); }
+        .day-label.sunday  { color: var(--error); }
+
+        .time-input {
+            background: var(--surface-up);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--text-primary);
+            font-size: 13px;
+            padding: 7px 10px;
+            outline: none;
+            width: 100px;
+            transition: border-color 0.15s;
+            cursor: pointer;
+        }
+        .time-input:focus { border-color: var(--accent); }
+        .time-input:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .time-sep { color: var(--text-muted); font-size: 13px; padding: 0 4px; }
+
+        .closed-row td { opacity: 0.4; }
+        .closed-row .closed-cell { opacity: 1; }
+
+        /* Checkbox for closed */
+        .check-closed {
+            display: flex; align-items: center; gap: 7px;
+            cursor: pointer; font-size: 12px; color: var(--text-secondary);
+            user-select: none;
+        }
+        .check-closed input[type=checkbox] { display: none; }
+        .check-closed .check-box {
+            width: 16px; height: 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 4px;
+            background: var(--surface-up);
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s, border-color 0.15s;
+            flex-shrink: 0;
+        }
+        .check-closed input:checked + .check-box {
+            background: var(--error);
+            border-color: var(--error);
+        }
+        .check-closed input:checked + .check-box::after {
+            content: '';
+            width: 9px; height: 5px;
+            border-left: 2px solid #fff;
+            border-bottom: 2px solid #fff;
+            transform: rotate(-45deg) translateY(-1px);
+            display: block;
+        }
+
+        /* ── Save bar ── */
+        .save-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px;
+            padding: 0 0 8px;
+        }
+        .save-hint { font-size: 12px; color: var(--text-muted); }
+        .save-result {
+            font-size: 13px; font-weight: 600;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .save-result.show { opacity: 1; }
+        .save-result.ok   { color: var(--success); }
+        .save-result.err  { color: var(--error); }
+
+        @media (max-width: 640px) {
+            .field-row { grid-template-columns: 1fr; }
+            .open-card { flex-direction: column; align-items: flex-start; }
+            .settings-body { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('settings')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">헬스장 설정</h1>
+        </div>
+    </header>
+
+    <div class="settings-body">
+
+        <!-- Save bar -->
+        <div class="save-bar">
+            <span class="save-hint">변경사항을 저장해야 적용됩니다.</span>
+            <div style="display:flex;align-items:center;gap:12px">
+                <span class="save-result" id="saveResult"></span>
+                <button class="btn btn-primary" onclick="saveAll()">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+                    저장
+                </button>
+            </div>
+        </div>
+
+        <!-- Real-time open status -->
+        <div class="open-card" id="openCard">
+            <div class="open-card-left">
+                <div class="open-indicator" id="openIndicator">
+                    <!-- icon injected by JS -->
+                </div>
+                <div class="open-text">
+                    <div class="open-label">실시간 영업 상태</div>
+                    <div class="open-status" id="openStatusText"></div>
+                    <div class="open-sub" id="openSubText"></div>
+                </div>
+            </div>
+            <div class="toggle-wrap">
+                <span class="toggle-label" id="toggleLabel"></span>
+                <label class="toggle">
+                    <input type="checkbox" id="isOpenToggle" onchange="onToggleOpen(this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Basic info -->
+        <div class="setting-card">
+            <div class="setting-card-header">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                <span class="setting-card-title">기본 정보</span>
+            </div>
+            <div class="setting-card-body">
+                <div class="field-row">
+                    <div class="field-group">
+                        <label class="field-label" for="gymName">헬스장 이름</label>
+                        <input type="text" class="field-input" id="gymName" placeholder="LINK_Fit" maxlength="100">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label" for="gymPhone">대표 전화</label>
+                        <input type="tel" class="field-input" id="gymPhone" placeholder="02-0000-0000" maxlength="20">
+                    </div>
+                </div>
+                <div class="field-row single">
+                    <div class="field-group">
+                        <label class="field-label" for="gymAddress">주소</label>
+                        <input type="text" class="field-input" id="gymAddress" placeholder="서울시 강남구 테헤란로 123" maxlength="255">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Operating hours -->
+        <div class="setting-card">
+            <div class="setting-card-header">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+                <span class="setting-card-title">운영 시간</span>
+            </div>
+            <div class="setting-card-body">
+                <table class="hours-table">
+                    <thead>
+                        <tr>
+                            <th style="width:42px">요일</th>
+                            <th>운영 시작</th>
+                            <th></th>
+                            <th>운영 종료</th>
+                            <th style="width:80px; text-align:center">휴무</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hoursBody">
+                        <!-- rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Notice -->
+        <div class="setting-card">
+            <div class="setting-card-header">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+                <span class="setting-card-title">공지사항 / 메모</span>
+            </div>
+            <div class="setting-card-body">
+                <div class="field-group">
+                    <label class="field-label" for="notice">앱 또는 안내판에 표시할 공지 내용</label>
+                    <textarea class="field-input" id="notice" placeholder="예) 설날 연휴 휴무: 1월 28일 ~ 1월 30일&#10;회원권 이벤트 진행 중!" maxlength="1000" rows="4"></textarea>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /.settings-body -->
+</main>
+
+<script>
+const DAYS = [
+    { key: 'mon', label: '월', cls: '' },
+    { key: 'tue', label: '화', cls: '' },
+    { key: 'wed', label: '수', cls: '' },
+    { key: 'thu', label: '목', cls: '' },
+    { key: 'fri', label: '금', cls: '' },
+    { key: 'sat', label: '토', cls: 'weekend' },
+    { key: 'sun', label: '일', cls: 'sunday' },
+];
+
+let setting = {};
+
+/* ── Init ── */
+async function init() {
+    try {
+        const res = await fetch('/api/settings/gym');
+        const json = await res.json();
+        if (json.success) {
+            setting = json.data || {};
+            render();
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function render() {
+    // Basic info
+    document.getElementById('gymName').value    = setting.gymName    || '';
+    document.getElementById('gymPhone').value   = setting.gymPhone   || '';
+    document.getElementById('gymAddress').value = setting.gymAddress || '';
+    document.getElementById('notice').value     = setting.notice     || '';
+
+    // Toggle
+    renderOpenState(setting.isOpen);
+    document.getElementById('isOpenToggle').checked = !!setting.isOpen;
+
+    // Hours table
+    buildHoursTable();
+}
+
+function renderOpenState(isOpen) {
+    const card = document.getElementById('openCard');
+    const statusText = document.getElementById('openStatusText');
+    const subText = document.getElementById('openSubText');
+    const indicator = document.getElementById('openIndicator');
+    const toggleLabel = document.getElementById('toggleLabel');
+
+    card.className = 'open-card ' + (isOpen ? 'is-open' : 'is-closed');
+
+    if (isOpen) {
+        indicator.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>`;
+        statusText.textContent = '현재 영업 중';
+        subText.textContent    = '회원이 입장할 수 있습니다.';
+        toggleLabel.textContent = '영업 중';
+    } else {
+        indicator.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/></svg>`;
+        statusText.textContent = '현재 휴무';
+        subText.textContent    = '오늘은 운영하지 않습니다.';
+        toggleLabel.textContent = '휴무';
+    }
+}
+
+/* ── Toggle open ── */
+async function onToggleOpen(checked) {
+    renderOpenState(checked);
+    setting.isOpen = checked;
+    try {
+        await fetch('/api/settings/gym/open', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isOpen: checked })
+        });
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+/* ── Hours table ── */
+function buildHoursTable() {
+    const tbody = document.getElementById('hoursBody');
+    tbody.innerHTML = '';
+    DAYS.forEach(({ key, label, cls }) => {
+        const open   = setting[key + 'Open']   || '06:00';
+        const close  = setting[key + 'Close']  || '22:00';
+        const closed = !!setting[key + 'Closed'];
+
+        const tr = document.createElement('tr');
+        if (closed) tr.classList.add('closed-row');
+        tr.id = 'row-' + key;
+
+        tr.innerHTML = `
+            <td><span class="day-label ${cls}">${label}</span></td>
+            <td><input type="time" class="time-input" id="${key}Open" value="${open}" ${closed ? 'disabled' : ''}></td>
+            <td><span class="time-sep">~</span></td>
+            <td><input type="time" class="time-input" id="${key}Close" value="${close}" ${closed ? 'disabled' : ''}></td>
+            <td class="closed-cell" style="text-align:center">
+                <label class="check-closed">
+                    <input type="checkbox" id="${key}Closed" ${closed ? 'checked' : ''} onchange="onClosedChange('${key}', this.checked)">
+                    <span class="check-box"></span>
+                    휴무
+                </label>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function onClosedChange(key, checked) {
+    const row = document.getElementById('row-' + key);
+    const openInput  = document.getElementById(key + 'Open');
+    const closeInput = document.getElementById(key + 'Close');
+    if (checked) {
+        row.classList.add('closed-row');
+        openInput.disabled  = true;
+        closeInput.disabled = true;
+    } else {
+        row.classList.remove('closed-row');
+        openInput.disabled  = false;
+        closeInput.disabled = false;
+    }
+}
+
+/* ── Save all ── */
+async function saveAll() {
+    const payload = {
+        gymName:    document.getElementById('gymName').value.trim(),
+        gymPhone:   document.getElementById('gymPhone').value.trim(),
+        gymAddress: document.getElementById('gymAddress').value.trim(),
+        isOpen:     document.getElementById('isOpenToggle').checked,
+        notice:     document.getElementById('notice').value.trim(),
+    };
+    DAYS.forEach(({ key }) => {
+        payload[key + 'Open']   = document.getElementById(key + 'Open').value  || '06:00';
+        payload[key + 'Close']  = document.getElementById(key + 'Close').value || '22:00';
+        payload[key + 'Closed'] = document.getElementById(key + 'Closed').checked;
+    });
+
+    const result = document.getElementById('saveResult');
+    try {
+        const res = await fetch('/api/settings/gym', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) {
+            setting = { ...setting, ...payload };
+            showResult(true, '저장되었습니다.');
+        } else {
+            showResult(false, '저장 실패: ' + (json.message || ''));
+        }
+    } catch(e) {
+        showResult(false, '네트워크 오류가 발생했습니다.');
+    }
+}
+
+function showResult(ok, msg) {
+    const el = document.getElementById('saveResult');
+    el.textContent = (ok ? '✓ ' : '✕ ') + msg;
+    el.className = 'save-result show ' + (ok ? 'ok' : 'err');
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ── Sidebar mobile ── */
+function openSidebar()  { document.querySelector('.sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.querySelector('.sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+
+init();
+</script>
+</body>
+</html>

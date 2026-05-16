@@ -29,4 +29,7 @@ public class PageController {
 
     @GetMapping("/messages")
     public String messages() { return "messages"; }
+
+    @GetMapping("/settings")
+    public String settings() { return "settings"; }
 }
