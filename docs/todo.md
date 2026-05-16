@@ -71,21 +71,21 @@
   - [x] `application-dev.properties` DataSource 및 MyBatis 설정 (DB 접속 정보 입력 필요)
   - [x] `src/main/resources/mapper/` 디렉토리 및 XML Mapper 파일 구성 (MemberMapper.xml, StaffMapper.xml)
   - [x] `MemberMapper`, `StaffMapper` 인터페이스 작성, Mock 서비스 구현체 완성
-  - [ ] 나머지 도메인 Mapper 인터페이스 + XML 작성 (Class, Attendance, Consult, Product, Message)
-  - [ ] DB 연동 후 Mock → MyBatis 서비스 교체 (`@Primary` 또는 `@Profile` 활용)
+  - [x] 나머지 도메인 Mapper 인터페이스 + XML 작성 (Class, Attendance, Consult, Product, Message, Sale, Dashboard, GymSetting)
+  - [x] DB 연동 완료 — Mock → MyBatis 서비스 교체 (전 도메인), Spring Boot 4.x MyBatisConfig 수동 설정
 - [x] **로그아웃 처리** — Spring Security logout 설정 (세션 무효화, JSESSIONID 쿠키 삭제)
 - [x] **예외 처리** — `GlobalExceptionHandler`(@ControllerAdvice) + 404/500 에러 페이지
 - [ ] **로깅** — 접근 로그, 오류 로그 설정 (`application-dev.properties`에 레벨만 설정, Logback 설정 미구현)
 
 ### 프론트엔드
 - [x] **반응형(Responsive) 지원** — 모바일 사이드바 오버레이 토글, 그리드 레이아웃 단일 컬럼 전환
-- [ ] **설정 페이지** — 사이드바의 설정 메뉴 구현 (미구현)
+- [x] **설정 페이지** — 헬스장 정보, 실시간 오픈여부, 요일별 운영시간, 공지사항 설정 (`/settings`, `gym_setting` DB 연동)
 - [x] **로딩 상태 표시** — 대시보드 스켈레톤 UI 추가 (`dashboard.css`에 shimmer 애니메이션)
 - [x] **Favicon 및 메타 태그** 설정 — `favicon.svg` 생성, 모든 페이지에 적용
 
 ### 인프라 / 배포
 - [x] **환경 변수 분리** — `application-dev.properties` / `application-prod.properties` 분리, prod는 환경변수(`${DB_URL}` 등) 사용
-- [ ] **포트 설정 문서화** — 현재 `18080` 포트 사용 중 (README는 `8080` 기재 → 불일치 수정 필요)
+- [x] **포트 설정** — `17579` 포트 고정 (application.properties, README 반영 완료)
 - [ ] **테스트 코드 작성** — `src/test` 디렉토리 존재하나 테스트 없음
 
 ---
@@ -304,10 +304,10 @@
 
 | 항목 | 현황 |
 |---|---|
-| 서버 포트 | `18080` (application.properties 기준) |
-| 임시 계정 | `admin` / `admin123` (InMemoryUserDetailsManager, BCrypt 해싱) |
+| 서버 포트 | `17579` |
+| 어드민 계정 | `admin` / `admin1234` (DB 기반 UserDetailsService, BCrypt 해싱) |
 | Spring Boot | `4.0.4` |
 | Java | `21` |
 | 빌드 도구 | Gradle `8.14` |
-| DB | MariaDB + MyBatis (의존성 추가됨, 연동 전 Mock 서비스 사용 중) |
+| DB | MariaDB 10.11.14 + MyBatis 3.0.3 (전 도메인 DB 연동 완료) |
 | 인증 | Spring Security 7.x (Form Login, CSRF 보호) |
