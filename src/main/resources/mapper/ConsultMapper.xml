@@ -9,7 +9,7 @@
         <result property="name"        column="name"/>
         <result property="phone"       column="phone"/>
         <result property="gender"      column="gender"/>
-        <result property="memberId"    column="member_id"/>
+        <result property="memberId"    column="user_id"/>
         <result property="interest"    column="interest"/>
         <result property="content"     column="content"/>
         <result property="result"      column="result"/>
@@ -39,7 +39,7 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO consult
-            (type, name, phone, gender, member_id, interest, content, result, consult_date, staff_id, staff_name)
+            (type, name, phone, gender, user_id, interest, content, result, consult_date, staff_id, staff_name)
         VALUES
             (#{type}, #{name}, #{phone}, #{gender}, #{memberId}, #{interest}, #{content}, #{result}, #{consultDate}, #{staffId}, #{staffName})
     </insert>

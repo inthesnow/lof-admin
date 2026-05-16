@@ -6,36 +6,37 @@
     <sql id="memberPeriodFilter">
         <choose>
             <when test="period == 'weekly'">
-                AND join_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
-                                  AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+                AND DATE(u.created_at) BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                          AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
             </when>
             <when test="period == 'monthly'">
-                AND DATE_FORMAT(join_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+                AND DATE_FORMAT(u.created_at, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
             </when>
-            <otherwise>AND join_date=#{date}</otherwise>
+            <otherwise>AND DATE(u.created_at) = #{date}</otherwise>
         </choose>
     </sql>
 
     <select id="memberStats" resultType="map">
         SELECT
-            SUM(CASE WHEN status='ACTIVE'                        THEN 1 ELSE 0 END) AS active,
-            SUM(CASE WHEN status='EXPIRED'                       THEN 1 ELSE 0 END) AS expired,
-            SUM(CASE WHEN status='SUSPENDED'                     THEN 1 ELSE 0 END) AS suspended,
-            SUM(CASE WHEN status='ACTIVE'   AND gender='MALE'    THEN 1 ELSE 0 END) AS maleActive,
-            SUM(CASE WHEN status='ACTIVE'   AND gender='FEMALE'  THEN 1 ELSE 0 END) AS femaleActive,
-            SUM(CASE WHEN status='EXPIRED'  AND gender='MALE'    THEN 1 ELSE 0 END) AS maleExpired,
-            SUM(CASE WHEN status='EXPIRED'  AND gender='FEMALE'  THEN 1 ELSE 0 END) AS femaleExpired
-        FROM member
+            SUM(CASE WHEN u.is_active = 1                                        THEN 1 ELSE 0 END) AS active,
+            SUM(CASE WHEN u.is_active = 0                                        THEN 1 ELSE 0 END) AS suspended,
+            0 AS expired,
+            SUM(CASE WHEN u.is_active = 1 AND up.gender = '남자'                 THEN 1 ELSE 0 END) AS maleActive,
+            SUM(CASE WHEN u.is_active = 1 AND up.gender = '여자'                 THEN 1 ELSE 0 END) AS femaleActive,
+            0 AS maleExpired,
+            0 AS femaleExpired
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        WHERE u.role = 'MEMBER'
     </select>
 
     <select id="memberJoinStats" resultType="map">
         SELECT COUNT(*) AS newJoin
-        FROM member
-        <where>
-            <if test="date != null and date != ''">
-                <include refid="memberPeriodFilter"/>
-            </if>
-        </where>
+        FROM users u
+        WHERE u.role = 'MEMBER'
+        <if test="date != null and date != ''">
+            <include refid="memberPeriodFilter"/>
+        </if>
     </select>
 
     <select id="classStats" resultType="map">
@@ -86,10 +87,11 @@
 
     <select id="revenueDetail" resultType="map">
         SELECT s.id, s.amount, s.payment_method AS paymentMethod, s.sale_date AS saleDate, s.memo,
-               m.name AS memberName, p.name AS productName
+               up.name AS memberName, p.name AS productName
         FROM sale s
-        LEFT JOIN member m ON s.member_id=m.id
-        LEFT JOIN product p ON s.product_id=p.id
+        LEFT JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        LEFT JOIN product p ON s.product_id = p.id
         WHERE s.product_type=#{category}
         <if test="date != null and date != ''">
             <choose>
@@ -109,10 +111,11 @@
     <select id="attendanceStats" resultType="map">
         SELECT
             COUNT(*) AS total,
-            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS male,
-            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS female
+            SUM(CASE WHEN up.gender='남자' THEN 1 ELSE 0 END) AS male,
+            SUM(CASE WHEN up.gender='여자' THEN 1 ELSE 0 END) AS female
         FROM attendance a
-        JOIN member m ON a.member_id=m.id
+        JOIN users u ON a.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         <where>
             <if test="date != null and date != ''">
                 <choose>
@@ -133,10 +136,11 @@
     <select id="frozenStats" resultType="map">
         SELECT
             COUNT(*) AS frozen,
-            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS frozenMale,
-            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS frozenFemale
+            SUM(CASE WHEN up.gender='남자' THEN 1 ELSE 0 END) AS frozenMale,
+            SUM(CASE WHEN up.gender='여자' THEN 1 ELSE 0 END) AS frozenFemale
         FROM member_freeze f
-        JOIN member m ON f.member_id=m.id
+        JOIN users u ON f.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
     </select>
 

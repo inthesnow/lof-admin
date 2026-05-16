@@ -15,10 +15,11 @@ public interface MemberMapper {
                          @Param("offset") int offset, @Param("size") int size);
     long count(@Param("keyword") String keyword, @Param("status") String status);
     Optional<Member> findById(@Param("id") Long id);
-    void insert(Member member);
+    void insertUser(Member member);
+    void insertProfile(Member member);
     void update(Member member);
     void delete(@Param("id") Long id);
-    void updateStatus(@Param("id") Long id, @Param("status") String status);
+    void updateStatus(@Param("id") Long id, @Param("isActive") int isActive);
     void insertFreeze(@Param("memberId") Long memberId, @Param("freezeStart") String freezeStart,
                       @Param("freezeEnd") String freezeEnd, @Param("reason") String reason);
     List<MemberFreeze> findFreezeByMemberId(@Param("memberId") Long memberId);

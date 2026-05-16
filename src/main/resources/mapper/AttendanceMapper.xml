@@ -5,7 +5,7 @@
 
     <resultMap id="attendanceResultMap" type="Attendance">
         <id     property="id"           column="id"/>
-        <result property="memberId"     column="member_id"/>
+        <result property="memberId"     column="user_id"/>
         <result property="memberName"   column="member_name"/>
         <result property="memberGender" column="gender"/>
         <result property="type"         column="type"/>
@@ -15,7 +15,7 @@
 
     <resultMap id="freezeResultMap" type="MemberFreeze">
         <id     property="id"          column="id"/>
-        <result property="memberId"    column="member_id"/>
+        <result property="memberId"    column="user_id"/>
         <result property="memberName"  column="member_name"/>
         <result property="freezeStart" column="freeze_start"/>
         <result property="freezeEnd"   column="freeze_end"/>
@@ -39,9 +39,10 @@
     </sql>
 
     <select id="findAll" resultMap="attendanceResultMap">
-        SELECT a.id, a.member_id, m.name AS member_name, m.gender, a.type, a.attend_date, a.check_in_time
+        SELECT a.id, a.user_id, up.name AS member_name, up.gender, a.type, a.attend_date, a.check_in_time
         FROM attendance a
-        JOIN member m ON a.member_id=m.id
+        JOIN users u ON a.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         <where>
             <if test="date != null and date != ''">
                 <include refid="periodFilter"/>
@@ -51,14 +52,15 @@
     </select>
 
     <select id="findById" resultMap="attendanceResultMap">
-        SELECT a.id, a.member_id, m.name AS member_name, m.gender, a.type, a.attend_date, a.check_in_time
+        SELECT a.id, a.user_id, up.name AS member_name, up.gender, a.type, a.attend_date, a.check_in_time
         FROM attendance a
-        JOIN member m ON a.member_id=m.id
+        JOIN users u ON a.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         WHERE a.id=#{id}
     </select>
 
     <insert id="checkIn" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO attendance (member_id, type, attend_date, check_in_time)
+        INSERT INTO attendance (user_id, type, attend_date, check_in_time)
         VALUES (#{memberId}, #{type}, #{attendDate}, #{checkInTime})
     </insert>
 
@@ -67,20 +69,22 @@
     </delete>
 
     <select id="findFrozen" resultMap="freezeResultMap">
-        SELECT f.id, f.member_id, m.name AS member_name, f.freeze_start, f.freeze_end, f.reason, f.created_at
+        SELECT f.id, f.user_id, up.name AS member_name, f.freeze_start, f.freeze_end, f.reason, f.created_at
         FROM member_freeze f
-        JOIN member m ON f.member_id=m.id
+        JOIN users u ON f.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
-        ORDER BY m.name ASC
+        ORDER BY up.name ASC
     </select>
 
     <select id="countStats" resultType="map">
         SELECT
             COUNT(*) AS total,
-            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS male,
-            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS female
+            SUM(CASE WHEN up.gender='남자' THEN 1 ELSE 0 END) AS male,
+            SUM(CASE WHEN up.gender='여자' THEN 1 ELSE 0 END) AS female
         FROM attendance a
-        JOIN member m ON a.member_id=m.id
+        JOIN users u ON a.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         <where>
             <if test="date != null and date != ''">
                 <choose>
@@ -101,10 +105,11 @@
     <select id="countFrozen" resultType="map">
         SELECT
             COUNT(*) AS frozen,
-            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS frozenMale,
-            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS frozenFemale
+            SUM(CASE WHEN up.gender='남자' THEN 1 ELSE 0 END) AS frozenMale,
+            SUM(CASE WHEN up.gender='여자' THEN 1 ELSE 0 END) AS frozenFemale
         FROM member_freeze f
-        JOIN member m ON f.member_id=m.id
+        JOIN users u ON f.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
     </select>
 

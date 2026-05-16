@@ -34,7 +34,8 @@ public class MyBatisMemberService implements MemberService {
 
     @Override
     public Member save(Member member) {
-        memberMapper.insert(member);
+        memberMapper.insertUser(member);
+        memberMapper.insertProfile(member);
         return member;
     }
 
@@ -52,12 +53,12 @@ public class MyBatisMemberService implements MemberService {
 
     @Override
     public void updateStatus(Long id, String status) {
-        memberMapper.updateStatus(id, status);
+        memberMapper.updateStatus(id, "ACTIVE".equals(status) ? 1 : 0);
     }
 
     @Override
     public void freeze(Long id, String startDate, String endDate) {
         memberMapper.insertFreeze(id, startDate, endDate, null);
-        memberMapper.updateStatus(id, "SUSPENDED");
+        memberMapper.updateStatus(id, 0);
     }
 }

@@ -34,10 +34,11 @@
 
     <select id="revenueDetail" resultType="map">
         SELECT s.id, s.amount, s.payment_method AS paymentMethod, s.sale_date AS saleDate, s.memo,
-               m.name AS memberName, p.name AS productName
+               up.name AS memberName, p.name AS productName
         FROM sale s
-        LEFT JOIN member m ON s.member_id=m.id
-        LEFT JOIN product p ON s.product_id=p.id
+        LEFT JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        LEFT JOIN product p ON s.product_id = p.id
         WHERE s.product_type=#{category}
         <if test="date != null and date != ''">
             <include refid="periodFilter"/>
@@ -46,8 +47,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO sale (member_id, membership_id, product_id, product_type, amount, payment_method, sale_date, memo)
-        VALUES (#{memberId}, #{membershipId}, #{productId}, #{productType}, #{amount}, #{paymentMethod}, #{saleDate}, #{memo})
+        INSERT INTO sale (user_id, product_id, product_name, product_type, amount, payment_method, sale_date, memo)
+        VALUES (#{memberId}, #{productId}, #{productName}, #{productType}, #{amount}, #{paymentMethod}, #{saleDate}, #{memo})
     </insert>
 
 </mapper>

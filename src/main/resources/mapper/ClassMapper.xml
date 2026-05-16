@@ -71,7 +71,7 @@
     </update>
 
     <insert id="enroll">
-        INSERT INTO class_attendee (class_session_id, member_id) VALUES (#{classId}, #{memberId})
+        INSERT INTO class_attendee (class_session_id, user_id) VALUES (#{classId}, #{memberId})
     </insert>
 
     <update id="incrementEnrolled">
@@ -79,7 +79,7 @@
     </update>
 
     <delete id="cancelEnrollment">
-        DELETE FROM class_attendee WHERE class_session_id=#{classId} AND member_id=#{memberId}
+        DELETE FROM class_attendee WHERE class_session_id=#{classId} AND user_id=#{memberId}
     </delete>
 
     <update id="decrementEnrolled">
@@ -87,10 +87,11 @@
     </update>
 
     <select id="findAttendees" resultMap="attendeeResultMap">
-        SELECT ca.id, ca.class_session_id, ca.member_id, m.name AS member_name,
-               m.phone, m.gender, ca.registered_at, ca.attended
+        SELECT ca.id, ca.class_session_id, ca.user_id AS member_id, up.name AS member_name,
+               up.contact AS phone, up.gender, ca.registered_at, ca.attended
         FROM class_attendee ca
-        JOIN member m ON ca.member_id=m.id
+        JOIN users u ON ca.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
         WHERE ca.class_session_id=#{classId}
         ORDER BY ca.registered_at ASC
     </select>

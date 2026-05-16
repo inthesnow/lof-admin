@@ -5,73 +5,92 @@
 
     <resultMap id="memberResultMap" type="Member">
         <id property="id" column="id"/>
-        <result property="name" column="name"/>
-        <result property="phone" column="phone"/>
-        <result property="gender" column="gender"/>
-        <result property="birthDate" column="birth_date"/>
-        <result property="status" column="status"/>
-        <result property="joinDate" column="join_date"/>
-        <result property="membershipEnd" column="membership_end"/>
-        <result property="memo" column="memo"/>
+        <result property="email"      column="email"/>
+        <result property="name"       column="name"/>
+        <result property="phone"      column="phone"/>
+        <result property="gender"     column="gender"/>
+        <result property="birthDate"  column="birth_date"/>
+        <result property="status"     column="status"/>
+        <result property="joinDate"   column="join_date"/>
+        <result property="memberType" column="member_type"/>
+        <result property="memo"       column="memo"/>
     </resultMap>
 
+    <sql id="memberSelect">
+        SELECT u.user_id AS id, u.email,
+               up.name, up.contact AS phone, up.gender, up.birth_date, up.member_type,
+               CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END AS status,
+               DATE(u.created_at) AS join_date,
+               NULL AS memo
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        WHERE u.role = 'MEMBER'
+    </sql>
+
     <select id="findAll" resultMap="memberResultMap">
-        SELECT * FROM member
-        <where>
-            <if test="keyword != null and keyword != ''">
-                AND (name LIKE CONCAT('%', #{keyword}, '%') OR phone LIKE CONCAT('%', #{keyword}, '%'))
-            </if>
-            <if test="status != null and status != ''">
-                AND status = #{status}
-            </if>
-        </where>
-        ORDER BY id DESC
+        <include refid="memberSelect"/>
+        <if test="keyword != null and keyword != ''">
+            AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null and status != ''">
+            AND CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
+        </if>
+        ORDER BY u.user_id DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="count" resultType="long">
-        SELECT COUNT(*) FROM member
-        <where>
-            <if test="keyword != null and keyword != ''">
-                AND (name LIKE CONCAT('%', #{keyword}, '%') OR phone LIKE CONCAT('%', #{keyword}, '%'))
-            </if>
-            <if test="status != null and status != ''">
-                AND status = #{status}
-            </if>
-        </where>
+        SELECT COUNT(*)
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        WHERE u.role = 'MEMBER'
+        <if test="keyword != null and keyword != ''">
+            AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null and status != ''">
+            AND CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
+        </if>
     </select>
 
     <select id="findById" resultMap="memberResultMap">
-        SELECT * FROM member WHERE id = #{id}
+        <include refid="memberSelect"/>
+        AND u.user_id = #{id}
     </select>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO member (name, phone, gender, birth_date, status, join_date, membership_end, memo)
-        VALUES (#{name}, #{phone}, #{gender}, #{birthDate}, #{status}, #{joinDate}, #{membershipEnd}, #{memo})
+    <insert id="insertUser" useGeneratedKeys="true" keyProperty="id" keyColumn="user_id">
+        INSERT INTO users (email, role, is_active)
+        VALUES (#{email}, 'MEMBER', 1)
+    </insert>
+
+    <insert id="insertProfile">
+        INSERT INTO user_profiles (user_id, name, contact, gender, birth_date, member_type)
+        VALUES (#{id}, #{name}, #{phone}, #{gender}, #{birthDate}, #{memberType})
     </insert>
 
     <update id="update">
-        UPDATE member SET name=#{name}, phone=#{phone}, gender=#{gender},
-            birth_date=#{birthDate}, membership_end=#{membershipEnd}, memo=#{memo}
-        WHERE id=#{id}
+        UPDATE user_profiles
+        SET name=#{name}, contact=#{phone}, gender=#{gender}, birth_date=#{birthDate}, member_type=#{memberType}
+        WHERE user_id=#{id};
+        UPDATE users SET email=#{email} WHERE user_id=#{id}
     </update>
 
     <delete id="delete">
-        DELETE FROM member WHERE id=#{id}
+        DELETE FROM users WHERE user_id=#{id}
     </delete>
 
     <update id="updateStatus">
-        UPDATE member SET status=#{status} WHERE id=#{id}
+        UPDATE users SET is_active=#{isActive} WHERE user_id=#{id}
     </update>
 
     <insert id="insertFreeze">
-        INSERT INTO member_freeze (member_id, freeze_start, freeze_end, reason)
+        INSERT INTO member_freeze (user_id, freeze_start, freeze_end, reason)
         VALUES (#{memberId}, #{freezeStart}, #{freezeEnd}, #{reason})
     </insert>
 
     <resultMap id="freezeResultMap" type="MemberFreeze">
         <id     property="id"          column="id"/>
-        <result property="memberId"    column="member_id"/>
+        <result property="memberId"    column="user_id"/>
+        <result property="memberName"  column="member_name"/>
         <result property="freezeStart" column="freeze_start"/>
         <result property="freezeEnd"   column="freeze_end"/>
         <result property="reason"      column="reason"/>
@@ -79,12 +98,16 @@
     </resultMap>
 
     <select id="findFreezeByMemberId" resultMap="freezeResultMap">
-        SELECT * FROM member_freeze WHERE member_id=#{memberId} ORDER BY freeze_start DESC
+        SELECT f.id, f.user_id, up.name AS member_name, f.freeze_start, f.freeze_end, f.reason, f.created_at
+        FROM member_freeze f
+        LEFT JOIN user_profiles up ON f.user_id = up.user_id
+        WHERE f.user_id=#{memberId}
+        ORDER BY f.freeze_start DESC
     </select>
 
     <resultMap id="membershipResultMap" type="Membership">
         <id     property="id"          column="id"/>
-        <result property="memberId"    column="member_id"/>
+        <result property="memberId"    column="user_id"/>
         <result property="productId"   column="product_id"/>
         <result property="productName" column="product_name"/>
         <result property="type"        column="type"/>
@@ -99,12 +122,12 @@
         SELECT ms.*, p.name AS product_name
         FROM membership ms
         LEFT JOIN product p ON ms.product_id = p.id
-        WHERE ms.member_id=#{memberId}
+        WHERE ms.user_id=#{memberId}
         ORDER BY ms.start_date DESC
     </select>
 
     <insert id="insertMembership" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO membership (member_id, product_id, type, start_date, end_date, price, memo)
+        INSERT INTO membership (user_id, product_id, type, start_date, end_date, price, memo)
         VALUES (#{memberId}, #{productId}, #{type}, #{startDate}, #{endDate}, #{price}, #{memo})
     </insert>
 
