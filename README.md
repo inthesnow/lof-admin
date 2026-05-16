@@ -37,6 +37,23 @@ link-fit-admin/
         └── java/com/linkfit/admin/
 ```
 
+## DB 연결 정보
+
+| 항목 | 값 |
+|---|---|
+| DBMS | MariaDB 10.11.14 |
+| Host | `localhost` |
+| Port | `3306` |
+| Database | `linkfit` |
+| Username | `linkfit` |
+| Password | `link_fit!` |
+
+설정 파일: `src/main/resources/application-dev.properties`
+
+> 어드민 전용 추가 테이블 DDL은 `docs/sql.md` 참고
+
+---
+
 ## 실행 방법
 
 ### 1. 사전 요구 사항
@@ -53,7 +70,7 @@ link-fit-admin/
 ### 3. 실행
 
 ```bash
-./gradlew bootRun
+./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 
 ### 4. 접속

@@ -14,8 +14,53 @@
 | Template | Thymeleaf (SSR) |
 | Persistence | MyBatis + MariaDB (현재 Mock 서비스 사용 중) |
 | Build | Gradle 8.14 |
-| Port | **18080** (README의 8080은 오기) |
+| Port | **17579** |
 | 임시 계정 | `admin` / `admin123` |
+
+---
+
+## DB 연결 정보
+
+| 항목 | 값 |
+|---|---|
+| DBMS | MariaDB 10.11.14 |
+| Host | `localhost` |
+| Port | `3306` |
+| Database | `linkfit` |
+| Username | `linkfit` |
+| Password | `link_fit!` |
+| Profile | `dev` (`--spring.profiles.active=dev`) |
+
+> 연결 설정 파일: `src/main/resources/application-dev.properties`
+> 실제 DB는 `linkfit_admin`이 아닌 `linkfit` (앱 서비스 DB 공유)
+
+### 어드민 전용 신규 테이블 (linkfit DB에 추가 필요)
+
+현재 Mock 서비스로 동작 중이며, DB 연동 시 아래 테이블을 `linkfit` DB에 생성해야 한다.
+DDL 상세는 `docs/sql.md` 참고.
+
+| 테이블 | 설명 | 참조 |
+|---|---|---|
+| `admin_user` | 어드민 로그인 계정 | 독립 테이블 |
+| `product` | 상품/이용권 | 독립 테이블 |
+| `membership` | 회원권 구매 이력 | `users.user_id` 참조 |
+| `member_freeze` | 유증(정지) 기록 | `users.user_id` 참조 |
+| `class_session` | 그룹/PT 수업 | `users.user_id` (트레이너) 참조 |
+| `class_attendee` | 수업 신청자 | `class_session`, `users` 참조 |
+| `attendance` | 출석 기록 | `users.user_id` 참조 |
+| `consult` | 상담 기록 | `users.user_id` 참조 |
+| `message` | 메시지 발송 | `admin_user.id` 참조 |
+| `message_recipient` | 메시지 수신자 | `message`, `users` 참조 |
+| `sale` | 매출 내역 | `users`, `membership`, `product` 참조 |
+
+### 기존 linkfit DB 테이블 (재사용)
+
+| 테이블 | 어드민 도메인 매핑 |
+|---|---|
+| `users` (role=MEMBER) | `member` |
+| `users` (role=TRAINER) | `staff` |
+| `user_profiles` | `member` / `staff` 상세 정보 |
+| `trainer_schedules` | `class_session` 참고 데이터 |
 
 ---
 
@@ -67,7 +112,7 @@ src/main/java/com/linkfit/admin/
     └── GlobalExceptionHandler.java   ← @ControllerAdvice, 404/500 처리
 
 src/main/resources/
-├── application.properties            ← server.port=18080
+├── application.properties            ← server.port=17579
 ├── application-dev.properties        ← 로컬 DB 접속 정보 (직접 입력 필요)
 ├── application-prod.properties       ← 환경변수 ${DB_URL} 방식
 ├── mapper/
@@ -235,7 +280,7 @@ sed -i 's/\r//' gradlew
 ./gradlew bootRun
 
 # 접속
-http://localhost:18080
+http://localhost:17579
 ```
 
 **Windows:**
