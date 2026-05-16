@@ -61,7 +61,7 @@ link-fit-admin/
 브라우저에서 아래 주소로 접속
 
 ```
-http://localhost:8080
+http://localhost:17579
 ```
 
 ### Windows 환경
