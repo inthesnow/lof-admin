@@ -4,6 +4,357 @@ MariaDB 기준 DDL. 문자셋: `utf8mb4`, 콜레이션: `utf8mb4_unicode_ci`.
 
 ---
 
+## 실제 DB 연결 정보
+
+| 항목 | 값 |
+|------|-----|
+| DBMS | MariaDB 10.11.14 |
+| Host | localhost |
+| Port | 3306 |
+| **Database** | `linkfit` |
+| Username | `linkfit` |
+
+> ⚠️ application-dev.properties 의 DB 이름은 `linkfit` 이다. (`linkfit_admin` 아님)
+
+---
+
+## 기존 `linkfit` DB 테이블 현황
+
+어드민 패널은 별도 DB가 아닌 서비스 DB(`linkfit`)를 공유한다.
+아래 테이블은 이미 존재하므로 **재생성 금지**.
+
+### 회원 / 인증
+
+| 테이블 | 설명 | 어드민 매핑 |
+|--------|------|------------|
+| `users` | 앱 사용자 계정 (email, role: MEMBER\|TRAINER) | → `member` / `staff` 도메인 |
+| `user_auth` | 소셜/이메일 인증 정보 | — |
+| `user_profiles` | 프로필 상세 (name, birth_date, gender, contact 등) | → `member` 상세 |
+| `user_daily_habits` | 일상 습관 정보 | — |
+| `user_exercise_info` | 운동 이력 정보 | — |
+| `user_exercise_purposes` | 운동 목적 (다중) | — |
+| `user_medical_history` | 의료 이력 (다중) | — |
+| `user_visit_routes` | 방문 경로 (다중) | — |
+
+### 트레이너 / 수업
+
+| 테이블 | 설명 | 어드민 매핑 |
+|--------|------|------------|
+| `trainer_members` | 트레이너-회원 배정 | — |
+| `trainer_schedules` | PT/OT 수업 일정 | → `class_session` 참고 |
+| `schedules` | 사용자 개인 일정 | — |
+
+### 운동 / 식단 / 커뮤니티
+
+| 테이블 | 설명 |
+|--------|------|
+| `exercise` | 운동 마스터 |
+| `exercise_records` / `exercise_record_sets` | 운동 기록 |
+| `diet_records` | 식단 기록 |
+| `record_comment` | 기록 댓글 |
+| `posts` / `post_comments` / `post_likes` | 커뮤니티 |
+| `body_part`, `muscle`, `equipment` 등 | 운동 분류 메타 |
+
+---
+
+## 어드민 vs 기존 DB 매핑 주의사항
+
+### member 도메인
+어드민의 `member` 는 실제 DB에서 두 테이블로 분리되어 있다.
+
+```
+admin: member { id, name, phone, gender, status, join_date, ... }
+  ↕
+DB: users { user_id, email, role, is_active, created_at }
+    + user_profiles { user_id, name, contact, gender, birth_date, ... }
+```
+
+- `users.role = 'MEMBER'` 인 행이 회원
+- `users.role = 'TRAINER'` 인 행이 직원(staff)
+- **gender 값**: 기존 DB는 `'남자'`/`'여자'` enum. 아래 신규 테이블은 이를 따름
+
+### staff 도메인
+```
+admin: staff { id, name, phone, email, role, hire_date, status }
+  ↕
+DB: users WHERE role = 'TRAINER'
+    + user_profiles { trainer_id, name, contact, email(없음) }
+```
+
+---
+
+## 어드민 전용 추가 테이블 DDL
+
+아래 테이블들은 `linkfit` DB에 **신규 생성**해야 한다.
+기존 `users` / `user_profiles` 참조 구조와 독립적으로 운영 (어드민 자체 데이터).
+
+### 실행 순서
+
+1. `admin_user`
+2. `product`
+3. `member_freeze`
+4. `membership`
+5. `class_session`
+6. `class_attendee`
+7. `attendance`
+8. `consult`
+9. `message`
+10. `message_recipient`
+11. `sale`
+
+### DDL
+
+```sql
+-- ─────────────────────────────────────────────────────────────
+-- admin_user (어드민 로그인 계정 — users 테이블과 별개)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS admin_user (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    username    VARCHAR(50)  NOT NULL,
+    password    VARCHAR(255) NOT NULL,
+    name        VARCHAR(50)  NOT NULL,
+    role        VARCHAR(20)  NOT NULL
+                    CHECK (role IN ('SUPER_ADMIN','ADMIN','TRAINER')),
+    active      TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_admin_user_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 기본 슈퍼어드민 계정 (비밀번호: admin123 → BCrypt)
+INSERT IGNORE INTO admin_user (username, password, name, role)
+VALUES ('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '관리자', 'SUPER_ADMIN');
+
+-- ─────────────────────────────────────────────────────────────
+-- product (상품)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS product (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    name            VARCHAR(100) NOT NULL,
+    type            VARCHAR(20)  NOT NULL
+                        CHECK (type IN ('MEMBERSHIP','GROUP','PT','LOCKER','ITEM')),
+    price           INT          NOT NULL DEFAULT 0,
+    duration_days   INT          NOT NULL DEFAULT 0,
+    description     TEXT,
+    active          TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_product_type   (type),
+    KEY idx_product_active (active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- member_freeze (회원 유증)
+-- users.user_id 참조 (linkfit DB 기존 테이블)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS member_freeze (
+    id           BIGINT   NOT NULL AUTO_INCREMENT,
+    user_id      BIGINT UNSIGNED NOT NULL,
+    freeze_start DATE     NOT NULL,
+    freeze_end   DATE     NOT NULL,
+    reason       VARCHAR(255),
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_freeze_member (user_id),
+    CONSTRAINT fk_freeze_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- membership (회원권 구매 이력)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS membership (
+    id          BIGINT   NOT NULL AUTO_INCREMENT,
+    user_id     BIGINT UNSIGNED NOT NULL,
+    product_id  BIGINT,
+    type        VARCHAR(20)  NOT NULL
+                    CHECK (type IN ('MEMBERSHIP','GROUP','PT','LOCKER','ITEM')),
+    start_date  DATE     NOT NULL,
+    end_date    DATE,
+    price       INT      NOT NULL DEFAULT 0,
+    memo        VARCHAR(255),
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_membership_user (user_id),
+    CONSTRAINT fk_membership_user    FOREIGN KEY (user_id)    REFERENCES users   (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_membership_product FOREIGN KEY (product_id) REFERENCES product (id)      ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- class_session (그룹/PT 수업)
+-- trainer_id → users.user_id (TRAINER)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS class_session (
+    id           BIGINT       NOT NULL AUTO_INCREMENT,
+    title        VARCHAR(100) NOT NULL,
+    type         VARCHAR(10)  NOT NULL
+                     CHECK (type IN ('GROUP','PT','OT')),
+    category     VARCHAR(20)  NOT NULL
+                     CHECK (category IN ('헬스','필라테스','골프','기타')),
+    trainer_id   BIGINT UNSIGNED,
+    trainer_name VARCHAR(50),
+    class_date   DATE         NOT NULL,
+    start_time   TIME         NOT NULL,
+    end_time     TIME         NOT NULL,
+    capacity     INT          NOT NULL DEFAULT 1,
+    enrolled     INT          NOT NULL DEFAULT 0,
+    status       VARCHAR(20)  NOT NULL DEFAULT 'OPEN'
+                     CHECK (status IN ('OPEN','CANCELLED')),
+    created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_class_date    (class_date),
+    KEY idx_class_trainer (trainer_id),
+    KEY idx_class_status  (status),
+    CONSTRAINT fk_class_trainer FOREIGN KEY (trainer_id) REFERENCES users (user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- class_attendee (수업 신청자)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS class_attendee (
+    id               BIGINT   NOT NULL AUTO_INCREMENT,
+    class_session_id BIGINT   NOT NULL,
+    user_id          BIGINT UNSIGNED NOT NULL,
+    registered_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    attended         TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_class_attendee (class_session_id, user_id),
+    KEY idx_attendee_user (user_id),
+    CONSTRAINT fk_attendee_class FOREIGN KEY (class_session_id) REFERENCES class_session (id)     ON DELETE CASCADE,
+    CONSTRAINT fk_attendee_user  FOREIGN KEY (user_id)          REFERENCES users         (user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- attendance (출석 체크)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS attendance (
+    id             BIGINT   NOT NULL AUTO_INCREMENT,
+    user_id        BIGINT UNSIGNED NOT NULL,
+    type           VARCHAR(20)  NOT NULL
+                       CHECK (type IN ('MEMBERSHIP','GROUP','PT')),
+    attend_date    DATE     NOT NULL,
+    check_in_time  TIME     NOT NULL,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_attendance_user (user_id),
+    KEY idx_attendance_date (attend_date),
+    CONSTRAINT fk_attendance_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- consult (상담)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS consult (
+    id            BIGINT   NOT NULL AUTO_INCREMENT,
+    type          VARCHAR(20)  NOT NULL
+                      CHECK (type IN ('NEW','EXISTING')),
+    name          VARCHAR(50)  NOT NULL,
+    phone         VARCHAR(20),
+    gender        VARCHAR(10)
+                      CHECK (gender IN ('남자','여자')),  -- 기존 DB 규칙 따름
+    user_id       BIGINT UNSIGNED,                       -- EXISTING 상담인 경우 연결
+    interest      VARCHAR(100),
+    content       TEXT,
+    result        VARCHAR(20)  NOT NULL DEFAULT 'PENDING'
+                      CHECK (result IN ('REGISTERED','PENDING','NO_SHOW')),
+    consult_date  DATE     NOT NULL,
+    staff_id      BIGINT UNSIGNED,
+    staff_name    VARCHAR(50),
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_consult_date   (consult_date),
+    KEY idx_consult_result (result),
+    CONSTRAINT fk_consult_user  FOREIGN KEY (user_id)  REFERENCES users (user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_consult_staff FOREIGN KEY (staff_id) REFERENCES users (user_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- message (메시지 발송)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS message (
+    id               BIGINT   NOT NULL AUTO_INCREMENT,
+    title            VARCHAR(200) NOT NULL,
+    content          TEXT         NOT NULL,
+    target_type      VARCHAR(20)  NOT NULL
+                         CHECK (target_type IN ('ALL','MEMBER','INDIVIDUAL')),
+    status           VARCHAR(20)  NOT NULL DEFAULT 'SCHEDULED'
+                         CHECK (status IN ('SENT','SCHEDULED','FAILED')),
+    sent_at          DATETIME,
+    recipient_count  INT          NOT NULL DEFAULT 0,
+    sender_id        BIGINT,
+    sender_name      VARCHAR(50),
+    created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_message_status  (status),
+    KEY idx_message_sent_at (sent_at),
+    CONSTRAINT fk_message_sender FOREIGN KEY (sender_id) REFERENCES admin_user (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- message_recipient (개별 수신자)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS message_recipient (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    message_id  BIGINT          NOT NULL,
+    user_id     BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_msg_recipient (message_id, user_id),
+    CONSTRAINT fk_msg_recipient_message FOREIGN KEY (message_id) REFERENCES message (id)     ON DELETE CASCADE,
+    CONSTRAINT fk_msg_recipient_user    FOREIGN KEY (user_id)    REFERENCES users   (user_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- sale (매출 내역)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sale (
+    id              BIGINT          NOT NULL AUTO_INCREMENT,
+    user_id         BIGINT UNSIGNED,
+    membership_id   BIGINT,
+    product_id      BIGINT,
+    product_type    VARCHAR(20)     NOT NULL
+                        CHECK (product_type IN ('MEMBERSHIP','GROUP','PT','LOCKER','ITEM')),
+    amount          INT             NOT NULL,
+    payment_method  VARCHAR(20)     NOT NULL DEFAULT 'CARD'
+                        CHECK (payment_method IN ('CARD','CASH','TRANSFER')),
+    sale_date       DATE            NOT NULL,
+    memo            VARCHAR(255),
+    created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_sale_date (sale_date),
+    KEY idx_sale_user (user_id),
+    CONSTRAINT fk_sale_user       FOREIGN KEY (user_id)       REFERENCES users      (user_id) ON DELETE SET NULL,
+    CONSTRAINT fk_sale_membership FOREIGN KEY (membership_id) REFERENCES membership (id)      ON DELETE SET NULL,
+    CONSTRAINT fk_sale_product    FOREIGN KEY (product_id)    REFERENCES product    (id)      ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+---
+
+## 도메인 컬럼 매핑 요약
+
+어드민 도메인 클래스의 필드와 실제 DB 컬럼 매핑.
+
+| 어드민 도메인 필드 | DB 테이블.컬럼 | 비고 |
+|-------------------|--------------|------|
+| `member.id` | `users.user_id` | |
+| `member.name` | `user_profiles.name` | |
+| `member.phone` | `user_profiles.contact` | |
+| `member.gender` | `user_profiles.gender` | `'남자'`/`'여자'` |
+| `member.birthDate` | `user_profiles.birth_date` | |
+| `member.status` | `users.is_active` | `1=ACTIVE`, `0=SUSPENDED` |
+| `member.joinDate` | `users.created_at` | |
+| `staff.id` | `users.user_id` | role='TRAINER' |
+| `staff.name` | `user_profiles.name` | |
+| `staff.phone` | `user_profiles.contact` | |
+| `consult.user_id` | `users.user_id` | sql.md의 `member_id` → `user_id` 로 변경 |
+| `attendance.user_id` | `users.user_id` | sql.md의 `member_id` → `user_id` 로 변경 |
+| `membership.user_id` | `users.user_id` | sql.md의 `member_id` → `user_id` 로 변경 |
+
+---
+
 ## 실행 순서
 
 외래키 의존성 순서대로 실행:
