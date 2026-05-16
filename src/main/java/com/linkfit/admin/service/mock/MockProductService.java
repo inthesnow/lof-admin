@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-@Service
+// @Service (replaced by MyBatis implementation)
 public class MockProductService implements ProductService {
 
     private final Map<Long, Product> store = new LinkedHashMap<>();

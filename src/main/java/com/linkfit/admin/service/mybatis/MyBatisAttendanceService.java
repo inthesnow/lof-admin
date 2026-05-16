@@ -1,0 +1,58 @@
+package com.linkfit.admin.service.mybatis;
+
+import com.linkfit.admin.domain.Attendance;
+import com.linkfit.admin.domain.MemberFreeze;
+import com.linkfit.admin.mapper.AttendanceMapper;
+import com.linkfit.admin.service.AttendanceService;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Service
+public class MyBatisAttendanceService implements AttendanceService {
+
+    private final AttendanceMapper attendanceMapper;
+
+    public MyBatisAttendanceService(AttendanceMapper attendanceMapper) {
+        this.attendanceMapper = attendanceMapper;
+    }
+
+    @Override
+    public List<Attendance> findAll(String date, String period) {
+        String d = (date == null || date.isBlank()) ? LocalDate.now().toString() : date;
+        return attendanceMapper.findAll(d, period);
+    }
+
+    @Override
+    public Optional<Attendance> findById(Long id) {
+        return attendanceMapper.findById(id);
+    }
+
+    @Override
+    public Attendance checkIn(Attendance attendance) {
+        if (attendance.getAttendDate() == null) attendance.setAttendDate(LocalDate.now());
+        attendanceMapper.checkIn(attendance);
+        return attendance;
+    }
+
+    @Override
+    public void cancel(Long id) {
+        attendanceMapper.cancel(id);
+    }
+
+    @Override
+    public List<Attendance> findFrozen(String date) {
+        String d = (date == null || date.isBlank()) ? LocalDate.now().toString() : date;
+        List<MemberFreeze> freezes = attendanceMapper.findFrozen(d);
+        return freezes.stream().map(f -> {
+            Attendance a = new Attendance();
+            a.setMemberId(f.getMemberId());
+            a.setMemberName(f.getMemberName());
+            a.setType("FREEZE");
+            a.setAttendDate(f.getFreezeStart());
+            return a;
+        }).toList();
+    }
+}

@@ -64,4 +64,48 @@
         UPDATE member SET status=#{status} WHERE id=#{id}
     </update>
 
+    <insert id="insertFreeze">
+        INSERT INTO member_freeze (member_id, freeze_start, freeze_end, reason)
+        VALUES (#{memberId}, #{freezeStart}, #{freezeEnd}, #{reason})
+    </insert>
+
+    <resultMap id="freezeResultMap" type="MemberFreeze">
+        <id     property="id"          column="id"/>
+        <result property="memberId"    column="member_id"/>
+        <result property="freezeStart" column="freeze_start"/>
+        <result property="freezeEnd"   column="freeze_end"/>
+        <result property="reason"      column="reason"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <select id="findFreezeByMemberId" resultMap="freezeResultMap">
+        SELECT * FROM member_freeze WHERE member_id=#{memberId} ORDER BY freeze_start DESC
+    </select>
+
+    <resultMap id="membershipResultMap" type="Membership">
+        <id     property="id"          column="id"/>
+        <result property="memberId"    column="member_id"/>
+        <result property="productId"   column="product_id"/>
+        <result property="productName" column="product_name"/>
+        <result property="type"        column="type"/>
+        <result property="startDate"   column="start_date"/>
+        <result property="endDate"     column="end_date"/>
+        <result property="price"       column="price"/>
+        <result property="memo"        column="memo"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <select id="findMembershipsByMemberId" resultMap="membershipResultMap">
+        SELECT ms.*, p.name AS product_name
+        FROM membership ms
+        LEFT JOIN product p ON ms.product_id = p.id
+        WHERE ms.member_id=#{memberId}
+        ORDER BY ms.start_date DESC
+    </select>
+
+    <insert id="insertMembership" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO membership (member_id, product_id, type, start_date, end_date, price, memo)
+        VALUES (#{memberId}, #{productId}, #{type}, #{startDate}, #{endDate}, #{price}, #{memo})
+    </insert>
+
 </mapper>

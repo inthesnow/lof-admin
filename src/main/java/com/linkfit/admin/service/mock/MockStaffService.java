@@ -9,7 +9,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-@Service
+// @Service (replaced by MyBatis implementation)
 public class MockStaffService implements StaffService {
 
     private final Map<Long, Staff> store = new LinkedHashMap<>();

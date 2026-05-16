@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.ConsultMapper">
+
+    <resultMap id="consultResultMap" type="Consult">
+        <id     property="id"          column="id"/>
+        <result property="type"        column="type"/>
+        <result property="name"        column="name"/>
+        <result property="phone"       column="phone"/>
+        <result property="gender"      column="gender"/>
+        <result property="memberId"    column="member_id"/>
+        <result property="interest"    column="interest"/>
+        <result property="content"     column="content"/>
+        <result property="result"      column="result"/>
+        <result property="consultDate" column="consult_date"/>
+        <result property="staffName"   column="staff_name"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="consultResultMap">
+        SELECT * FROM consult
+        <where>
+            <if test="type != null and type != ''">AND type=#{type}</if>
+        </where>
+        ORDER BY consult_date DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM consult
+        <where>
+            <if test="type != null and type != ''">AND type=#{type}</if>
+        </where>
+    </select>
+
+    <select id="findById" resultMap="consultResultMap">
+        SELECT * FROM consult WHERE id=#{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO consult
+            (type, name, phone, gender, member_id, interest, content, result, consult_date, staff_id, staff_name)
+        VALUES
+            (#{type}, #{name}, #{phone}, #{gender}, #{memberId}, #{interest}, #{content}, #{result}, #{consultDate}, #{staffId}, #{staffName})
+    </insert>
+
+    <update id="update">
+        UPDATE consult
+        SET type=#{type}, name=#{name}, phone=#{phone}, gender=#{gender},
+            interest=#{interest}, content=#{content}, result=#{result},
+            consult_date=#{consultDate}, staff_name=#{staffName}
+        WHERE id=#{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM consult WHERE id=#{id}
+    </delete>
+
+    <select id="countStats" resultType="map">
+        SELECT
+            SUM(CASE WHEN type='NEW'      THEN 1 ELSE 0 END) AS newConsult,
+            SUM(CASE WHEN type='EXISTING' THEN 1 ELSE 0 END) AS existingConsult
+        FROM consult
+        <where>
+            <if test="date != null and date != ''">
+                <choose>
+                    <when test="period == 'weekly'">
+                        AND consult_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                             AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+                    </when>
+                    <when test="period == 'monthly'">
+                        AND DATE_FORMAT(consult_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+                    </when>
+                    <otherwise>AND consult_date=#{date}</otherwise>
+                </choose>
+            </if>
+        </where>
+    </select>
+
+</mapper>

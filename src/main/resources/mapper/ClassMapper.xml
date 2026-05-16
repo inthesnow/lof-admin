@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.ClassMapper">
+
+    <resultMap id="classResultMap" type="ClassSession">
+        <id     property="id"          column="id"/>
+        <result property="title"       column="title"/>
+        <result property="type"        column="type"/>
+        <result property="category"    column="category"/>
+        <result property="trainerId"   column="trainer_id"/>
+        <result property="trainerName" column="trainer_name"/>
+        <result property="classDate"   column="class_date"/>
+        <result property="startTime"   column="start_time"/>
+        <result property="endTime"     column="end_time"/>
+        <result property="capacity"    column="capacity"/>
+        <result property="enrolled"    column="enrolled"/>
+        <result property="status"      column="status"/>
+    </resultMap>
+
+    <resultMap id="attendeeResultMap" type="ClassAttendee">
+        <id     property="id"             column="id"/>
+        <result property="classSessionId" column="class_session_id"/>
+        <result property="memberId"       column="member_id"/>
+        <result property="memberName"     column="member_name"/>
+        <result property="phone"          column="phone"/>
+        <result property="gender"         column="gender"/>
+        <result property="registeredAt"   column="registered_at"/>
+        <result property="attended"       column="attended"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="classResultMap">
+        SELECT * FROM class_session
+        <where>
+            <if test="type != null and type != ''">AND type=#{type}</if>
+            <if test="date != null and date != ''">AND class_date=#{date}</if>
+        </where>
+        ORDER BY class_date DESC, start_time ASC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM class_session
+        <where>
+            <if test="type != null and type != ''">AND type=#{type}</if>
+            <if test="date != null and date != ''">AND class_date=#{date}</if>
+        </where>
+    </select>
+
+    <select id="findById" resultMap="classResultMap">
+        SELECT * FROM class_session WHERE id=#{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO class_session
+            (title, type, category, trainer_id, trainer_name, class_date, start_time, end_time, capacity, enrolled, status)
+        VALUES
+            (#{title}, #{type}, #{category}, #{trainerId}, #{trainerName}, #{classDate}, #{startTime}, #{endTime}, #{capacity}, 0, 'OPEN')
+    </insert>
+
+    <update id="update">
+        UPDATE class_session
+        SET title=#{title}, type=#{type}, category=#{category},
+            trainer_id=#{trainerId}, trainer_name=#{trainerName},
+            class_date=#{classDate}, start_time=#{startTime}, end_time=#{endTime}, capacity=#{capacity}
+        WHERE id=#{id}
+    </update>
+
+    <update id="cancel">
+        UPDATE class_session SET status='CANCELLED' WHERE id=#{id}
+    </update>
+
+    <insert id="enroll">
+        INSERT INTO class_attendee (class_session_id, member_id) VALUES (#{classId}, #{memberId})
+    </insert>
+
+    <update id="incrementEnrolled">
+        UPDATE class_session SET enrolled=enrolled+1 WHERE id=#{id}
+    </update>
+
+    <delete id="cancelEnrollment">
+        DELETE FROM class_attendee WHERE class_session_id=#{classId} AND member_id=#{memberId}
+    </delete>
+
+    <update id="decrementEnrolled">
+        UPDATE class_session SET enrolled=GREATEST(enrolled-1, 0) WHERE id=#{id}
+    </update>
+
+    <select id="findAttendees" resultMap="attendeeResultMap">
+        SELECT ca.id, ca.class_session_id, ca.member_id, m.name AS member_name,
+               m.phone, m.gender, ca.registered_at, ca.attended
+        FROM class_attendee ca
+        JOIN member m ON ca.member_id=m.id
+        WHERE ca.class_session_id=#{classId}
+        ORDER BY ca.registered_at ASC
+    </select>
+
+</mapper>

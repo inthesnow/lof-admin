@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.ProductMapper">
+
+    <resultMap id="productResultMap" type="Product">
+        <id     property="id"           column="id"/>
+        <result property="name"         column="name"/>
+        <result property="type"         column="type"/>
+        <result property="price"        column="price"/>
+        <result property="durationDays" column="duration_days"/>
+        <result property="description"  column="description"/>
+        <result property="active"       column="active"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="productResultMap">
+        SELECT * FROM product
+        <where>
+            <if test="type != null and type != ''">AND type=#{type}</if>
+        </where>
+        ORDER BY type ASC, name ASC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM product
+        <where>
+            <if test="type != null and type != ''">AND type=#{type}</if>
+        </where>
+    </select>
+
+    <select id="findById" resultMap="productResultMap">
+        SELECT * FROM product WHERE id=#{id}
+    </select>
+
+    <select id="findAllActive" resultMap="productResultMap">
+        SELECT * FROM product WHERE active=1 ORDER BY type ASC, name ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO product (name, type, price, duration_days, description, active)
+        VALUES (#{name}, #{type}, #{price}, #{durationDays}, #{description}, #{active})
+    </insert>
+
+    <update id="update">
+        UPDATE product
+        SET name=#{name}, type=#{type}, price=#{price},
+            duration_days=#{durationDays}, description=#{description}, active=#{active}
+        WHERE id=#{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM product WHERE id=#{id}
+    </delete>
+
+</mapper>

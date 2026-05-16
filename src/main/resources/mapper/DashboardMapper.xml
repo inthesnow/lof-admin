@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.DashboardMapper">
+
+    <sql id="memberPeriodFilter">
+        <choose>
+            <when test="period == 'weekly'">
+                AND join_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                  AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+            </when>
+            <when test="period == 'monthly'">
+                AND DATE_FORMAT(join_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+            </when>
+            <otherwise>AND join_date=#{date}</otherwise>
+        </choose>
+    </sql>
+
+    <select id="memberStats" resultType="map">
+        SELECT
+            SUM(CASE WHEN status='ACTIVE'                        THEN 1 ELSE 0 END) AS active,
+            SUM(CASE WHEN status='EXPIRED'                       THEN 1 ELSE 0 END) AS expired,
+            SUM(CASE WHEN status='SUSPENDED'                     THEN 1 ELSE 0 END) AS suspended,
+            SUM(CASE WHEN status='ACTIVE'   AND gender='MALE'    THEN 1 ELSE 0 END) AS maleActive,
+            SUM(CASE WHEN status='ACTIVE'   AND gender='FEMALE'  THEN 1 ELSE 0 END) AS femaleActive,
+            SUM(CASE WHEN status='EXPIRED'  AND gender='MALE'    THEN 1 ELSE 0 END) AS maleExpired,
+            SUM(CASE WHEN status='EXPIRED'  AND gender='FEMALE'  THEN 1 ELSE 0 END) AS femaleExpired
+        FROM member
+    </select>
+
+    <select id="memberJoinStats" resultType="map">
+        SELECT COUNT(*) AS newJoin
+        FROM member
+        <where>
+            <if test="date != null and date != ''">
+                <include refid="memberPeriodFilter"/>
+            </if>
+        </where>
+    </select>
+
+    <select id="classStats" resultType="map">
+        SELECT category, COUNT(*) AS cnt, SUM(enrolled) AS enrolled
+        FROM class_session
+        <where>
+            AND status='OPEN'
+            <if test="date != null and date != ''">
+                <choose>
+                    <when test="period == 'weekly'">
+                        AND class_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                          AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+                    </when>
+                    <when test="period == 'monthly'">
+                        AND DATE_FORMAT(class_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+                    </when>
+                    <otherwise>AND class_date=#{date}</otherwise>
+                </choose>
+            </if>
+        </where>
+        GROUP BY category
+    </select>
+
+    <select id="revenueStats" resultType="map">
+        SELECT
+            COALESCE(SUM(CASE WHEN product_type='MEMBERSHIP' THEN amount ELSE 0 END), 0) AS membership,
+            COALESCE(SUM(CASE WHEN product_type='GROUP'      THEN amount ELSE 0 END), 0) AS groupClass,
+            COALESCE(SUM(CASE WHEN product_type='PT'         THEN amount ELSE 0 END), 0) AS pt,
+            COALESCE(SUM(CASE WHEN product_type='LOCKER'     THEN amount ELSE 0 END), 0) AS locker,
+            COALESCE(SUM(CASE WHEN product_type='ITEM'       THEN amount ELSE 0 END), 0) AS items,
+            COALESCE(SUM(amount), 0) AS total
+        FROM sale s
+        <where>
+            <if test="date != null and date != ''">
+                <choose>
+                    <when test="period == 'weekly'">
+                        AND s.sale_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                            AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+                    </when>
+                    <when test="period == 'monthly'">
+                        AND DATE_FORMAT(s.sale_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+                    </when>
+                    <otherwise>AND s.sale_date=#{date}</otherwise>
+                </choose>
+            </if>
+        </where>
+    </select>
+
+    <select id="revenueDetail" resultType="map">
+        SELECT s.id, s.amount, s.payment_method AS paymentMethod, s.sale_date AS saleDate, s.memo,
+               m.name AS memberName, p.name AS productName
+        FROM sale s
+        LEFT JOIN member m ON s.member_id=m.id
+        LEFT JOIN product p ON s.product_id=p.id
+        WHERE s.product_type=#{category}
+        <if test="date != null and date != ''">
+            <choose>
+                <when test="period == 'weekly'">
+                    AND s.sale_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                        AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+                </when>
+                <when test="period == 'monthly'">
+                    AND DATE_FORMAT(s.sale_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+                </when>
+                <otherwise>AND s.sale_date=#{date}</otherwise>
+            </choose>
+        </if>
+        ORDER BY s.sale_date DESC, s.id DESC
+    </select>
+
+    <select id="attendanceStats" resultType="map">
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS male,
+            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS female
+        FROM attendance a
+        JOIN member m ON a.member_id=m.id
+        <where>
+            <if test="date != null and date != ''">
+                <choose>
+                    <when test="period == 'weekly'">
+                        AND a.attend_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                              AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+                    </when>
+                    <when test="period == 'monthly'">
+                        AND DATE_FORMAT(a.attend_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+                    </when>
+                    <otherwise>AND a.attend_date=#{date}</otherwise>
+                </choose>
+            </if>
+            <if test="type != null and type != ''">AND a.type=#{type}</if>
+        </where>
+    </select>
+
+    <select id="frozenStats" resultType="map">
+        SELECT
+            COUNT(*) AS frozen,
+            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS frozenMale,
+            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS frozenFemale
+        FROM member_freeze f
+        JOIN member m ON f.member_id=m.id
+        WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
+    </select>
+
+</mapper>

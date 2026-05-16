@@ -9,7 +9,7 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Service
+// @Service (replaced by MyBatis implementation)
 public class MockAttendanceService implements AttendanceService {
 
     private final Map<Long, Attendance> store = new LinkedHashMap<>();

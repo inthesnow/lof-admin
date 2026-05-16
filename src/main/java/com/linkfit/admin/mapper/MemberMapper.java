@@ -1,6 +1,8 @@
 package com.linkfit.admin.mapper;
 
 import com.linkfit.admin.domain.Member;
+import com.linkfit.admin.domain.MemberFreeze;
+import com.linkfit.admin.domain.Membership;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -17,4 +19,9 @@ public interface MemberMapper {
     void update(Member member);
     void delete(@Param("id") Long id);
     void updateStatus(@Param("id") Long id, @Param("status") String status);
+    void insertFreeze(@Param("memberId") Long memberId, @Param("freezeStart") String freezeStart,
+                      @Param("freezeEnd") String freezeEnd, @Param("reason") String reason);
+    List<MemberFreeze> findFreezeByMemberId(@Param("memberId") Long memberId);
+    List<Membership> findMembershipsByMemberId(@Param("memberId") Long memberId);
+    void insertMembership(Membership membership);
 }

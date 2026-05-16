@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.AttendanceMapper">
+
+    <resultMap id="attendanceResultMap" type="Attendance">
+        <id     property="id"           column="id"/>
+        <result property="memberId"     column="member_id"/>
+        <result property="memberName"   column="member_name"/>
+        <result property="memberGender" column="gender"/>
+        <result property="type"         column="type"/>
+        <result property="attendDate"   column="attend_date"/>
+        <result property="checkInTime"  column="check_in_time"/>
+    </resultMap>
+
+    <resultMap id="freezeResultMap" type="MemberFreeze">
+        <id     property="id"          column="id"/>
+        <result property="memberId"    column="member_id"/>
+        <result property="memberName"  column="member_name"/>
+        <result property="freezeStart" column="freeze_start"/>
+        <result property="freezeEnd"   column="freeze_end"/>
+        <result property="reason"      column="reason"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <sql id="periodFilter">
+        <choose>
+            <when test="period == 'weekly'">
+                AND attend_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                    AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+            </when>
+            <when test="period == 'monthly'">
+                AND DATE_FORMAT(attend_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+            </when>
+            <otherwise>
+                AND attend_date = #{date}
+            </otherwise>
+        </choose>
+    </sql>
+
+    <select id="findAll" resultMap="attendanceResultMap">
+        SELECT a.id, a.member_id, m.name AS member_name, m.gender, a.type, a.attend_date, a.check_in_time
+        FROM attendance a
+        JOIN member m ON a.member_id=m.id
+        <where>
+            <if test="date != null and date != ''">
+                <include refid="periodFilter"/>
+            </if>
+        </where>
+        ORDER BY a.attend_date DESC, a.check_in_time DESC
+    </select>
+
+    <select id="findById" resultMap="attendanceResultMap">
+        SELECT a.id, a.member_id, m.name AS member_name, m.gender, a.type, a.attend_date, a.check_in_time
+        FROM attendance a
+        JOIN member m ON a.member_id=m.id
+        WHERE a.id=#{id}
+    </select>
+
+    <insert id="checkIn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO attendance (member_id, type, attend_date, check_in_time)
+        VALUES (#{memberId}, #{type}, #{attendDate}, #{checkInTime})
+    </insert>
+
+    <delete id="cancel">
+        DELETE FROM attendance WHERE id=#{id}
+    </delete>
+
+    <select id="findFrozen" resultMap="freezeResultMap">
+        SELECT f.id, f.member_id, m.name AS member_name, f.freeze_start, f.freeze_end, f.reason, f.created_at
+        FROM member_freeze f
+        JOIN member m ON f.member_id=m.id
+        WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
+        ORDER BY m.name ASC
+    </select>
+
+    <select id="countStats" resultType="map">
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS male,
+            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS female
+        FROM attendance a
+        JOIN member m ON a.member_id=m.id
+        <where>
+            <if test="date != null and date != ''">
+                <choose>
+                    <when test="period == 'weekly'">
+                        AND a.attend_date BETWEEN DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY)
+                                              AND DATE_ADD(DATE_SUB(#{date}, INTERVAL WEEKDAY(#{date}) DAY), INTERVAL 6 DAY)
+                    </when>
+                    <when test="period == 'monthly'">
+                        AND DATE_FORMAT(a.attend_date, '%Y-%m') = DATE_FORMAT(#{date}, '%Y-%m')
+                    </when>
+                    <otherwise>AND a.attend_date=#{date}</otherwise>
+                </choose>
+            </if>
+            <if test="type != null and type != ''">AND a.type=#{type}</if>
+        </where>
+    </select>
+
+    <select id="countFrozen" resultType="map">
+        SELECT
+            COUNT(*) AS frozen,
+            SUM(CASE WHEN m.gender='MALE'   THEN 1 ELSE 0 END) AS frozenMale,
+            SUM(CASE WHEN m.gender='FEMALE' THEN 1 ELSE 0 END) AS frozenFemale
+        FROM member_freeze f
+        JOIN member m ON f.member_id=m.id
+        WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
+    </select>
+
+</mapper>
