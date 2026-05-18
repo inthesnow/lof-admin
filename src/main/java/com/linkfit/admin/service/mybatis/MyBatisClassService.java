@@ -3,12 +3,14 @@ package com.linkfit.admin.service.mybatis;
 import com.linkfit.admin.domain.ClassSession;
 import com.linkfit.admin.mapper.ClassMapper;
 import com.linkfit.admin.service.ClassService;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
+@Profile("dev")
 public class MyBatisClassService implements ClassService {
 
     private final ClassMapper classMapper;

@@ -4,6 +4,7 @@ import com.linkfit.admin.domain.Attendance;
 import com.linkfit.admin.domain.MemberFreeze;
 import com.linkfit.admin.mapper.AttendanceMapper;
 import com.linkfit.admin.service.AttendanceService;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@Profile("dev")
 public class MyBatisAttendanceService implements AttendanceService {
 
     private final AttendanceMapper attendanceMapper;
