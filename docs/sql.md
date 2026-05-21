@@ -27,13 +27,13 @@ MariaDB 기준 DDL. 문자셋: `utf8mb4`, 콜레이션: `utf8mb4_unicode_ci`.
 
 | 테이블 | 설명 | 어드민 매핑 |
 |--------|------|------------|
-| `users` | 앱 사용자 계정 (email, role: MEMBER\|TRAINER, is_active) | → `member` / `staff` 도메인 |
+| `users` | 앱 사용자 계정 (email, role: MEMBER\|TRAINER, is_active, **grade**) | → `member` / `staff` 도메인 |
 | `user_auth` | 소셜/이메일 인증 정보 | — |
-| `user_profiles` | 프로필 상세 (name, birth_date, gender, contact, member_type 등) | → `member` 상세 |
-| `user_daily_habits` | 일상 습관 정보 | — |
-| `user_exercise_info` | 운동 이력 정보 | — |
+| `user_profiles` | 프로필 상세 (name, birth_date, gender, contact, **member_type**: null\|OT\|PT) | → `member` 상세 |
+| `user_daily_habits` | 일상 습관 정보 (**daily_note** 추가) | — |
+| `user_exercise_info` | 운동 계획 (plan_frequency, **exercise_note** — 기존 복잡 필드 제거) | — |
 | `user_exercise_purposes` | 운동 목적 (다중) | — |
-| `user_medical_history` | 의료 이력 (다중) | — |
+| `user_medical_history` | 의료 이력 (조건 그룹화 + **adult_disease_detail**, **joint_detail**, **other_detail**) | — |
 | `user_visit_routes` | 방문 경로 (다중) | — |
 
 ### 트레이너 / 수업
@@ -82,6 +82,37 @@ DB: users WHERE role='TRAINER'
     + user_profiles { user_id, name, contact, ... }
 ```
 
+### 회원 등급 및 유형 권한 체계
+
+#### grade (등급) — `users.grade`
+
+| 값 | 명칭 | 결정 방식 |
+|----|------|---------|
+| `BASIC` | 기본 | 기본값 (미결제) |
+| `MEMBERSHIP` | 멤버십 | 구독권 결제 |
+| `PREMIUM` | 프리미엄 | 구독권 결제 |
+| `VIP` | VIP | 구독권 결제 |
+
+#### memberType (유형) — `user_profiles.member_type`
+
+| 값 | 명칭 | 실효 권한 | 부여 주체 |
+|----|------|---------|---------|
+| `null` | 일반 | grade 그대로 | — |
+| `OT` | OT 회원 | max(grade, MEMBERSHIP) | 관리자 전용 |
+| `PT` | PT 회원 | VIP (등급 무관) | 관리자 전용 |
+
+**실효 권한 계산 로직:**
+```
+effectiveGrade =
+  memberType == 'PT'  → VIP
+  memberType == 'OT'  → max(grade, MEMBERSHIP)
+  memberType == null  → grade
+```
+
+> grade는 구독권 결제로만 변경. memberType은 관리자 페이지에서만 부여/회수.
+
+---
+
 ### 도메인 컬럼 매핑 요약
 
 | 어드민 도메인 필드 | DB 테이블.컬럼 | 비고 |
@@ -92,7 +123,8 @@ DB: users WHERE role='TRAINER'
 | `member.phone` | `user_profiles.contact` | |
 | `member.gender` | `user_profiles.gender` | `'남자'`/`'여자'` |
 | `member.birthDate` | `user_profiles.birth_date` | |
-| `member.memberType` | `user_profiles.member_type` | |
+| `member.memberType` | `user_profiles.member_type` | `null`/`OT`/`PT` — 관리자 전용 |
+| `member.grade` | `users.grade` | `BASIC`/`MEMBERSHIP`/`PREMIUM`/`VIP` |
 | `member.status` | `users.is_active` | `1=ACTIVE`, `0=SUSPENDED` |
 | `member.joinDate` | `users.created_at` | DATE() 변환 |
 | `staff.id` | `users.user_id` | role='TRAINER' |
@@ -101,6 +133,57 @@ DB: users WHERE role='TRAINER'
 | `attendance.memberId` | `attendance.user_id` | |
 | `consult.memberId` | `consult.user_id` | |
 | `membership.userId` | `membership.user_id` | |
+
+---
+
+## 기존 테이블 스키마 변경 (ALTER)
+
+앱 프론트엔드 개편에 따라 기존 `linkfit` DB 테이블에 적용할 변경사항.
+**앱 백엔드와 협의 후 실행할 것.**
+
+```sql
+-- ─────────────────────────────────────────────────────────────
+-- users: grade 컬럼 추가 (등급 체계)
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE users
+    ADD COLUMN grade VARCHAR(20) NOT NULL DEFAULT 'BASIC'
+        CHECK (grade IN ('BASIC', 'MEMBERSHIP', 'PREMIUM', 'VIP'))
+    AFTER is_active;
+
+-- ─────────────────────────────────────────────────────────────
+-- user_daily_habits: daily_note 컬럼 추가
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE user_daily_habits
+    ADD COLUMN daily_note TEXT NULL;
+
+-- ─────────────────────────────────────────────────────────────
+-- user_medical_history: 질환 그룹화 + 상세 컬럼 추가
+-- conditions 가능 값 변경:
+--   구: 고혈압, 저혈압, 당뇨, 심근경색, 천식 및 폐질환, 허리, 어깨, 무릎, 기타 병력 및 수술이력, 없음
+--   신: 성인병, 천식 및 폐질환, 관절, 기타 병력 및 수술이력, 없음
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE user_medical_history
+    ADD COLUMN adult_disease_detail VARCHAR(255) NULL,
+    ADD COLUMN joint_detail VARCHAR(255) NULL,
+    ADD COLUMN other_detail VARCHAR(255) NULL;
+-- 기존 other_detail 컬럼이 있으면 생략. conditions 값 마이그레이션은 별도 스크립트 필요.
+
+-- ─────────────────────────────────────────────────────────────
+-- user_exercise_info: 구조 단순화
+-- 제거: exercise_type, exercise_period, pt_experience, pt_satisfaction, pt_dissatisfaction_reason
+-- 추가: exercise_note (트레이너 전달 메모)
+-- plan_frequency 가능 값 변경: 주2~3회 | 주4~5회 | 매일 | 미정
+-- ─────────────────────────────────────────────────────────────
+ALTER TABLE user_exercise_info
+    ADD COLUMN exercise_note TEXT NULL;
+-- 제거 컬럼은 앱 백엔드 배포 후 DROP COLUMN 실행 (안전 처리)
+-- ALTER TABLE user_exercise_info
+--     DROP COLUMN exercise_type,
+--     DROP COLUMN exercise_period,
+--     DROP COLUMN pt_experience,
+--     DROP COLUMN pt_satisfaction,
+--     DROP COLUMN pt_dissatisfaction_reason;
+```
 
 ---
 

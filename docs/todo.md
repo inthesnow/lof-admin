@@ -1,196 +1,344 @@
 # LINK_Fit Admin — TODO
 
-> `docs/srs-dev.md` 기반 작업 목록  
-> 백엔드 API: `localhost:17577/api` | 인증: `ADMIN` role JWT
+> 프로젝트 현황 분석 기반 작업 목록 (2025)
 
 ---
 
-## ✅ 완료 — Spring Boot 서버 Mock 모드 전환 (DB 없이 실행 가능)
+## 🔴 Critical (보안 / 필수)
 
-> 빌드: `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew build -x test`  
-> 실행: `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew bootRun`  
-> 접속: `http://localhost:17579` | 계정: `admin` / `admin123`
-
-- [x] `application.properties` — `spring.profiles.active=dev` 주석 처리
-- [x] `MyBatisConfig` — `@Profile("dev")` 추가 (DB 없을 때 MyBatis 설정 스킵)
-- [x] `AdminUserDetailsService` — `@Profile("dev")` 추가
-- [x] `SecurityConfig` — `AdminUserDetailsService` optional 처리, InMemory 폴백 추가 (`admin`/`admin123`)
-- [x] `MyBatis*Service` 8개 — `@Profile("dev")` 추가 (DB 없을 때 비활성)
-- [x] `Mock*Service` 7개 — `@Service` 복구 (DB 없이 더미 데이터로 동작)
-
-> DB 연동 시: `application.properties`에서 `spring.profiles.active=dev` 주석 해제
+- [x] **인증 로직 교체** — `SecurityConfig` + `InMemoryUserDetailsManager`로 교체 (BCrypt 해싱 적용)
+- [x] **Spring Security 도입** — `spring-boot-starter-security` 추가, `SecurityConfig` 작성 (세션/CSRF 보호)
+- [x] **인가(Authorization) 처리** — `SecurityFilterChain`으로 `/login`, 정적 리소스 외 모든 경로 인증 필요
+- [x] **비밀번호 암호화** — `BCryptPasswordEncoder` 빈 등록 및 InMemory 계정에 적용
 
 ---
 
-## Sprint 1 — 프로젝트 셋업 + 인증 + 라우트 보호
+## 🟠 High (기능 구현)
 
-### A1. 관리자 인증
+### 회원 관리
+- [x] 회원 목록 페이지 (`/members`) 구현
+- [x] 회원 상세 조회 / 등록 / 수정 / 삭제 기능 (모달 UI + REST API)
+- [x] 회원권 상태 관리 (유효 / 만기 / 정지) — 목록 필터 + PATCH `/api/members/{id}/status`
+- [x] 회원 검색 및 필터링 — 이름/전화번호 검색, 상태 필터
 
-- [ ] `POST /auth/login` 호출 후 `role == 'ADMIN'` 검증 → 대시보드 진입
-- [ ] `role != 'ADMIN'` 이면 접근 거부 처리
-- [ ] JWT `localStorage` 저장 (또는 httpOnly 쿠키 — 백엔드 협의)
-- [ ] `ApiClient` — axios 기반, JWT 헤더 자동 주입
-- [ ] 라우트 보호 (인증되지 않으면 `/admin/login`으로 redirect)
+### 직원 관리
+- [x] 직원 목록 페이지 (`/staff`) 구현
+- [x] 직원 등록 / 수정 / 삭제 (모달 UI + REST API)
+- [x] 역할(Role) 구분 (슈퍼 관리자 / 일반 관리자 / 트레이너)
 
-```
-/admin/login               로그인 페이지
-/admin/dashboard           전체 현황 요약
-/admin/members             회원 목록
-/admin/members/:id         회원 상세·등급 설정
-/admin/trainers            트레이너 목록
-/admin/trainers/:id        트레이너 상세·토큰 지급
-/admin/exercises           운동 종목 관리
-/admin/gym                 헬스장 설정
-/admin/feedback            피드백 요청 현황
-/admin/payments            결제 내역 (Phase 2)
-```
+### 수업 관리
+- [x] 그룹 수업 / 개인 레슨 / OT 일정 관리 — `/classes` 페이지, 유형 탭 필터
+- [ ] 수업 신청자 목록 조회 — API 엔드포인트만 존재 (`GET /api/classes/{id}/attendees`), UI 미구현
+- [x] 수업 등록 / 취소 (모달 UI + API) — 수정 UI는 미구현
 
-### A8. 공통 컴포넌트
+### 출석 관리
+- [x] 출석 체크 기능 (`/attendance`) — 페이지 + 체크인 모달 + POST API
+- [x] 일별 출석 현황 조회 (날짜 필터 + 유형별 집계)
+- [ ] 주별 / 월별 출석 현황 조회 — API 파라미터만 준비됨, UI 기간 탭 미구현
+- [ ] 유증(정지) 처리 기능 — `POST /api/members/{id}/freeze` API만, 전용 UI 미구현
 
-- [ ] `AdminLayout` — 사이드바 + 헤더 + 콘텐츠 영역
-- [ ] `DataTable` — 정렬·검색·페이징 공통 테이블
-- [ ] `TierBadge` — FREE / BASIC / PREMIUM / VIP 색상 뱃지
-- [ ] `ConfirmModal` — 삭제·등급변경 등 2차 확인 모달
+### 상담 관리
+- [x] 신규 상담 / 기존 회원 상담 등록 및 조회 — `/consults` 페이지 + 모달 + API
+- [x] 상담 이력 관리 — 목록 조회, 유형 필터, 삭제
 
----
+### 매출 관리
+- [x] 등록/재등록, 그룹 수업, 개인 레슨, 락커, 공동 물품 매출 상세 조회 — `/revenue` 페이지
+- [x] 매출 펼치기(expand) 기능 구현 — 클릭 시 슬라이드 애니메이션 + API 상세 조회
+- [x] 기간별 매출 집계 (일간 / 주간 / 월간) — 탭 전환 + 날짜 네비게이션 (`<` `>`)
 
-## Sprint 1 — 전체 현황 대시보드
-
-### A2. 대시보드 (`/admin/dashboard`)
-
-```
-GET /admin/dashboard/summary
-Response: {
-  "totalMembers": 142,
-  "activeTrainers": 8,
-  "todayRecords": 37,
-  "pendingFeedbacks": 12,
-  "weeklyRecords": [5, 12, 8, 20, 15, 37, 10],
-  "tierDistribution": { "FREE": 80, "BASIC": 30, "PREMIUM": 25, "VIP": 7 }
-}
-```
-
-- [ ] 요약 카드 4종 (전체 회원 / 활성 트레이너 / 오늘 기록 수 / 미처리 피드백)
-- [ ] 주간 기록 수 차트 (최근 7일 bar/line)
-- [ ] 등급별 회원 비율 파이 차트 (FREE / BASIC / PREMIUM / VIP)
+### 상품 관리
+- [x] 회원권 상품 등록 / 수정 / 삭제 — `/products` 페이지, 모달 UI + REST API
+- [x] 수업 상품 관리 — 유형 필터(GROUP, PT)로 통합 관리
+- [x] 락커 / 공동 물품 관리 — 유형 필터(LOCKER, ITEM)로 통합 관리
 
 ---
 
-## Sprint 2 — 회원 관리
+## 🟡 Medium (대시보드 개선)
 
-### A3. 회원 목록 (`/admin/members`)
-
-```
-GET  /admin/members?keyword=&tier=&page=&size=
-PUT  /admin/members/{userId}/membership     Body: { "tier": "PREMIUM" }
-PUT  /admin/members/{userId}/pt-sessions    Body: { "delta": 5 }
-PUT  /admin/members/{userId}/trainer        Body: { "trainerId": 3 }
-```
-
-- [ ] 회원 목록 테이블 (이름 검색 / tier 필터 / 페이징)
-- [ ] tier 뱃지 클릭 → tier 변경 (`PUT /admin/members/{userId}/membership`)
-- [ ] PT 잔여 직접 입력·차감 (`PUT /admin/members/{userId}/pt-sessions`)
-- [ ] 담당 트레이너 드롭다운 변경 (`PUT /admin/members/{userId}/trainer`)
-
-### A3. 회원 상세 (`/admin/members/:id`)
-
-- [ ] 운동·식단 기록 캘린더 뷰 (트레이너 `MemberDetailPage`와 동일 데이터)
-- [ ] 등급 변경 인풋
-- [ ] PT 세션 직접 입력 인풋
+- [x] **날짜 네비게이션 동작 구현** — `<` `>` 버튼 클릭 시 날짜 변경 및 API 재호출
+- [x] **기간 탭 데이터 연동** — 일간 / 주간 / 월간 탭 전환 시 API 파라미터 변경 및 재호출
+- [x] **서브 탭 데이터 연동** — 회원 통계(전체/회원권/그룹수업/개인레슨), 수업 통계, 출석 통계 서브 탭 동작
+- [x] **실시간 데이터 연동** — 대시보드 전체 수치를 AJAX API 호출로 교체 (Mock 데이터 반환)
+- [x] **메시지 기능** — `/messages` 페이지 구현 (목록 조회, 발송 모달, 삭제)
 
 ---
 
-## Sprint 2 — 운동 종목 관리
+## 🔵 New (프론트엔드 개편 대응 — 어드민 패널)
 
-### A4. 운동 종목 (`/admin/exercises`)
+> 앱 프론트엔드 개편 스펙 기반. 앱 백엔드 변경과 병행 필요.
 
-```
-GET    /exercises                              기존 재사용
-POST   /admin/exercises                        Body: { name, category, imageUrl }
-PUT    /admin/exercises/{exerciseId}
-DELETE /admin/exercises/{exerciseId}
-POST   /admin/exercises/image                  multipart → { "imageUrl": "..." }
-```
+### DB 스키마 변경 (앱 백엔드와 협의 후 실행)
+- [ ] `users` 테이블에 `grade` 컬럼 추가 (`BASIC`|`MEMBERSHIP`|`PREMIUM`|`VIP`, default `BASIC`)
+- [ ] `user_daily_habits` 테이블에 `daily_note` 컬럼 추가
+- [ ] `user_medical_history` 테이블에 `adult_disease_detail`, `joint_detail`, `other_detail` 컬럼 추가
+- [ ] `user_exercise_info` 테이블에 `exercise_note` 컬럼 추가
 
-- [ ] 카테고리 필터 탭 (상단)
-- [ ] 종목 카드 리스트 (이름 / 카테고리 / 썸네일 / [수정] [삭제])
-- [ ] [+ 종목 추가] 버튼
-- [ ] 종목 추가·수정 모달 (종목명 / 카테고리 드롭다운 / 이미지 파일 업로드)
-- [ ] 이미지 업로드 → S3 or 서버 URL 저장 (백엔드 협의 필요 — 미결 #6)
+### 4-1. 회원 등급 관리
+- [ ] `Member` 도메인 클래스에 `grade` 필드 추가
+- [ ] `MemberMapper.xml` — `SELECT` 쿼리에 `u.grade` 컬럼 포함
+- [ ] 회원 목록 페이지 — `grade` 배지 컬럼 표시 (BASIC / MEMBERSHIP / PREMIUM / VIP)
+- [ ] 회원 목록 페이지 — `grade` 필터 드롭다운 추가
+- [ ] 회원 상세 모달 — grade 표시 및 수동 조정 UI (관리자 전용)
+- [ ] `PATCH /api/members/{id}/grade` 엔드포인트 구현
 
----
+### 4-2. OT/PT 유형 부여 (관리자 전용)
+- [ ] 회원 상세 페이지에 `memberType` 관리 UI 추가 (일반 / OT / PT 선택)
+- [ ] `PATCH /api/members/{id}/member-type` 엔드포인트 구현
+- [ ] `MemberMapper.xml` — `UPDATE user_profiles SET member_type` 쿼리 추가
 
-## Sprint 3 — 헬스장 설정
-
-### A5. 헬스장 설정 (`/admin/gym`)
-
-```
-GET /gym/setting       기존 재사용
-PUT /admin/gym/setting Body: { gymName, gymAddress, isOpen, todayClosed, todayOpen, todayClose }
-```
-
-- [ ] 헬스장 이름 / 주소 입력
-- [ ] 정상 운영 여부 toggle (`isOpen`)
-- [ ] 오늘 휴무 toggle (`todayClosed`)
-- [ ] 오늘 운영 시작·종료 시간 picker (`todayOpen`, `todayClose`)
+### 4-3. 회원 프로필 조회 화면 업데이트
+- [ ] 회원 상세 모달 — 섹션 순서 재정렬 (기본정보 → 방문경로 → 운동목적 → 운동계획 → 일상/식단 → 특이사항 → 기타)
+- [ ] 회원 상세 모달 — 제거 항목 삭제 (운동종목, 운동기간, PT여부, PT만족도, 불만족사유)
+- [ ] 회원 상세 모달 — 신규 필드 표시 (daily_note, exercise_note, adult_disease_detail, joint_detail)
+- [ ] 의료 이력 표시: 성인병/관절 그룹 + 각 상세 텍스트 표시
 
 ---
 
-## Sprint 3 — 트레이너·토큰 관리
+## 🟢 Low (개선 사항)
 
-### A6. 트레이너 목록 (`/admin/trainers`)
+### 백엔드
+- [x] **데이터베이스 연동 준비 — MyBatis + MariaDB**
+  - [x] `build.gradle` 의존성 추가 (`mybatis-spring-boot-starter:3.0.3`, `mariadb-java-client`)
+  - [x] `application-dev.properties` DataSource 및 MyBatis 설정 (DB 접속 정보 입력 필요)
+  - [x] `src/main/resources/mapper/` 디렉토리 및 XML Mapper 파일 구성 (MemberMapper.xml, StaffMapper.xml)
+  - [x] `MemberMapper`, `StaffMapper` 인터페이스 작성, Mock 서비스 구현체 완성
+  - [x] 나머지 도메인 Mapper 인터페이스 + XML 작성 (Class, Attendance, Consult, Product, Message, Sale, Dashboard, GymSetting)
+  - [x] DB 연동 완료 — Mock → MyBatis 서비스 교체 (전 도메인), Spring Boot 4.x MyBatisConfig 수동 설정
+- [x] **로그아웃 처리** — Spring Security logout 설정 (세션 무효화, JSESSIONID 쿠키 삭제)
+- [x] **예외 처리** — `GlobalExceptionHandler`(@ControllerAdvice) + 404/500 에러 페이지
+- [ ] **로깅** — 접근 로그, 오류 로그 설정 (`application-dev.properties`에 레벨만 설정, Logback 설정 미구현)
 
-```
-GET  /admin/trainers
-POST /admin/trainers/{trainerId}/tokens       Body: { "amount": 100 }
-GET  /trainer/tokens                          트레이너 앱 연동용
-POST /admin/trainers/{trainerId}/members      Body: { "userId": 42 }
-DELETE /admin/trainers/{trainerId}/members/{userId}
-```
+### 프론트엔드
+- [x] **반응형(Responsive) 지원** — 모바일 사이드바 오버레이 토글, 그리드 레이아웃 단일 컬럼 전환
+- [x] **설정 페이지** — 헬스장 정보, 실시간 오픈여부, 요일별 운영시간, 공지사항 설정 (`/settings`, `gym_setting` DB 연동)
+- [x] **로딩 상태 표시** — 대시보드 스켈레톤 UI 추가 (`dashboard.css`에 shimmer 애니메이션)
+- [x] **Favicon 및 메타 태그** 설정 — `favicon.svg` 생성, 모든 페이지에 적용
 
-- [ ] 트레이너 목록 테이블 (이름 / 이메일 / 토큰 잔액 / 담당 회원 수)
-- [ ] [토큰 지급] 버튼 → 수량 입력 모달 (`POST /admin/trainers/{trainerId}/tokens`)
-- [ ] 트레이너 상세에서 회원 검색 후 배정 (`POST /admin/trainers/{trainerId}/members`)
-- [ ] 담당 회원 해제 (`DELETE /admin/trainers/{trainerId}/members/{userId}`)
-- [ ] `GET /trainer/tokens` — 트레이너 앱에서 실제 잔액 조회 연동 확인
-
----
-
-## Sprint 4 — 피드백 요청 현황
-
-### A7. 피드백 요청 (`/admin/feedback`)
-
-```
-GET /admin/feedback-requests?status=PENDING&page=&size=
-Response: { "data": [{ requestId, memberName, trainerName, exerciseNames, requestedAt, status, respondedAt }] }
-```
-
-- [ ] 피드백 요청 목록 테이블 (회원명 / 담당 트레이너 / 요청 종목 / 요청일 / 상태 / 처리일)
-- [ ] 상태 필터 (미처리 PENDING / 처리완료 RESPONDED)
-- [ ] 페이징
+### 인프라 / 배포
+- [x] **환경 변수 분리** — `application-dev.properties` / `application-prod.properties` 분리, prod는 환경변수(`${DB_URL}` 등) 사용
+- [x] **포트 설정** — `17579` 포트 고정 (application.properties, README 반영 완료)
+- [ ] **테스트 코드 작성** — `src/test` 디렉토리 존재하나 테스트 없음
 
 ---
 
-## 📌 미결 사항 (백엔드 협의 필요)
+## 📡 프론트엔드 API 명세
 
-| # | 항목 | 대상 |
+> Thymeleaf SSR 기반이므로 페이지 렌더링은 Controller → Model → Template 방식.
+> 날짜/탭 전환 등 동적 갱신이 필요한 항목은 아래 REST 엔드포인트를 AJAX로 호출.
+> `period` 공통 파라미터: `daily` / `weekly` / `monthly`
+
+---
+
+### 🖥️ 화면별 필요 API
+
+#### 1. 대시보드 (`/dashboard`)
+
+| 목적 | Method | 엔드포인트 |
 |---|---|---|
-| 1 | 결제 플로우: 1,900원 단품 PG 연동 방식 | link-fit-admin + 백엔드 |
-| 2 | Membership tier 변경 후 앱 캐시 만료 정책 | linkfit + 백엔드 |
-| 3 | 트레이너 FCM 알림: 피드백 요청 수신 토픽 설계 | linkfit + 백엔드 |
-| 4 | 3D 근육 맵 — MVP 제외, Phase 2 별도 검토 | linkfit |
-| 5 | 칼로리 계산 — MET 단순 추정, Phase 2에서 종목별 정밀 계산 | linkfit + 백엔드 |
-| 6 | 이미지 스토리지 — S3 버킷 or 서버 로컬 경로 결정 | link-fit-admin + 백엔드 |
-| 7 | ADMIN role 계정 생성 방식 — DB 직접 삽입 or 별도 API | 백엔드 |
-| 8 | 관리자 웹 배포 환경 — Nginx / Vercel / S3+CloudFront | link-fit-admin + 인프라 |
+| 회원 통계 (전체 / 회원권 / 그룹수업 / 개인레슨) | GET | `/api/dashboard/members?date=&period=&type=` |
+| 상담 통계 | GET | `/api/dashboard/consults?date=&period=` |
+| 수업 통계 (그룹 / 개인레슨 / OT) | GET | `/api/dashboard/classes?date=&period=&type=` |
+| 매출 통계 | GET | `/api/dashboard/revenue?date=&period=` |
+| 매출 항목 상세 (펼치기) | GET | `/api/dashboard/revenue/{category}?date=&period=` |
+| 출석 통계 (전체 / 회원권 / 그룹수업) | GET | `/api/dashboard/attendance?date=&period=&type=` |
 
 ---
 
-## 📋 참고
+#### 2. 회원 관리 (`/members`)
 
-| 항목 | 값 |
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 회원 목록 조회 (검색 / 상태 필터) | GET | `/api/members?page=&size=&status=&keyword=` |
+| 회원 상세 조회 | GET | `/api/members/{id}` |
+| 회원 등록 | POST | `/api/members` |
+| 회원 수정 | PUT | `/api/members/{id}` |
+| 회원 삭제 | DELETE | `/api/members/{id}` |
+| 회원 상태 변경 (유효 / 만기 / 정지) | PATCH | `/api/members/{id}/status` |
+| 유증(정지) 처리 | POST | `/api/members/{id}/freeze` |
+| 회원권 목록 조회 | GET | `/api/members/{id}/memberships` |
+| 회원권 등록 | POST | `/api/members/{id}/memberships` |
+
+---
+
+#### 3. 직원 관리 (`/staff`)
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 직원 목록 조회 | GET | `/api/staff?page=&size=&role=` |
+| 직원 상세 조회 | GET | `/api/staff/{id}` |
+| 직원 등록 | POST | `/api/staff` |
+| 직원 수정 | PUT | `/api/staff/{id}` |
+| 직원 삭제 | DELETE | `/api/staff/{id}` |
+| 직원 역할 변경 | PATCH | `/api/staff/{id}/role` |
+
+---
+
+#### 4. 수업 관리 (`/classes`)
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 수업 목록 조회 (그룹 / 개인레슨 / OT) | GET | `/api/classes?type=&date=&page=&size=` |
+| 수업 상세 조회 | GET | `/api/classes/{id}` |
+| 수업 등록 | POST | `/api/classes` |
+| 수업 수정 | PUT | `/api/classes/{id}` |
+| 수업 취소 | DELETE | `/api/classes/{id}` |
+| 수업 신청자 목록 | GET | `/api/classes/{id}/attendees` |
+| 수업 신청 | POST | `/api/classes/{id}/attendees` |
+| 수업 신청 취소 | DELETE | `/api/classes/{id}/attendees/{memberId}` |
+
+---
+
+#### 5. 출석 관리 (`/attendance`)
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 출석 현황 조회 | GET | `/api/attendance?date=&period=` |
+| 출석 체크 | POST | `/api/attendance` |
+| 출석 취소 | DELETE | `/api/attendance/{id}` |
+| 유증 회원 목록 | GET | `/api/attendance/freeze?date=` |
+
+---
+
+#### 6. 상담 관리 (`/consults`)
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 상담 목록 조회 | GET | `/api/consults?page=&size=&type=` |
+| 상담 상세 조회 | GET | `/api/consults/{id}` |
+| 신규 상담 등록 | POST | `/api/consults` |
+| 기존 회원 상담 등록 | POST | `/api/consults/existing` |
+| 상담 수정 | PUT | `/api/consults/{id}` |
+| 상담 삭제 | DELETE | `/api/consults/{id}` |
+
+---
+
+#### 7. 매출 관리 (`/revenue`)
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 매출 요약 조회 | GET | `/api/revenue/summary?date=&period=` |
+| 등록/재등록 매출 상세 | GET | `/api/revenue/memberships?date=&period=` |
+| 그룹 수업 매출 상세 | GET | `/api/revenue/group-classes?date=&period=` |
+| 개인 레슨 매출 상세 | GET | `/api/revenue/pt?date=&period=` |
+| 락커 매출 상세 | GET | `/api/revenue/lockers?date=&period=` |
+| 공동 물품 매출 상세 | GET | `/api/revenue/items?date=&period=` |
+
+---
+
+#### 8. 상품 관리 (`/products`)
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 상품 목록 조회 | GET | `/api/products?type=&page=&size=` |
+| 상품 상세 조회 | GET | `/api/products/{id}` |
+| 상품 등록 | POST | `/api/products` |
+| 상품 수정 | PUT | `/api/products/{id}` |
+| 상품 삭제 | DELETE | `/api/products/{id}` |
+
+---
+
+#### 9. 인증
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 로그인 페이지 | GET | `/login` |
+| 로그인 처리 | POST | `/login` |
+| 로그아웃 | POST | `/logout` |
+
+---
+
+#### 10. 메시지 (`/messages`)
+
+| 목적 | Method | 엔드포인트 |
+|---|---|---|
+| 메시지 목록 조회 | GET | `/api/messages?page=&size=` |
+| 메시지 발송 | POST | `/api/messages` |
+| 메시지 상세 조회 | GET | `/api/messages/{id}` |
+| 메시지 삭제 | DELETE | `/api/messages/{id}` |
+
+---
+
+### 📋 전체 엔드포인트 표
+
+| Method | URL | 설명 | 화면 |
+|---|---|---|---|
+| GET | `/login` | 로그인 페이지 | 로그인 |
+| POST | `/login` | 로그인 처리 | 로그인 |
+| POST | `/logout` | 로그아웃 | 공통 |
+| GET | `/dashboard` | 대시보드 페이지 | 대시보드 |
+| GET | `/api/dashboard/members` | 회원 통계 | 대시보드 |
+| GET | `/api/dashboard/consults` | 상담 통계 | 대시보드 |
+| GET | `/api/dashboard/classes` | 수업 통계 | 대시보드 |
+| GET | `/api/dashboard/revenue` | 매출 통계 | 대시보드 |
+| GET | `/api/dashboard/revenue/{category}` | 매출 항목 상세 | 대시보드 |
+| GET | `/api/dashboard/attendance` | 출석 통계 | 대시보드 |
+| GET | `/members` | 회원 목록 페이지 | 회원 |
+| GET | `/api/members` | 회원 목록 조회 | 회원 |
+| GET | `/api/members/{id}` | 회원 상세 | 회원 |
+| POST | `/api/members` | 회원 등록 | 회원 |
+| PUT | `/api/members/{id}` | 회원 수정 | 회원 |
+| DELETE | `/api/members/{id}` | 회원 삭제 | 회원 |
+| PATCH | `/api/members/{id}/status` | 회원 상태 변경 | 회원 |
+| POST | `/api/members/{id}/freeze` | 유증 처리 | 회원 |
+| GET | `/api/members/{id}/memberships` | 회원권 목록 | 회원 |
+| POST | `/api/members/{id}/memberships` | 회원권 등록 | 회원 |
+| GET | `/staff` | 직원 목록 페이지 | 직원 |
+| GET | `/api/staff` | 직원 목록 조회 | 직원 |
+| GET | `/api/staff/{id}` | 직원 상세 | 직원 |
+| POST | `/api/staff` | 직원 등록 | 직원 |
+| PUT | `/api/staff/{id}` | 직원 수정 | 직원 |
+| DELETE | `/api/staff/{id}` | 직원 삭제 | 직원 |
+| PATCH | `/api/staff/{id}/role` | 직원 역할 변경 | 직원 |
+| GET | `/classes` | 수업 목록 페이지 | 수업 |
+| GET | `/api/classes` | 수업 목록 조회 | 수업 |
+| GET | `/api/classes/{id}` | 수업 상세 | 수업 |
+| POST | `/api/classes` | 수업 등록 | 수업 |
+| PUT | `/api/classes/{id}` | 수업 수정 | 수업 |
+| DELETE | `/api/classes/{id}` | 수업 취소 | 수업 |
+| GET | `/api/classes/{id}/attendees` | 수업 신청자 목록 | 수업 |
+| POST | `/api/classes/{id}/attendees` | 수업 신청 | 수업 |
+| DELETE | `/api/classes/{id}/attendees/{memberId}` | 수업 신청 취소 | 수업 |
+| GET | `/attendance` | 출석 현황 페이지 | 출석 |
+| GET | `/api/attendance` | 출석 현황 조회 | 출석 |
+| POST | `/api/attendance` | 출석 체크 | 출석 |
+| DELETE | `/api/attendance/{id}` | 출석 취소 | 출석 |
+| GET | `/api/attendance/freeze` | 유증 회원 목록 | 출석 |
+| GET | `/consults` | 상담 목록 페이지 | 상담 |
+| GET | `/api/consults` | 상담 목록 조회 | 상담 |
+| GET | `/api/consults/{id}` | 상담 상세 | 상담 |
+| POST | `/api/consults` | 신규 상담 등록 | 상담 |
+| POST | `/api/consults/existing` | 기존 회원 상담 등록 | 상담 |
+| PUT | `/api/consults/{id}` | 상담 수정 | 상담 |
+| DELETE | `/api/consults/{id}` | 상담 삭제 | 상담 |
+| GET | `/revenue` | 매출 현황 페이지 | 매출 |
+| GET | `/api/revenue/summary` | 매출 요약 | 매출 |
+| GET | `/api/revenue/memberships` | 등록/재등록 매출 상세 | 매출 |
+| GET | `/api/revenue/group-classes` | 그룹 수업 매출 상세 | 매출 |
+| GET | `/api/revenue/pt` | 개인 레슨 매출 상세 | 매출 |
+| GET | `/api/revenue/lockers` | 락커 매출 상세 | 매출 |
+| GET | `/api/revenue/items` | 공동 물품 매출 상세 | 매출 |
+| GET | `/products` | 상품 목록 페이지 | 상품 |
+| GET | `/api/products` | 상품 목록 조회 | 상품 |
+| GET | `/api/products/{id}` | 상품 상세 | 상품 |
+| POST | `/api/products` | 상품 등록 | 상품 |
+| PUT | `/api/products/{id}` | 상품 수정 | 상품 |
+| DELETE | `/api/products/{id}` | 상품 삭제 | 상품 |
+| GET | `/messages` | 메시지 페이지 | 메시지 |
+| GET | `/api/messages` | 메시지 목록 조회 | 메시지 |
+| POST | `/api/messages` | 메시지 발송 | 메시지 |
+| GET | `/api/messages/{id}` | 메시지 상세 | 메시지 |
+| DELETE | `/api/messages/{id}` | 메시지 삭제 | 메시지 |
+
+---
+
+## 📌 참고 사항
+
+| 항목 | 현황 |
 |---|---|
-| 백엔드 API | `localhost:17577/api` |
-| 인증 | JWT, `role == 'ADMIN'` |
-| 권장 스택 | React + TypeScript + Vite / Next.js |
-| 구현 순서 | Sprint 1 → 2 → 3 → 4 순서 권장 (A9 참고) |
+| 서버 포트 | `17579` |
+| 어드민 계정 | `admin` / `admin1234` (DB 기반 UserDetailsService, BCrypt 해싱) |
+| Spring Boot | `4.0.4` |
+| Java | `21` |
+| 빌드 도구 | Gradle `8.14` |
+| DB | MariaDB 10.11.14 + MyBatis 3.0.3 (전 도메인 DB 연동 완료) |
+| 인증 | Spring Security 7.x (Form Login, CSRF 보호) |
