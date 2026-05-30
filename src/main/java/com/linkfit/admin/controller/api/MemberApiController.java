@@ -23,6 +23,7 @@ public class MemberApiController {
     public ApiResponse<Map<String, Object>> list(
             @RequestParam(defaultValue = "") String keyword,
             @RequestParam(defaultValue = "") String status,
+            @RequestParam(defaultValue = "") String tier,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         List<Member> members = memberService.findAll(keyword, status, page, size);
@@ -31,7 +32,7 @@ public class MemberApiController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Member>> get(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Member>> get(@PathVariable String id) {
         return memberService.findById(id)
             .map(m -> ResponseEntity.ok(ApiResponse.ok(m)))
             .orElse(ResponseEntity.notFound().build());
@@ -43,24 +44,36 @@ public class MemberApiController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<Member> update(@PathVariable Long id, @RequestBody Member member) {
+    public ApiResponse<Member> update(@PathVariable String id, @RequestBody Member member) {
         return ApiResponse.ok(memberService.update(id, member));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
+    public ApiResponse<Void> delete(@PathVariable String id) {
         memberService.delete(id);
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/status")
-    public ApiResponse<Void> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
         memberService.updateStatus(id, body.get("status"));
         return ApiResponse.ok();
     }
 
+    @PatchMapping("/{id}/tier")
+    public ApiResponse<Void> updateTier(@PathVariable String id, @RequestBody Map<String, String> body) {
+        memberService.updateTier(id, body.get("tier"));
+        return ApiResponse.ok();
+    }
+
+    @PatchMapping("/{id}/member-type")
+    public ApiResponse<Void> updateMemberType(@PathVariable String id, @RequestBody Map<String, String> body) {
+        memberService.updateMemberType(id, body.get("memberType"));
+        return ApiResponse.ok();
+    }
+
     @PostMapping("/{id}/freeze")
-    public ApiResponse<Void> freeze(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> freeze(@PathVariable String id, @RequestBody Map<String, String> body) {
         memberService.freeze(id, body.get("startDate"), body.get("endDate"));
         return ApiResponse.ok();
     }

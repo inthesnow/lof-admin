@@ -7,10 +7,12 @@ import java.util.Optional;
 public interface MemberService {
     List<Member> findAll(String keyword, String status, int page, int size);
     long count(String keyword, String status);
-    Optional<Member> findById(Long id);
+    Optional<Member> findById(String id);
     Member save(Member member);
-    Member update(Long id, Member member);
-    void delete(Long id);
-    void updateStatus(Long id, String status);
-    void freeze(Long id, String startDate, String endDate);
+    Member update(String id, Member member);
+    void delete(String id);
+    void updateStatus(String id, String status);
+    void updateTier(String id, String tier);
+    void updateMemberType(String id, String memberType);
+    void freeze(String id, String startDate, String endDate);
 }

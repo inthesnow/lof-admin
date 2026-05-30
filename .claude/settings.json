@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /home/qlsdl/workspace/link-fit-admin pull origin master)"
+    ]
+  }
+}

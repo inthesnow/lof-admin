@@ -5,9 +5,8 @@ import java.time.LocalDateTime;
 
 public class Sale {
     private Long id;
-    private Long memberId;
+    private String memberId;
     private String memberName;
-    private Long membershipId;
     private Long productId;
     private String productName;
     private String productType;    // MEMBERSHIP, GROUP, PT, LOCKER, ITEM
@@ -21,12 +20,10 @@ public class Sale {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public Long getMemberId() { return memberId; }
-    public void setMemberId(Long memberId) { this.memberId = memberId; }
+    public String getMemberId() { return memberId; }
+    public void setMemberId(String memberId) { this.memberId = memberId; }
     public String getMemberName() { return memberName; }
     public void setMemberName(String memberName) { this.memberName = memberName; }
-    public Long getMembershipId() { return membershipId; }
-    public void setMembershipId(Long membershipId) { this.membershipId = membershipId; }
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
     public String getProductName() { return productName; }

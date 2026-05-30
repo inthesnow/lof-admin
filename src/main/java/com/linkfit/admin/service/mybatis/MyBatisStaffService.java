@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Profile("dev")
@@ -30,30 +31,34 @@ public class MyBatisStaffService implements StaffService {
     }
 
     @Override
-    public Optional<Staff> findById(Long id) {
+    public Optional<Staff> findById(String id) {
         return staffMapper.findById(id);
     }
 
     @Override
     public Staff save(Staff staff) {
-        staffMapper.insert(staff);
+        if (staff.getId() == null || staff.getId().isBlank()) {
+            staff.setId(UUID.randomUUID().toString());
+        }
+        staffMapper.insertUser(staff);
+        staffMapper.insertProfile(staff);
         return staff;
     }
 
     @Override
-    public Staff update(Long id, Staff staff) {
+    public Staff update(String id, Staff staff) {
         staff.setId(id);
         staffMapper.update(staff);
         return staff;
     }
 
     @Override
-    public void delete(Long id) {
+    public void delete(String id) {
         staffMapper.delete(id);
     }
 
     @Override
-    public void updateRole(Long id, String role) {
+    public void updateRole(String id, String role) {
         staffMapper.updateRole(id, role);
     }
 }

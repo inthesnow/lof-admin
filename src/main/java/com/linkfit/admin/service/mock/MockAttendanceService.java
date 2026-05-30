@@ -2,8 +2,6 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Attendance;
 import com.linkfit.admin.service.AttendanceService;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
@@ -30,7 +28,7 @@ public class MockAttendanceService implements AttendanceService {
         for (String[] row : data) {
             Attendance a = new Attendance();
             a.setId(seq.getAndIncrement());
-            a.setMemberId(Long.parseLong(row[0]));
+            a.setMemberId(row[0]);
             a.setMemberName(row[1]);
             a.setMemberGender(row[2]);
             a.setType(row[3]);

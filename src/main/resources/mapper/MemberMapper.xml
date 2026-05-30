@@ -5,22 +5,26 @@
 
     <resultMap id="memberResultMap" type="Member">
         <id property="id" column="id"/>
-        <result property="email"      column="email"/>
-        <result property="name"       column="name"/>
-        <result property="phone"      column="phone"/>
-        <result property="gender"     column="gender"/>
-        <result property="birthDate"  column="birth_date"/>
-        <result property="status"     column="status"/>
-        <result property="joinDate"   column="join_date"/>
-        <result property="memberType" column="member_type"/>
-        <result property="memo"       column="memo"/>
+        <result property="email"         column="email"/>
+        <result property="name"          column="name"/>
+        <result property="phone"         column="phone"/>
+        <result property="gender"        column="gender"/>
+        <result property="birthDate"     column="birth_date"/>
+        <result property="status"        column="status"/>
+        <result property="joinDate"      column="join_date"/>
+        <result property="membershipEnd" column="membership_end"/>
+        <result property="memberType"    column="member_type"/>
+        <result property="tier"          column="tier"/>
+        <result property="memo"          column="memo"/>
     </resultMap>
 
     <sql id="memberSelect">
         SELECT u.user_id AS id, u.email,
                up.name, up.contact AS phone, up.gender, up.birth_date, up.member_type,
+               up.tier,
                CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END AS status,
                DATE(u.created_at) AS join_date,
+               (SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id ORDER BY ms.end_date DESC LIMIT 1) AS membership_end,
                NULL AS memo
         FROM users u
         LEFT JOIN user_profiles up ON u.user_id = up.user_id
@@ -35,7 +39,7 @@
         <if test="status != null and status != ''">
             AND CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
         </if>
-        ORDER BY u.user_id DESC
+        ORDER BY u.created_at DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
@@ -57,19 +61,20 @@
         AND u.user_id = #{id}
     </select>
 
-    <insert id="insertUser" useGeneratedKeys="true" keyProperty="id" keyColumn="user_id">
-        INSERT INTO users (email, role, is_active)
-        VALUES (#{email}, 'MEMBER', 1)
+    <insert id="insertUser">
+        INSERT INTO users (user_id, email, role, is_active)
+        VALUES (#{id}, #{email}, 'MEMBER', 1)
     </insert>
 
     <insert id="insertProfile">
-        INSERT INTO user_profiles (user_id, name, contact, gender, birth_date, member_type)
-        VALUES (#{id}, #{name}, #{phone}, #{gender}, #{birthDate}, #{memberType})
+        INSERT INTO user_profiles (user_id, name, contact, gender, birth_date, member_type, tier)
+        VALUES (#{id}, #{name}, #{phone}, #{gender}, #{birthDate}, #{memberType}, #{tier})
     </insert>
 
     <update id="update">
         UPDATE user_profiles
-        SET name=#{name}, contact=#{phone}, gender=#{gender}, birth_date=#{birthDate}, member_type=#{memberType}
+        SET name=#{name}, contact=#{phone}, gender=#{gender}, birth_date=#{birthDate},
+            member_type=#{memberType}, tier=#{tier}
         WHERE user_id=#{id};
         UPDATE users SET email=#{email} WHERE user_id=#{id}
     </update>
@@ -80,6 +85,14 @@
 
     <update id="updateStatus">
         UPDATE users SET is_active=#{isActive} WHERE user_id=#{id}
+    </update>
+
+    <update id="updateTier">
+        UPDATE user_profiles SET tier=#{tier} WHERE user_id=#{id}
+    </update>
+
+    <update id="updateMemberType">
+        UPDATE user_profiles SET member_type=#{memberType} WHERE user_id=#{id}
     </update>
 
     <insert id="insertFreeze">

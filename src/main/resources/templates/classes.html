@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>LINK_Fit Admin — 수업 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
@@ -130,6 +132,12 @@ const pageSize = 10;
 let currentType = '';
 let editingId = null;
 
+function csrfHeaders(extra) {
+    const token  = document.querySelector('meta[name="_csrf"]').content;
+    const header = document.querySelector('meta[name="_csrf_header"]').content;
+    return Object.assign({ 'Content-Type': 'application/json', [header]: token }, extra);
+}
+
 const typeLabel = { GROUP: '그룹', PT: '개인레슨', OT: 'OT' };
 const typeBadge = { GROUP: 'badge-active', PT: 'badge-admin', OT: 'badge-pending' };
 
@@ -196,14 +204,14 @@ async function saveClass() {
         startTime: document.getElementById('cStart').value,
         endTime: document.getElementById('cEnd').value,
     };
-    await fetch('/api/classes', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    await fetch('/api/classes', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
     closeModal();
     loadClasses();
 }
 
 async function cancelClass(id) {
     if (!confirm('수업을 취소하시겠습니까?')) return;
-    await fetch(`/api/classes/${id}`, { method: 'DELETE' });
+    await fetch(`/api/classes/${id}`, { method: 'DELETE', headers: csrfHeaders() });
     loadClasses();
 }
 

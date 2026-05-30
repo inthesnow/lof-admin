@@ -11,9 +11,10 @@ import java.util.Optional;
 public interface StaffMapper {
     List<Staff> findAll(@Param("role") String role, @Param("offset") int offset, @Param("size") int size);
     long count(@Param("role") String role);
-    Optional<Staff> findById(@Param("id") Long id);
-    void insert(Staff staff);
+    Optional<Staff> findById(@Param("id") String id);
+    void insertUser(Staff staff);
+    void insertProfile(Staff staff);
     void update(Staff staff);
-    void delete(@Param("id") Long id);
-    void updateRole(@Param("id") Long id, @Param("role") String role);
+    void delete(@Param("id") String id);
+    void updateRole(@Param("id") String id, @Param("role") String role);
 }

@@ -3,7 +3,7 @@ package com.linkfit.admin.domain;
 import java.time.LocalDate;
 
 public class Member {
-    private Long id;
+    private String id;
     private String email;
     private String name;
     private String phone;
@@ -14,11 +14,12 @@ public class Member {
     private LocalDate membershipEnd;
     private String memo;
     private String memberType;   // PT, OT
+    private String tier;         // BASIC, LIGHT_FIT, REGULAR_FIT, INTENSIVE_FIT
 
     public Member() {}
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
     public String getName() { return name; }
@@ -39,4 +40,6 @@ public class Member {
     public void setMemo(String memo) { this.memo = memo; }
     public String getMemberType() { return memberType; }
     public void setMemberType(String memberType) { this.memberType = memberType; }
+    public String getTier() { return tier; }
+    public void setTier(String tier) { this.tier = tier; }
 }

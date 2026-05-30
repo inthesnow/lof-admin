@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Profile("dev")
@@ -30,36 +31,49 @@ public class MyBatisMemberService implements MemberService {
     }
 
     @Override
-    public Optional<Member> findById(Long id) {
+    public Optional<Member> findById(String id) {
         return memberMapper.findById(id);
     }
 
     @Override
     public Member save(Member member) {
+        if (member.getId() == null || member.getId().isBlank()) {
+            member.setId(UUID.randomUUID().toString());
+        }
         memberMapper.insertUser(member);
         memberMapper.insertProfile(member);
         return member;
     }
 
     @Override
-    public Member update(Long id, Member member) {
+    public Member update(String id, Member member) {
         member.setId(id);
         memberMapper.update(member);
         return member;
     }
 
     @Override
-    public void delete(Long id) {
+    public void delete(String id) {
         memberMapper.delete(id);
     }
 
     @Override
-    public void updateStatus(Long id, String status) {
+    public void updateStatus(String id, String status) {
         memberMapper.updateStatus(id, "ACTIVE".equals(status) ? 1 : 0);
     }
 
     @Override
-    public void freeze(Long id, String startDate, String endDate) {
+    public void updateTier(String id, String tier) {
+        memberMapper.updateTier(id, tier);
+    }
+
+    @Override
+    public void updateMemberType(String id, String memberType) {
+        memberMapper.updateMemberType(id, memberType);
+    }
+
+    @Override
+    public void freeze(String id, String startDate, String endDate) {
         memberMapper.insertFreeze(id, startDate, endDate, null);
         memberMapper.updateStatus(id, 0);
     }

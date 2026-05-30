@@ -8,11 +8,12 @@ public class Consult {
     private String name;
     private String phone;
     private String gender;
-    private Long memberId;
+    private String memberId;
     private String interest;
     private String content;
     private String result;       // REGISTERED, PENDING, NO_SHOW
     private LocalDate consultDate;
+    private String staffId;
     private String staffName;
 
     public Consult() {}
@@ -27,8 +28,8 @@ public class Consult {
     public void setPhone(String phone) { this.phone = phone; }
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
-    public Long getMemberId() { return memberId; }
-    public void setMemberId(Long memberId) { this.memberId = memberId; }
+    public String getMemberId() { return memberId; }
+    public void setMemberId(String memberId) { this.memberId = memberId; }
     public String getInterest() { return interest; }
     public void setInterest(String interest) { this.interest = interest; }
     public String getContent() { return content; }
@@ -37,6 +38,8 @@ public class Consult {
     public void setResult(String result) { this.result = result; }
     public LocalDate getConsultDate() { return consultDate; }
     public void setConsultDate(LocalDate consultDate) { this.consultDate = consultDate; }
+    public String getStaffId() { return staffId; }
+    public void setStaffId(String staffId) { this.staffId = staffId; }
     public String getStaffName() { return staffName; }
     public void setStaffName(String staffName) { this.staffName = staffName; }
 }

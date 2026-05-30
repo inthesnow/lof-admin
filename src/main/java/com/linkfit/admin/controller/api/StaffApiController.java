@@ -30,7 +30,7 @@ public class StaffApiController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Staff>> get(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Staff>> get(@PathVariable String id) {
         return staffService.findById(id)
             .map(s -> ResponseEntity.ok(ApiResponse.ok(s)))
             .orElse(ResponseEntity.notFound().build());
@@ -42,18 +42,18 @@ public class StaffApiController {
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<Staff> update(@PathVariable Long id, @RequestBody Staff staff) {
+    public ApiResponse<Staff> update(@PathVariable String id, @RequestBody Staff staff) {
         return ApiResponse.ok(staffService.update(id, staff));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
+    public ApiResponse<Void> delete(@PathVariable String id) {
         staffService.delete(id);
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/role")
-    public ApiResponse<Void> updateRole(@PathVariable Long id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> updateRole(@PathVariable String id, @RequestBody Map<String, String> body) {
         staffService.updateRole(id, body.get("role"));
         return ApiResponse.ok();
     }

@@ -25,7 +25,7 @@
 
     <select id="findAll" resultMap="staffResultMap">
         <include refid="staffSelect"/>
-        ORDER BY u.user_id DESC
+        ORDER BY u.created_at DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
@@ -38,9 +38,12 @@
         AND u.user_id = #{id}
     </select>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id" keyColumn="user_id">
-        INSERT INTO users (email, role, is_active) VALUES (#{email}, 'TRAINER', 1);
-        INSERT INTO user_profiles (user_id, name, contact) VALUES (LAST_INSERT_ID(), #{name}, #{phone})
+    <insert id="insertUser">
+        INSERT INTO users (user_id, email, role, is_active) VALUES (#{id}, #{email}, 'TRAINER', 1)
+    </insert>
+
+    <insert id="insertProfile">
+        INSERT INTO user_profiles (user_id, name, contact) VALUES (#{id}, #{name}, #{phone})
     </insert>
 
     <update id="update">

@@ -2,18 +2,15 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Staff;
 import com.linkfit.admin.service.StaffService;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Service
 public class MockStaffService implements StaffService {
 
-    private final Map<Long, Staff> store = new LinkedHashMap<>();
-    private final AtomicLong seq = new AtomicLong(1);
+    private final Map<String, Staff> store = new LinkedHashMap<>();
 
     public MockStaffService() {
         seed();
@@ -28,7 +25,7 @@ public class MockStaffService implements StaffService {
         };
         for (String[] row : data) {
             Staff s = new Staff();
-            s.setId(seq.getAndIncrement());
+            s.setId(UUID.randomUUID().toString());
             s.setName(row[0]);
             s.setPhone(row[1]);
             s.setEmail(row[2]);
@@ -56,11 +53,13 @@ public class MockStaffService implements StaffService {
     }
 
     @Override
-    public Optional<Staff> findById(Long id) { return Optional.ofNullable(store.get(id)); }
+    public Optional<Staff> findById(String id) { return Optional.ofNullable(store.get(id)); }
 
     @Override
     public Staff save(Staff staff) {
-        staff.setId(seq.getAndIncrement());
+        if (staff.getId() == null || staff.getId().isBlank()) {
+            staff.setId(UUID.randomUUID().toString());
+        }
         staff.setHireDate(LocalDate.now());
         staff.setStatus("ACTIVE");
         store.put(staff.getId(), staff);
@@ -68,17 +67,17 @@ public class MockStaffService implements StaffService {
     }
 
     @Override
-    public Staff update(Long id, Staff staff) {
+    public Staff update(String id, Staff staff) {
         staff.setId(id);
         store.put(id, staff);
         return staff;
     }
 
     @Override
-    public void delete(Long id) { store.remove(id); }
+    public void delete(String id) { store.remove(id); }
 
     @Override
-    public void updateRole(Long id, String role) {
+    public void updateRole(String id, String role) {
         Optional.ofNullable(store.get(id)).ifPresent(s -> s.setRole(role));
     }
 }

@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>LINK_Fit Admin — 직원 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
@@ -79,7 +81,7 @@
                     <input type="text" class="form-input" id="sPhone" placeholder="010-0000-0000">
                 </div>
                 <div class="form-group full">
-                    <label class="form-label">이메일</label>
+                    <label class="form-label">이메일 <span style="color:var(--text-muted);font-size:11px">(로그인 ID)</span></label>
                     <input type="email" class="form-input" id="sEmail" placeholder="email@linkfit.com">
                 </div>
                 <div class="form-group">
@@ -89,10 +91,6 @@
                         <option value="ADMIN">일반 관리자</option>
                         <option value="SUPER_ADMIN">슈퍼 관리자</option>
                     </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">입사일</label>
-                    <input type="date" class="form-input" id="sHireDate">
                 </div>
             </div>
         </div>
@@ -111,6 +109,12 @@ let editingId = null;
 const roleLabel = { SUPER_ADMIN: '슈퍼 관리자', ADMIN: '일반 관리자', TRAINER: '트레이너' };
 const roleBadge = { SUPER_ADMIN: 'badge-super', ADMIN: 'badge-admin', TRAINER: 'badge-trainer' };
 
+function csrfHeaders(extra) {
+    const token  = document.querySelector('meta[name="_csrf"]').content;
+    const header = document.querySelector('meta[name="_csrf_header"]').content;
+    return Object.assign({ 'Content-Type': 'application/json', [header]: token }, extra);
+}
+
 async function loadStaff() {
     const role = document.getElementById('roleFilter').value;
     const res = await fetch(`/api/staff?role=${role}&page=${currentPage}&size=${pageSize}`);
@@ -120,30 +124,45 @@ async function loadStaff() {
 
 function renderTable(staff, total) {
     const tbody = document.getElementById('staffTableBody');
-    if (!staff.length) {
+    if (!staff || !staff.length) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">직원 데이터가 없습니다.</td></tr>`;
         return;
     }
     tbody.innerHTML = staff.map(s => `
         <tr>
-            <td>${s.name}</td>
+            <td>${s.name || '-'}</td>
             <td>${s.phone || '-'}</td>
             <td>${s.email || '-'}</td>
-            <td><span class="badge ${roleBadge[s.role]}">${roleLabel[s.role]}</span></td>
+            <td><span class="badge ${roleBadge[s.role] || 'badge-trainer'}">${roleLabel[s.role] || s.role}</span></td>
             <td>${s.hireDate || '-'}</td>
             <td><span class="badge ${s.status === 'ACTIVE' ? 'badge-active' : 'badge-expired'}">${s.status === 'ACTIVE' ? '재직중' : '퇴직'}</span></td>
             <td style="display:flex;gap:6px">
-                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editStaff(${s.id})">수정</button>
-                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteStaff(${s.id}, '${s.name}')">삭제</button>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editStaff('${s.id}')">수정</button>
+                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteStaff('${s.id}', '${s.name}')">삭제</button>
             </td>
         </tr>
     `).join('');
+    renderPagination(total);
 }
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pag = document.getElementById('pagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>&#8249;</button>`;
+    for (let i = 0; i < totalPages; i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i + 1}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>`;
+    pag.innerHTML = html;
+}
+
+function goPage(p) { currentPage = p; loadStaff(); }
 
 function openModal() {
     editingId = null;
     document.getElementById('modalTitle').textContent = '직원 등록';
-    ['sName','sPhone','sEmail'].forEach(id => document.getElementById(id).value = '');
+    ['sName','sPhone','sEmail'].forEach(fid => document.getElementById(fid).value = '');
     document.getElementById('sRole').value = 'TRAINER';
     document.getElementById('staffModal').classList.add('open');
 }
@@ -160,28 +179,31 @@ async function editStaff(id) {
     document.getElementById('sPhone').value = s.phone || '';
     document.getElementById('sEmail').value = s.email || '';
     document.getElementById('sRole').value = s.role || 'TRAINER';
-    document.getElementById('sHireDate').value = s.hireDate || '';
     document.getElementById('staffModal').classList.add('open');
 }
 
 async function saveStaff() {
+    const name = document.getElementById('sName').value.trim();
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+
     const body = {
-        name: document.getElementById('sName').value,
+        name,
         phone: document.getElementById('sPhone').value,
         email: document.getElementById('sEmail').value,
-        role: document.getElementById('sRole').value,
-        hireDate: document.getElementById('sHireDate').value || null,
+        role:  document.getElementById('sRole').value,
     };
-    const url = editingId ? `/api/staff/${editingId}` : '/api/staff';
+    const url    = editingId ? `/api/staff/${editingId}` : '/api/staff';
     const method = editingId ? 'PUT' : 'POST';
-    await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const res = await fetch(url, { method, headers: csrfHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { alert('저장에 실패했습니다.'); return; }
     closeModal();
     loadStaff();
 }
 
 async function deleteStaff(id, name) {
     if (!confirm(`${name} 직원을 삭제하시겠습니까?`)) return;
-    await fetch(`/api/staff/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/api/staff/${id}`, { method: 'DELETE', headers: csrfHeaders() });
+    if (!res.ok) { alert('삭제에 실패했습니다.'); return; }
     loadStaff();
 }
 

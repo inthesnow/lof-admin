@@ -14,15 +14,17 @@ public interface MemberMapper {
     List<Member> findAll(@Param("keyword") String keyword, @Param("status") String status,
                          @Param("offset") int offset, @Param("size") int size);
     long count(@Param("keyword") String keyword, @Param("status") String status);
-    Optional<Member> findById(@Param("id") Long id);
+    Optional<Member> findById(@Param("id") String id);
     void insertUser(Member member);
     void insertProfile(Member member);
     void update(Member member);
-    void delete(@Param("id") Long id);
-    void updateStatus(@Param("id") Long id, @Param("isActive") int isActive);
-    void insertFreeze(@Param("memberId") Long memberId, @Param("freezeStart") String freezeStart,
+    void delete(@Param("id") String id);
+    void updateStatus(@Param("id") String id, @Param("isActive") int isActive);
+    void updateTier(@Param("id") String id, @Param("tier") String tier);
+    void updateMemberType(@Param("id") String id, @Param("memberType") String memberType);
+    void insertFreeze(@Param("memberId") String memberId, @Param("freezeStart") String freezeStart,
                       @Param("freezeEnd") String freezeEnd, @Param("reason") String reason);
-    List<MemberFreeze> findFreezeByMemberId(@Param("memberId") Long memberId);
-    List<Membership> findMembershipsByMemberId(@Param("memberId") Long memberId);
+    List<MemberFreeze> findFreezeByMemberId(@Param("memberId") String memberId);
+    List<Membership> findMembershipsByMemberId(@Param("memberId") String memberId);
     void insertMembership(Membership membership);
 }

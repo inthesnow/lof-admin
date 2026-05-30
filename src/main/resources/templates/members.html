@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>LINK_Fit Admin — 회원 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
@@ -36,8 +38,14 @@
         <select class="filter-select" id="statusFilter" onchange="loadMembers()">
             <option value="">전체 상태</option>
             <option value="ACTIVE">유효</option>
-            <option value="EXPIRED">만기</option>
             <option value="SUSPENDED">정지</option>
+        </select>
+        <select class="filter-select" id="tierFilter" onchange="loadMembers()">
+            <option value="">전체 등급</option>
+            <option value="BASIC">기본</option>
+            <option value="LIGHT_FIT">라이트</option>
+            <option value="REGULAR_FIT">레귤러</option>
+            <option value="INTENSIVE_FIT">인텐시브</option>
         </select>
     </div>
 
@@ -48,6 +56,8 @@
                     <th>이름</th>
                     <th>전화번호</th>
                     <th>성별</th>
+                    <th>구분</th>
+                    <th>등급</th>
                     <th>상태</th>
                     <th>가입일</th>
                     <th>회원권 만료</th>
@@ -55,7 +65,7 @@
                 </tr>
             </thead>
             <tbody id="memberTableBody">
-                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
             </tbody>
         </table>
     </div>
@@ -65,7 +75,7 @@
 
 <!-- 회원 등록/수정 모달 -->
 <div class="modal-overlay" id="memberModal">
-    <div class="modal">
+    <div class="modal" style="max-width:600px">
         <div class="modal-header">
             <span class="modal-title" id="modalTitle">회원 등록</span>
             <button class="modal-close" onclick="closeModal()">
@@ -79,22 +89,19 @@
                     <input type="text" class="form-input" id="mName" placeholder="홍길동">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">전화번호 *</label>
+                    <label class="form-label">전화번호</label>
                     <input type="text" class="form-input" id="mPhone" placeholder="010-0000-0000">
+                </div>
+                <div class="form-group full" id="emailGroup">
+                    <label class="form-label">이메일 <span style="color:var(--text-muted);font-size:11px">(로그인 ID)</span></label>
+                    <input type="email" class="form-input" id="mEmail" placeholder="example@email.com">
                 </div>
                 <div class="form-group">
                     <label class="form-label">성별</label>
                     <select class="form-select" id="mGender">
-                        <option value="M">남성</option>
-                        <option value="F">여성</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">상태</label>
-                    <select class="form-select" id="mStatus">
-                        <option value="ACTIVE">유효</option>
-                        <option value="EXPIRED">만기</option>
-                        <option value="SUSPENDED">정지</option>
+                        <option value="">선택</option>
+                        <option value="남자">남성</option>
+                        <option value="여자">여성</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -102,8 +109,21 @@
                     <input type="date" class="form-input" id="mBirthDate">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">회원권 만료일</label>
-                    <input type="date" class="form-input" id="mMembershipEnd">
+                    <label class="form-label">회원 구분</label>
+                    <select class="form-select" id="mMemberType">
+                        <option value="">일반</option>
+                        <option value="OT">OT</option>
+                        <option value="PT">PT</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">구독 등급</label>
+                    <select class="form-select" id="mTier">
+                        <option value="BASIC">기본 (BASIC)</option>
+                        <option value="LIGHT_FIT">라이트 (LIGHT_FIT)</option>
+                        <option value="REGULAR_FIT">레귤러 (REGULAR_FIT)</option>
+                        <option value="INTENSIVE_FIT">인텐시브 (INTENSIVE_FIT)</option>
+                    </select>
                 </div>
                 <div class="form-group full">
                     <label class="form-label">메모</label>
@@ -124,9 +144,18 @@ const pageSize = 10;
 let editingId = null;
 let searchTimer = null;
 
-const statusLabel = { ACTIVE: '유효', EXPIRED: '만기', SUSPENDED: '정지' };
-const statusBadge = { ACTIVE: 'badge-active', EXPIRED: 'badge-expired', SUSPENDED: 'badge-suspended' };
-const genderLabel = { M: '남성', F: '여성' };
+const statusLabel = { ACTIVE: '유효', SUSPENDED: '정지' };
+const statusBadge = { ACTIVE: 'badge-active', SUSPENDED: 'badge-suspended' };
+const genderLabel = { '남자': '남성', '여자': '여성', M: '남성', F: '여성' };
+const memberTypeLabel = { PT: 'PT', OT: 'OT' };
+const tierLabel = { BASIC: '기본', LIGHT_FIT: '라이트', REGULAR_FIT: '레귤러', INTENSIVE_FIT: '인텐시브' };
+const tierBadge = { BASIC: 'badge-pending', LIGHT_FIT: 'badge-active', REGULAR_FIT: 'badge-admin', INTENSIVE_FIT: 'badge-super' };
+
+function csrfHeaders(extra) {
+    const token  = document.querySelector('meta[name="_csrf"]').content;
+    const header = document.querySelector('meta[name="_csrf_header"]').content;
+    return Object.assign({ 'Content-Type': 'application/json', [header]: token }, extra);
+}
 
 function debounceSearch() {
     clearTimeout(searchTimer);
@@ -143,22 +172,24 @@ async function loadMembers() {
 
 function renderTable(members, total) {
     const tbody = document.getElementById('memberTableBody');
-    if (!members.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">회원 데이터가 없습니다.</td></tr>`;
+    if (!members || !members.length) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">회원 데이터가 없습니다.</td></tr>`;
         renderPagination(0);
         return;
     }
     tbody.innerHTML = members.map(m => `
         <tr>
-            <td>${m.name}</td>
-            <td>${m.phone}</td>
-            <td>${genderLabel[m.gender] || m.gender}</td>
-            <td><span class="badge ${statusBadge[m.status]}">${statusLabel[m.status]}</span></td>
+            <td>${m.name || '-'}</td>
+            <td>${m.phone || '-'}</td>
+            <td>${genderLabel[m.gender] || m.gender || '-'}</td>
+            <td>${m.memberType ? `<span class="badge badge-trainer">${memberTypeLabel[m.memberType] || m.memberType}</span>` : '<span style="color:var(--text-muted)">일반</span>'}</td>
+            <td>${m.tier ? `<span class="badge ${tierBadge[m.tier] || ''}">${tierLabel[m.tier] || m.tier}</span>` : '-'}</td>
+            <td><span class="badge ${statusBadge[m.status] || ''}">${statusLabel[m.status] || m.status}</span></td>
             <td>${m.joinDate || '-'}</td>
             <td>${m.membershipEnd || '-'}</td>
             <td style="display:flex;gap:6px">
-                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editMember(${m.id})">수정</button>
-                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteMember(${m.id}, '${m.name}')">삭제</button>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
+                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteMember('${m.id}', '${m.name}')">삭제</button>
             </td>
         </tr>
     `).join('');
@@ -182,10 +213,13 @@ function goPage(p) { currentPage = p; loadMembers(); }
 function openModal(id) {
     editingId = id || null;
     document.getElementById('modalTitle').textContent = id ? '회원 수정' : '회원 등록';
-    ['mName','mPhone','mGender','mStatus','mBirthDate','mMembershipEnd','mMemo'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+    document.getElementById('emailGroup').style.display = id ? 'none' : '';
+    ['mName','mPhone','mEmail','mBirthDate','mMemo'].forEach(fid => {
+        document.getElementById(fid).value = '';
     });
+    document.getElementById('mGender').value = '';
+    document.getElementById('mMemberType').value = '';
+    document.getElementById('mTier').value = 'BASIC';
     document.getElementById('memberModal').classList.add('open');
 }
 
@@ -197,36 +231,43 @@ async function editMember(id) {
     const m = json.data;
     editingId = id;
     document.getElementById('modalTitle').textContent = '회원 수정';
+    document.getElementById('emailGroup').style.display = 'none';
     document.getElementById('mName').value = m.name || '';
     document.getElementById('mPhone').value = m.phone || '';
-    document.getElementById('mGender').value = m.gender || 'M';
-    document.getElementById('mStatus').value = m.status || 'ACTIVE';
+    document.getElementById('mGender').value = m.gender || '';
     document.getElementById('mBirthDate').value = m.birthDate || '';
-    document.getElementById('mMembershipEnd').value = m.membershipEnd || '';
+    document.getElementById('mMemberType').value = m.memberType || '';
+    document.getElementById('mTier').value = m.tier || 'BASIC';
     document.getElementById('mMemo').value = m.memo || '';
     document.getElementById('memberModal').classList.add('open');
 }
 
 async function saveMember() {
+    const name = document.getElementById('mName').value.trim();
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+
     const body = {
-        name: document.getElementById('mName').value,
-        phone: document.getElementById('mPhone').value,
-        gender: document.getElementById('mGender').value,
-        status: document.getElementById('mStatus').value,
-        birthDate: document.getElementById('mBirthDate').value || null,
-        membershipEnd: document.getElementById('mMembershipEnd').value || null,
-        memo: document.getElementById('mMemo').value,
+        name,
+        phone:      document.getElementById('mPhone').value,
+        email:      document.getElementById('mEmail').value,
+        gender:     document.getElementById('mGender').value,
+        birthDate:  document.getElementById('mBirthDate').value || null,
+        memberType: document.getElementById('mMemberType').value || null,
+        tier:       document.getElementById('mTier').value,
+        memo:       document.getElementById('mMemo').value,
     };
-    const url = editingId ? `/api/members/${editingId}` : '/api/members';
+    const url    = editingId ? `/api/members/${editingId}` : '/api/members';
     const method = editingId ? 'PUT' : 'POST';
-    await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const res = await fetch(url, { method, headers: csrfHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { alert('저장에 실패했습니다.'); return; }
     closeModal();
     loadMembers();
 }
 
 async function deleteMember(id, name) {
-    if (!confirm(`${name} 회원을 삭제하시겠습니까?`)) return;
-    await fetch(`/api/members/${id}`, { method: 'DELETE' });
+    if (!confirm(`${name} 회원을 삭제하시겠습니까?\n삭제된 데이터는 복구되지 않습니다.`)) return;
+    const res = await fetch(`/api/members/${id}`, { method: 'DELETE', headers: csrfHeaders() });
+    if (!res.ok) { alert('삭제에 실패했습니다.'); return; }
     loadMembers();
 }
 

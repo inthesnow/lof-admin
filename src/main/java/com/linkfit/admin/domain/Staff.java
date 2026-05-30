@@ -3,7 +3,7 @@ package com.linkfit.admin.domain;
 import java.time.LocalDate;
 
 public class Staff {
-    private Long id;
+    private String id;
     private String name;
     private String phone;
     private String email;
@@ -13,8 +13,8 @@ public class Staff {
 
     public Staff() {}
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getPhone() { return phone; }

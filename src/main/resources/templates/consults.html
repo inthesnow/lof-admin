@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>LINK_Fit Admin — 상담 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
@@ -129,6 +131,12 @@ let currentPage = 0;
 const pageSize = 10;
 let editingId = null;
 
+function csrfHeaders(extra) {
+    const token  = document.querySelector('meta[name="_csrf"]').content;
+    const header = document.querySelector('meta[name="_csrf_header"]').content;
+    return Object.assign({ 'Content-Type': 'application/json', [header]: token }, extra);
+}
+
 const typeLabel = { NEW: '신규', EXISTING: '기존 회원' };
 const typeBadge = { NEW: 'badge-active', EXISTING: 'badge-admin' };
 const resultLabel = { REGISTERED: '등록 완료', PENDING: '미결정', NO_SHOW: '노쇼' };
@@ -183,14 +191,14 @@ async function saveConsult() {
     };
     const type = document.getElementById('cType').value;
     const url = type === 'NEW' ? '/api/consults' : '/api/consults/existing';
-    await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    await fetch(url, { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
     closeModal();
     loadConsults();
 }
 
 async function deleteConsult(id) {
     if (!confirm('상담 내역을 삭제하시겠습니까?')) return;
-    await fetch(`/api/consults/${id}`, { method: 'DELETE' });
+    await fetch(`/api/consults/${id}`, { method: 'DELETE', headers: csrfHeaders() });
     loadConsults();
 }
 

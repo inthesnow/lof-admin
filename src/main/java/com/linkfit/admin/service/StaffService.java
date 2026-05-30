@@ -7,9 +7,9 @@ import java.util.Optional;
 public interface StaffService {
     List<Staff> findAll(String role, int page, int size);
     long count(String role);
-    Optional<Staff> findById(Long id);
+    Optional<Staff> findById(String id);
     Staff save(Staff staff);
-    Staff update(Long id, Staff staff);
-    void delete(Long id);
-    void updateRole(Long id, String role);
+    Staff update(String id, Staff staff);
+    void delete(String id);
+    void updateRole(String id, String role);
 }

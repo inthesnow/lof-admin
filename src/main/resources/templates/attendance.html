@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>LINK_Fit Admin — 출석 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
@@ -124,6 +126,12 @@
 </div>
 
 <script>
+function csrfHeaders(extra) {
+    const token  = document.querySelector('meta[name="_csrf"]').content;
+    const header = document.querySelector('meta[name="_csrf_header"]').content;
+    return Object.assign({ 'Content-Type': 'application/json', [header]: token }, extra);
+}
+
 const typeLabel = { MEMBERSHIP: '회원권', GROUP: '그룹수업', PT: '개인레슨' };
 const typeBadge = { MEMBERSHIP: 'badge-active', GROUP: 'badge-admin', PT: 'badge-super' };
 const genderLabel = { M: '남성', F: '여성' };
@@ -180,14 +188,14 @@ async function checkIn() {
         memberName: document.getElementById('aMemberName').value,
         type: document.getElementById('aType').value,
     };
-    await fetch('/api/attendance', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    await fetch('/api/attendance', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
     closeModal();
     loadAttendance();
 }
 
 async function cancelAttend(id) {
     if (!confirm('출석을 취소하시겠습니까?')) return;
-    await fetch(`/api/attendance/${id}`, { method: 'DELETE' });
+    await fetch(`/api/attendance/${id}`, { method: 'DELETE', headers: csrfHeaders() });
     loadAttendance();
 }
 
