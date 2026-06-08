@@ -39,6 +39,9 @@
         <if test="status != null and status != ''">
             AND CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
         </if>
+        <if test="tier != null and tier != ''">
+            AND up.tier = #{tier}
+        </if>
         ORDER BY u.created_at DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -53,6 +56,9 @@
         </if>
         <if test="status != null and status != ''">
             AND CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
+        </if>
+        <if test="tier != null and tier != ''">
+            AND up.tier = #{tier}
         </if>
     </select>
 
@@ -143,5 +149,93 @@
         INSERT INTO membership (user_id, product_id, type, start_date, end_date, price, memo)
         VALUES (#{memberId}, #{productId}, #{type}, #{startDate}, #{endDate}, #{price}, #{memo})
     </insert>
+
+
+    <resultMap id="expiringResultMap" type="Membership">
+        <id     property="id"          column="id"/>
+        <result property="memberId"    column="user_id"/>
+        <result property="productName" column="product_name"/>
+        <result property="type"        column="type"/>
+        <result property="startDate"   column="start_date"/>
+        <result property="endDate"     column="end_date"/>
+        <result property="memberName"  column="member_name"/>
+        <result property="memberPhone" column="member_phone"/>
+        <result property="daysLeft"    column="days_left"/>
+    </resultMap>
+
+    <select id="findExpiringMemberships" resultMap="expiringResultMap">
+        SELECT ms.id, ms.user_id, ms.type, ms.start_date, ms.end_date,
+               p.name AS product_name,
+               up.name AS member_name, up.contact AS member_phone,
+               DATEDIFF(ms.end_date, CURDATE()) AS days_left
+          FROM membership ms
+          LEFT JOIN product p ON ms.product_id = p.id
+          LEFT JOIN user_profiles up ON ms.user_id = up.user_id
+         WHERE ms.end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL #{days} DAY)
+         ORDER BY ms.end_date ASC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countExpiringMemberships" resultType="long">
+        SELECT COUNT(*)
+          FROM membership ms
+         WHERE ms.end_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL #{days} DAY)
+    </select>
+
+    <select id="findTickets" resultType="MemberTicket">
+        SELECT ticket_type AS ticketType, remaining
+        FROM member_tickets
+        WHERE user_id = #{userId}
+          AND ticket_type IN ('ONE_POINT', 'FEEDBACK')
+        ORDER BY FIELD(ticket_type, 'ONE_POINT', 'FEEDBACK')
+    </select>
+
+    <insert id="upsertTicket">
+        INSERT INTO member_tickets (user_id, ticket_type, remaining)
+        VALUES (#{userId}, #{ticketType}, GREATEST(0, #{amount}))
+        ON DUPLICATE KEY UPDATE remaining = GREATEST(0, remaining + #{amount})
+    </insert>
+
+    <insert id="insertTicketLog">
+        INSERT INTO ticket_logs (user_id, ticket_type, action_type, description)
+        VALUES (#{userId}, #{ticketType}, #{actionType}, #{description})
+    </insert>
+
+    <select id="findAllActiveIds" resultType="string">
+        SELECT user_id FROM users WHERE role = 'MEMBER' AND is_active = 1
+    </select>
+
+    <resultMap id="ptMemberResultMap" type="com.linkfit.admin.domain.PtMember">
+        <result property="memberId"    column="member_id"/>
+        <result property="memberName"  column="member_name"/>
+        <result property="memberPhone" column="member_phone"/>
+        <result property="tier"        column="tier"/>
+        <result property="ptRemaining" column="pt_remaining"/>
+        <result property="trainerName" column="trainer_name"/>
+    </resultMap>
+
+    <select id="findPtMembers" resultMap="ptMemberResultMap">
+        SELECT mt.user_id AS member_id,
+               up.name    AS member_name,
+               up.contact AS member_phone,
+               up.tier,
+               mt.remaining AS pt_remaining,
+               tup.name AS trainer_name
+          FROM member_tickets mt
+          LEFT JOIN user_profiles up ON mt.user_id = up.user_id
+          LEFT JOIN crm_member_assignments cma ON cma.member_id = mt.user_id
+          LEFT JOIN crm_users cu  ON cu.id = cma.trainer_id
+          LEFT JOIN user_profiles tup ON cu.app_user_id = tup.user_id
+         WHERE mt.ticket_type = 'ONE_POINT'
+        <if test="lowStock">AND mt.remaining &lt; 5</if>
+         ORDER BY mt.remaining ASC, up.name ASC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countPtMembers" resultType="long">
+        SELECT COUNT(*) FROM member_tickets mt
+         WHERE mt.ticket_type = 'ONE_POINT'
+        <if test="lowStock">AND mt.remaining &lt; 5</if>
+    </select>
 
 </mapper>

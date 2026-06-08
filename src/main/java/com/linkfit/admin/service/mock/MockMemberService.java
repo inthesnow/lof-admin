@@ -1,6 +1,7 @@
 package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Member;
+import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.service.MemberService;
 
 import java.time.LocalDate;
@@ -38,22 +39,24 @@ public class MockMemberService implements MemberService {
     }
 
     @Override
-    public List<Member> findAll(String keyword, String status, int page, int size) {
+    public List<Member> findAll(String keyword, String status, String tier, int page, int size) {
         return store.values().stream()
             .filter(m -> keyword == null || keyword.isBlank() ||
                 m.getName().contains(keyword) || m.getPhone().contains(keyword))
             .filter(m -> status == null || status.isBlank() || m.getStatus().equals(status))
+            .filter(m -> tier == null || tier.isBlank() || tier.equals(m.getTier()))
             .skip((long) page * size)
             .limit(size)
             .collect(Collectors.toList());
     }
 
     @Override
-    public long count(String keyword, String status) {
+    public long count(String keyword, String status, String tier) {
         return store.values().stream()
             .filter(m -> keyword == null || keyword.isBlank() ||
                 m.getName().contains(keyword) || m.getPhone().contains(keyword))
             .filter(m -> status == null || status.isBlank() || m.getStatus().equals(status))
+            .filter(m -> tier == null || tier.isBlank() || tier.equals(m.getTier()))
             .count();
     }
 
@@ -103,4 +106,10 @@ public class MockMemberService implements MemberService {
     public void freeze(String id, String startDate, String endDate) {
         Optional.ofNullable(store.get(id)).ifPresent(m -> m.setStatus("SUSPENDED"));
     }
+
+    @Override
+    public List<MemberTicket> findTickets(String id) { return Collections.emptyList(); }
+
+    @Override
+    public void chargeTicket(String id, String ticketType, int amount, String description) {}
 }

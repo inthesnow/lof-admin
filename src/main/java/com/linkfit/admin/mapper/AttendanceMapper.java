@@ -19,4 +19,7 @@ public interface AttendanceMapper {
     Map<String, Object> countStats(@Param("date") String date, @Param("period") String period,
                                    @Param("type") String type);
     Map<String, Object> countFrozen(@Param("date") String date);
+
+    List<Map<String, Object>> dailyTrend(@Param("startDate") String startDate,
+                                          @Param("endDate") String endDate);
 }

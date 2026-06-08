@@ -113,4 +113,12 @@
         WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
     </select>
 
+    <select id="dailyTrend" resultType="map">
+        SELECT attend_date AS date, COUNT(*) AS cnt
+          FROM attendance
+         WHERE attend_date BETWEEN #{startDate} AND #{endDate}
+         GROUP BY attend_date
+         ORDER BY attend_date ASC
+    </select>
+
 </mapper>

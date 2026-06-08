@@ -14,6 +14,10 @@ public class Membership {
     private int price;
     private String memo;
     private LocalDateTime createdAt;
+    // joined fields for list views
+    private String memberName;
+    private String memberPhone;
+    private Integer daysLeft;
 
     public Membership() {}
 
@@ -37,4 +41,10 @@ public class Membership {
     public void setMemo(String memo) { this.memo = memo; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getMemberName() { return memberName; }
+    public void setMemberName(String memberName) { this.memberName = memberName; }
+    public String getMemberPhone() { return memberPhone; }
+    public void setMemberPhone(String memberPhone) { this.memberPhone = memberPhone; }
+    public Integer getDaysLeft() { return daysLeft; }
+    public void setDaysLeft(Integer daysLeft) { this.daysLeft = daysLeft; }
 }

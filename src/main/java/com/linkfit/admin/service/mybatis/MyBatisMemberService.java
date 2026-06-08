@@ -1,6 +1,7 @@
 package com.linkfit.admin.service.mybatis;
 
 import com.linkfit.admin.domain.Member;
+import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.mapper.MemberMapper;
 import com.linkfit.admin.service.MemberService;
 import org.springframework.context.annotation.Profile;
@@ -21,13 +22,13 @@ public class MyBatisMemberService implements MemberService {
     }
 
     @Override
-    public List<Member> findAll(String keyword, String status, int page, int size) {
-        return memberMapper.findAll(keyword, status, page * size, size);
+    public List<Member> findAll(String keyword, String status, String tier, int page, int size) {
+        return memberMapper.findAll(keyword, status, tier, page * size, size);
     }
 
     @Override
-    public long count(String keyword, String status) {
-        return memberMapper.count(keyword, status);
+    public long count(String keyword, String status, String tier) {
+        return memberMapper.count(keyword, status, tier);
     }
 
     @Override
@@ -76,5 +77,18 @@ public class MyBatisMemberService implements MemberService {
     public void freeze(String id, String startDate, String endDate) {
         memberMapper.insertFreeze(id, startDate, endDate, null);
         memberMapper.updateStatus(id, 0);
+    }
+
+    @Override
+    public List<MemberTicket> findTickets(String id) {
+        return memberMapper.findTickets(id);
+    }
+
+    @Override
+    public void chargeTicket(String id, String ticketType, int amount, String description) {
+        memberMapper.upsertTicket(id, ticketType, amount);
+        String actionType = amount >= 0 ? "CHARGE" : "USE";
+        String desc = (description != null && !description.isBlank()) ? description : (amount >= 0 ? "관리자 지급" : "관리자 차감");
+        memberMapper.insertTicketLog(id, ticketType, actionType, desc);
     }
 }

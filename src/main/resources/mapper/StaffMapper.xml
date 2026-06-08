@@ -59,4 +59,48 @@
         UPDATE users SET is_active = CASE WHEN #{role} = 'ACTIVE' THEN 1 ELSE 0 END WHERE user_id=#{id}
     </update>
 
+    <!-- ── Sector 13: 트레이너 CRM 대시보드 ────────────────── -->
+
+    <select id="findDashboard" resultType="map">
+        SELECT
+            cu.id                                                        AS crmUserId,
+            COUNT(DISTINCT cma.member_id)                                AS assignedMembers,
+            SUM(CASE WHEN cfr.status IN ('pending','in_progress')
+                     THEN 1 ELSE 0 END)                                  AS pendingFeedback,
+            SUM(CASE WHEN crr.status = 'pending'
+                     THEN 1 ELSE 0 END)                                  AS pendingReregistration
+          FROM crm_users cu
+          LEFT JOIN crm_member_assignments cma
+                 ON cma.trainer_id = cu.id AND cma.gym_id = #{gymId}
+          LEFT JOIN crm_feedback_requests cfr
+                 ON cfr.trainer_id = cu.id
+                AND cfr.status IN ('pending','in_progress')
+          LEFT JOIN crm_re_registration crr
+                 ON crr.assigned_to = cu.id
+                AND crr.status = 'pending'
+         WHERE cu.app_user_id = #{appUserId}
+         GROUP BY cu.id
+         LIMIT 1
+    </select>
+
+    <resultMap id="assignedMemberMap" type="Member">
+        <id     property="id"          column="id"/>
+        <result property="name"        column="name"/>
+        <result property="phone"       column="phone"/>
+        <result property="tier"        column="tier"/>
+        <result property="memberType"  column="member_type"/>
+        <result property="status"      column="status"/>
+    </resultMap>
+
+    <select id="findAssignedMembers" resultMap="assignedMemberMap">
+        SELECT u.user_id AS id, up.name, up.contact AS phone, up.tier, up.member_type,
+               CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END AS status
+          FROM crm_member_assignments cma
+          JOIN crm_users cu ON cu.id = cma.trainer_id AND cu.app_user_id = #{appUserId}
+          JOIN users u       ON u.user_id = cma.member_id
+          JOIN user_profiles up ON up.user_id = cma.member_id
+         WHERE cma.gym_id = #{gymId}
+         ORDER BY up.name ASC
+    </select>
+
 </mapper>
