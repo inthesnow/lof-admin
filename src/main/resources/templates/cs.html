@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — CS 티켓</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('cs')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">CS 티켓</h1>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" onclick="openCreate()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                티켓 등록
+            </button>
+        </div>
+    </header>
+
+    <!-- 요약 카드 -->
+    <div style="display:flex;gap:10px;padding:16px 24px;flex-wrap:wrap" id="summaryCards"></div>
+
+    <!-- 필터 -->
+    <div class="search-bar">
+        <select class="filter-select" id="statusFilter" onchange="currentPage=0;loadList()">
+            <option value="">전체 상태</option>
+            <option value="received">접수</option>
+            <option value="checking">확인 중</option>
+            <option value="processing">처리 중</option>
+            <option value="answered">답변 완료</option>
+            <option value="closed">종료</option>
+        </select>
+        <select class="filter-select" id="categoryFilter" onchange="currentPage=0;loadList()">
+            <option value="">전체 유형</option>
+            <option value="app_error">앱 오류</option>
+            <option value="membership">이용권</option>
+            <option value="pt">PT</option>
+            <option value="feedback">피드백</option>
+            <option value="payment">결제</option>
+            <option value="other">기타</option>
+        </select>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>제목</th>
+                    <th>회원</th>
+                    <th>유형</th>
+                    <th>상태</th>
+                    <th>담당자</th>
+                    <th>접수일</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- 상세/처리 모달 -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+            <span class="modal-title" id="dtTitle">티켓 상세</span>
+            <button class="modal-close" onclick="closeDetail()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+                <div><div class="form-label">회원</div><div id="dtMember" style="font-weight:600"></div></div>
+                <div><div class="form-label">유형</div><div id="dtCategory"></div></div>
+                <div><div class="form-label">접수일</div><div id="dtDate" style="color:var(--text-muted);font-size:12px"></div></div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;white-space:pre-wrap;font-size:13px;max-height:150px;overflow-y:auto" id="dtContent"></div>
+            <div class="form-group">
+                <label class="form-label">상태 변경</label>
+                <select class="form-select" id="dtStatus">
+                    <option value="received">접수</option>
+                    <option value="checking">확인 중</option>
+                    <option value="processing">처리 중</option>
+                    <option value="answered">답변 완료</option>
+                    <option value="closed">종료</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">답변</label>
+                <textarea class="form-textarea" id="dtResponse" rows="4" placeholder="회원에게 전달할 답변..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeDetail()">취소</button>
+            <button class="btn btn-primary" onclick="saveDetail()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 티켓 등록 모달 -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+            <span class="modal-title">CS 티켓 등록</span>
+            <button class="modal-close" onclick="closeCreate()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">회원 ID</label>
+                    <input type="text" class="form-input" id="cMemberId" placeholder="users.user_id">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">유형</label>
+                    <select class="form-select" id="cCategory">
+                        <option value="app_error">앱 오류</option>
+                        <option value="membership">이용권</option>
+                        <option value="pt">PT</option>
+                        <option value="feedback">피드백</option>
+                        <option value="payment">결제</option>
+                        <option value="other">기타</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">제목</label>
+                    <input type="text" class="form-input" id="cTitle" placeholder="문의 제목">
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">내용</label>
+                    <textarea class="form-textarea" id="cContent" rows="4" placeholder="문의 내용..."></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeCreate()">취소</button>
+            <button class="btn btn-primary" onclick="saveCreate()">등록</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.sc-card { background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:80px;text-align:center;cursor:pointer;transition:border-color .15s; }
+.sc-card:hover { border-color:var(--accent); }
+.sc-card .sc-v { font-size:20px;font-weight:700;color:var(--accent); }
+.sc-card .sc-l { font-size:11px;color:var(--text-muted); }
+</style>
+
+<script>
+let currentPage = 0;
+const pageSize  = 20;
+let editingId   = null;
+
+function csrfHeaders(e) { return Object.assign({'Content-Type':'application/json'}, e); }
+
+const statusLabel = { received:'접수', checking:'확인 중', processing:'처리 중', answered:'답변 완료', closed:'종료' };
+const statusBadge = { received:'badge-pending', checking:'badge-admin', processing:'badge-admin', answered:'badge-active', closed:'badge-expired' };
+const categoryLabel = { app_error:'앱 오류', membership:'이용권', pt:'PT', feedback:'피드백', payment:'결제', other:'기타' };
+
+async function loadSummary() {
+    const res = await fetch('/api/cs/tickets/summary');
+    const json = await res.json();
+    const d = json.data || {};
+    const statuses = ['received','checking','processing','answered','closed'];
+    document.getElementById('summaryCards').innerHTML = statuses.map(s => `
+        <div class="sc-card" onclick="filterByStatus('${s}')">
+            <div class="sc-v">${d[s] ?? 0}</div>
+            <div class="sc-l">${statusLabel[s]}</div>
+        </div>`).join('');
+}
+
+function filterByStatus(s) {
+    document.getElementById('statusFilter').value = s;
+    currentPage = 0;
+    loadList();
+}
+
+async function loadList() {
+    const status   = document.getElementById('statusFilter').value;
+    const category = document.getElementById('categoryFilter').value;
+    const res  = await fetch(`/api/cs/tickets?status=${status}&category=${category}&page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTable(json.data?.items, json.data?.total);
+}
+
+function renderTable(items, total) {
+    const tbody = document.getElementById('tableBody');
+    if (!items || !items.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">티켓이 없습니다.</td></tr>`;
+        renderPagination(0); return;
+    }
+    tbody.innerHTML = items.map(t => `
+        <tr>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(t.title)}">${escHtml(t.title)}</td>
+            <td>${t.memberName || t.memberId}</td>
+            <td><span class="badge badge-pending" style="font-size:11px">${categoryLabel[t.category]||t.category}</span></td>
+            <td><span class="badge ${statusBadge[t.status]||''}">${statusLabel[t.status]||t.status}</span></td>
+            <td>${t.assignedToName || '<span style="color:var(--text-muted)">미배정</span>'}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${fmtDate(t.createdAt)}</td>
+            <td>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px"
+                        onclick="openDetail(${JSON.stringify(t).replace(/"/g,'&quot;')})">처리</button>
+            </td>
+        </tr>`).join('');
+    renderPagination(total);
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pg = document.getElementById('pagination');
+    if (totalPages <= 1) { pg.innerHTML=''; return; }
+    pg.innerHTML = Array.from({length: totalPages}, (_,i) =>
+        `<button class="page-btn${i===currentPage?' active':''}" onclick="currentPage=${i};loadList()">${i+1}</button>`
+    ).join('');
+}
+
+function openDetail(t) {
+    editingId = t.id;
+    document.getElementById('dtTitle').textContent    = t.title;
+    document.getElementById('dtMember').textContent   = t.memberName || t.memberId;
+    document.getElementById('dtCategory').textContent = categoryLabel[t.category] || t.category;
+    document.getElementById('dtDate').textContent     = fmtDate(t.createdAt);
+    document.getElementById('dtContent').textContent  = t.content;
+    document.getElementById('dtStatus').value         = t.status;
+    document.getElementById('dtResponse').value       = t.response || '';
+    document.getElementById('detailModal').classList.add('open');
+}
+
+function closeDetail() { document.getElementById('detailModal').classList.remove('open'); editingId=null; }
+
+async function saveDetail() {
+    const status   = document.getElementById('dtStatus').value;
+    const response = document.getElementById('dtResponse').value.trim();
+    await fetch(`/api/cs/tickets/${editingId}/status`, {
+        method:'PATCH', headers:csrfHeaders(), body:JSON.stringify({status})
+    });
+    if (response) {
+        await fetch(`/api/cs/tickets/${editingId}/respond`, {
+            method:'PATCH', headers:csrfHeaders(), body:JSON.stringify({response})
+        });
+    }
+    closeDetail(); loadSummary(); loadList();
+}
+
+function openCreate() { document.getElementById('createModal').classList.add('open'); }
+function closeCreate() { document.getElementById('createModal').classList.remove('open'); }
+
+async function saveCreate() {
+    const memberId = document.getElementById('cMemberId').value.trim();
+    const title    = document.getElementById('cTitle').value.trim();
+    const content  = document.getElementById('cContent').value.trim();
+    if (!memberId || !title || !content) { alert('필수 항목을 입력해주세요.'); return; }
+    const res = await fetch('/api/cs/tickets', {
+        method:'POST', headers:csrfHeaders(),
+        body:JSON.stringify({ memberId, category:document.getElementById('cCategory').value, title, content })
+    });
+    if (!res.ok) { alert('등록에 실패했습니다.'); return; }
+    closeCreate(); loadSummary(); loadList();
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(s) { if (!s) return '-'; return String(s).replace('T',' ').substring(0,16); }
+function openSidebar() { document.querySelector('.sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.querySelector('.sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+
+loadSummary();
+loadList();
+</script>
+</body>
+</html>

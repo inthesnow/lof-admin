@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.CrmMemberMapper">
+
+    <!-- ── Notes ──────────────────────────────────────────────── -->
+
+    <resultMap id="noteMap" type="com.linkfit.admin.domain.CrmMemberNote">
+        <id     property="id"          column="id"/>
+        <result property="memberId"    column="member_id"/>
+        <result property="gymId"       column="gym_id"/>
+        <result property="authorId"    column="author_id"/>
+        <result property="authorName"  column="author_name"/>
+        <result property="content"     column="content"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <select id="findNotesByMemberId" resultMap="noteMap">
+        SELECT n.id, n.member_id, n.gym_id, n.author_id, n.content, n.created_at,
+               u.name AS author_name
+          FROM crm_member_notes n
+          LEFT JOIN crm_users u ON u.id = n.author_id
+         WHERE n.member_id = #{memberId}
+           AND n.gym_id    = #{gymId}
+         ORDER BY n.created_at DESC
+    </select>
+
+    <insert id="insertNote" parameterType="com.linkfit.admin.domain.CrmMemberNote">
+        INSERT INTO crm_member_notes (id, member_id, gym_id, author_id, content, created_at)
+        VALUES (#{id}, #{memberId}, #{gymId}, #{authorId}, #{content}, NOW())
+    </insert>
+
+    <!-- ── Tags ───────────────────────────────────────────────── -->
+
+    <resultMap id="tagMap" type="com.linkfit.admin.domain.CrmMemberTag">
+        <id     property="id"        column="id"/>
+        <result property="memberId"  column="member_id"/>
+        <result property="gymId"     column="gym_id"/>
+        <result property="tag"       column="tag"/>
+        <result property="color"     column="color"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findTagsByMemberId" resultMap="tagMap">
+        SELECT id, member_id, gym_id, tag, color, created_at
+          FROM crm_member_tags
+         WHERE member_id = #{memberId}
+           AND gym_id    = #{gymId}
+         ORDER BY created_at ASC
+    </select>
+
+    <insert id="insertTag" parameterType="com.linkfit.admin.domain.CrmMemberTag">
+        INSERT INTO crm_member_tags (id, member_id, gym_id, tag, color, created_at)
+        VALUES (#{id}, #{memberId}, #{gymId}, #{tag}, #{color}, NOW())
+    </insert>
+
+    <delete id="deleteTag">
+        DELETE FROM crm_member_tags
+         WHERE id     = #{tagId}
+           AND gym_id = #{gymId}
+    </delete>
+
+    <!-- ── Trainer assignment ─────────────────────────────────── -->
+
+    <select id="findTrainerIdByMemberId" resultType="string">
+        SELECT trainer_id
+          FROM crm_member_assignments
+         WHERE member_id = #{memberId}
+           AND gym_id    = #{gymId}
+         LIMIT 1
+    </select>
+
+    <insert id="upsertTrainer">
+        INSERT INTO crm_member_assignments (id, member_id, trainer_id, gym_id, assigned_at)
+        VALUES (#{id}, #{memberId}, #{trainerId}, #{gymId}, NOW())
+        ON DUPLICATE KEY UPDATE trainer_id = #{trainerId}, assigned_at = NOW()
+    </insert>
+
+    <!-- ── Membership history ─────────────────────────────────── -->
+
+    <resultMap id="historyMap" type="com.linkfit.admin.domain.CrmMembershipHistory">
+        <id     property="id"                column="id"/>
+        <result property="memberId"          column="member_id"/>
+        <result property="gymId"             column="gym_id"/>
+        <result property="action"            column="action"/>
+        <result property="reason"            column="reason"/>
+        <result property="processedBy"       column="processed_by"/>
+        <result property="processedByName"   column="processed_by_name"/>
+        <result property="createdAt"         column="created_at"/>
+    </resultMap>
+
+    <select id="findHistoryByMemberId" resultMap="historyMap">
+        SELECT h.id, h.member_id, h.gym_id, h.action, h.reason, h.processed_by, h.created_at,
+               u.name AS processed_by_name
+          FROM crm_membership_history h
+          LEFT JOIN crm_users u ON u.id = h.processed_by
+         WHERE h.member_id = #{memberId}
+           AND h.gym_id    = #{gymId}
+         ORDER BY h.created_at DESC
+    </select>
+
+    <insert id="insertHistory" parameterType="com.linkfit.admin.domain.CrmMembershipHistory">
+        INSERT INTO crm_membership_history (id, member_id, gym_id, action, reason, processed_by, created_at)
+        VALUES (#{id}, #{memberId}, #{gymId}, #{action}, #{reason}, #{processedBy}, NOW())
+    </insert>
+
+</mapper>

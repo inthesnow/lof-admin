@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="_csrf" th:content="${_csrf.token}">
-    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>LINK_Fit Admin — 메시지</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
@@ -96,9 +94,7 @@ let currentPage = 0;
 const pageSize = 10;
 
 function csrfHeaders(extra) {
-    const token  = document.querySelector('meta[name="_csrf"]').content;
-    const header = document.querySelector('meta[name="_csrf_header"]').content;
-    return Object.assign({ 'Content-Type': 'application/json', [header]: token }, extra);
+    return Object.assign({ 'Content-Type': 'application/json' }, extra);
 }
 
 const targetLabel = { ALL: '전체 회원', MEMBER: '유효 회원', INDIVIDUAL: '개별 지정' };

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — PT 관리</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('pt')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">PT 관리</h1>
+        </div>
+        <div class="header-right">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);cursor:pointer">
+                <input type="checkbox" id="lowStockFilter" onchange="currentPage=0;loadList()">
+                잔여 5회 미만만 보기
+            </label>
+        </div>
+    </header>
+
+    <!-- 요약 카드 -->
+    <div style="display:flex;gap:12px;padding:16px 24px;flex-wrap:wrap">
+        <div class="pt-stat-card">
+            <div class="pt-stat-val" id="totalPt">-</div>
+            <div class="pt-stat-label">PT 회원 수</div>
+        </div>
+        <div class="pt-stat-card warn" id="lowStockCard">
+            <div class="pt-stat-val" id="lowStockCount">-</div>
+            <div class="pt-stat-label">잔여 5회 미만</div>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>회원명</th>
+                    <th>전화번호</th>
+                    <th>등급</th>
+                    <th>담당 트레이너</th>
+                    <th>PT 잔여 횟수</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="ptTableBody">
+                <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- PT 횟수 조정 모달 -->
+<div class="modal-overlay" id="ticketModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title" id="ticketModalTitle">PT 횟수 조정</span>
+            <button class="modal-close" onclick="closeTicketModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:16px;font-size:13px;color:var(--text-secondary)" id="ticketCurrentInfo"></div>
+            <div class="form-group">
+                <label class="form-label">조정 유형</label>
+                <select class="form-select" id="ticketAction">
+                    <option value="add">충전 (+)</option>
+                    <option value="use">차감 (-)</option>
+                    <option value="adjust">직접 설정</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">횟수</label>
+                <input type="number" class="form-input" id="ticketAmount" min="1" value="1">
+            </div>
+            <div class="form-group">
+                <label class="form-label">메모</label>
+                <input type="text" class="form-input" id="ticketDesc" placeholder="조정 사유 (선택)">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTicketModal()">취소</button>
+            <button class="btn btn-primary" onclick="saveTicket()">저장</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.pt-stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 20px; min-width: 100px; text-align: center;
+}
+.pt-stat-card.warn .pt-stat-val { color: var(--warning); }
+.pt-stat-val   { font-size: 24px; font-weight: 700; color: var(--accent); }
+.pt-stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.remaining-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 13px; font-weight: 600;
+}
+.remaining-ok   { background: color-mix(in srgb,#3FB950 15%,transparent); color: #3FB950; }
+.remaining-low  { background: color-mix(in srgb,#D29922 15%,transparent); color: #D29922; }
+.remaining-zero { background: color-mix(in srgb,#F85149 15%,transparent); color: #F85149; }
+</style>
+
+<script>
+let currentPage = 0;
+const pageSize  = 20;
+let editingMemberId = null;
+
+function csrfHeaders(extra) {
+    return Object.assign({ 'Content-Type': 'application/json' }, extra);
+}
+
+const tierLabel = { BASIC:'기본', LIGHT_FIT:'라이트', REGULAR_FIT:'레귤러', INTENSIVE_FIT:'인텐시브' };
+
+async function loadStats() {
+    const [total, low] = await Promise.all([
+        fetch('/api/pt/members?lowStock=false&page=0&size=1').then(r => r.json()),
+        fetch('/api/pt/members?lowStock=true&page=0&size=1').then(r => r.json())
+    ]);
+    document.getElementById('totalPt').textContent      = total.data?.total ?? '-';
+    document.getElementById('lowStockCount').textContent = low.data?.total ?? '-';
+}
+
+async function loadList() {
+    const lowStock = document.getElementById('lowStockFilter').checked;
+    const res  = await fetch(`/api/pt/members?lowStock=${lowStock}&page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTable(json.data?.items, json.data?.total);
+}
+
+function renderTable(items, total) {
+    const tbody = document.getElementById('ptTableBody');
+    if (!items || !items.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">PT 회원 데이터가 없습니다.</td></tr>`;
+        renderPagination(0);
+        return;
+    }
+    tbody.innerHTML = items.map(m => {
+        const rem = m.ptRemaining || 0;
+        const cls = rem === 0 ? 'remaining-zero' : rem < 5 ? 'remaining-low' : 'remaining-ok';
+        return `<tr>
+            <td>${m.memberName || m.memberId}</td>
+            <td>${m.memberPhone || '-'}</td>
+            <td><span class="badge badge-pending" style="font-size:11px">${tierLabel[m.tier] || m.tier || '-'}</span></td>
+            <td>${m.trainerName || '<span style="color:var(--text-muted)">미배정</span>'}</td>
+            <td><span class="remaining-badge ${cls}">${rem}회</span></td>
+            <td>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px"
+                        onclick="openTicketModal('${m.memberId}','${escHtml(m.memberName||m.memberId)}',${rem})">
+                    횟수 조정
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+    renderPagination(total);
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pg = document.getElementById('pagination');
+    if (totalPages <= 1) { pg.innerHTML = ''; return; }
+    pg.innerHTML = Array.from({length: totalPages}, (_, i) =>
+        `<button class="page-btn${i === currentPage ? ' active' : ''}" onclick="currentPage=${i};loadList()">${i+1}</button>`
+    ).join('');
+}
+
+function openTicketModal(memberId, name, remaining) {
+    editingMemberId = memberId;
+    document.getElementById('ticketModalTitle').textContent = `${name} — PT 횟수 조정`;
+    document.getElementById('ticketCurrentInfo').textContent = `현재 잔여 횟수: ${remaining}회`;
+    document.getElementById('ticketAction').value = 'add';
+    document.getElementById('ticketAmount').value = '1';
+    document.getElementById('ticketDesc').value   = '';
+    document.getElementById('ticketModal').classList.add('open');
+}
+
+function closeTicketModal() {
+    document.getElementById('ticketModal').classList.remove('open');
+    editingMemberId = null;
+}
+
+async function saveTicket() {
+    const action = document.getElementById('ticketAction').value;
+    const amount = parseInt(document.getElementById('ticketAmount').value, 10);
+    const desc   = document.getElementById('ticketDesc').value;
+    if (isNaN(amount) || amount <= 0) { alert('횟수를 올바르게 입력해주세요.'); return; }
+
+    const adjustAmount = action === 'use' ? -amount : amount;
+    const res = await fetch(`/api/pt/members/${editingMemberId}/tickets`, {
+        method: 'PUT',
+        headers: csrfHeaders(),
+        body: JSON.stringify({ ticketType: 'ONE_POINT', amount: adjustAmount,
+                               actionType: action, description: desc })
+    });
+    if (!res.ok) { alert('저장에 실패했습니다.'); return; }
+    closeTicketModal();
+    loadStats();
+    loadList();
+}
+
+function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openSidebar() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+loadStats();
+loadList();
+</script>
+</body>
+</html>

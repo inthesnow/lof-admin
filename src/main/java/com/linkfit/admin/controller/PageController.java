@@ -21,6 +21,12 @@ public class PageController {
     @GetMapping("/consults")
     public String consults() { return "consults"; }
 
+    @GetMapping("/feedback")
+    public String feedback() { return "feedback"; }
+
+    @GetMapping("/reregistration")
+    public String reregistration() { return "reregistration"; }
+
     @GetMapping("/revenue")
     public String revenue() { return "revenue"; }
 
@@ -29,6 +35,21 @@ public class PageController {
 
     @GetMapping("/messages")
     public String messages() { return "messages"; }
+
+    @GetMapping("/pt")
+    public String pt() { return "pt"; }
+
+    @GetMapping("/inbox")
+    public String inbox() { return "inbox"; }
+
+    @GetMapping("/cs")
+    public String cs() { return "cs"; }
+
+    @GetMapping("/crm-sales")
+    public String crmSales() { return "crm-sales"; }
+
+    @GetMapping("/announcements")
+    public String announcements() { return "announcements"; }
 
     @GetMapping("/settings")
     public String settings() { return "settings"; }

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — 공지사항</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('announcements')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">공지사항</h1>
+        </div>
+        <div class="header-right">
+            <button class="btn btn-primary" onclick="openCreate()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                공지 작성
+            </button>
+        </div>
+    </header>
+
+    <!-- 대상 필터 탭 -->
+    <div class="sub-tabs" style="padding:0 24px;border-bottom:1px solid var(--border)">
+        <button class="sub-tab active" onclick="filterTarget('', this)">전체</button>
+        <button class="sub-tab" onclick="filterTarget('all', this)">전체 발송</button>
+        <button class="sub-tab" onclick="filterTarget('all_members', this)">회원 대상</button>
+        <button class="sub-tab" onclick="filterTarget('all_trainers', this)">트레이너 대상</button>
+        <button class="sub-tab" onclick="filterTarget('specific', this)">특정 대상</button>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>제목</th>
+                    <th>대상</th>
+                    <th>발송 상태</th>
+                    <th>푸시</th>
+                    <th>작성자</th>
+                    <th>작성일</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- 공지 상세/보기 모달 -->
+<div class="modal-overlay" id="viewModal">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+            <span class="modal-title" id="viewTitle"></span>
+            <button class="modal-close" onclick="closeView()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex;gap:16px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);flex-wrap:wrap">
+                <span>대상: <b id="viewTarget"></b></span>
+                <span>작성자: <b id="viewAuthor"></b></span>
+                <span>작성일: <b id="viewDate"></b></span>
+                <span id="viewSentSpan" style="display:none">발송일: <b id="viewSentAt" style="color:var(--success)"></b></span>
+            </div>
+            <div style="white-space:pre-wrap;font-size:13px;line-height:1.6;border:1px solid var(--border);border-radius:8px;padding:14px;min-height:80px" id="viewContent"></div>
+        </div>
+        <div class="modal-footer" style="gap:8px">
+            <button class="btn btn-secondary" onclick="closeView()">닫기</button>
+            <button class="btn btn-primary" id="sendBtn" onclick="sendAnnouncement()">발송 처리</button>
+        </div>
+    </div>
+</div>
+
+<!-- 공지 작성 모달 -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <span class="modal-title">공지 작성</span>
+            <button class="modal-close" onclick="closeCreate()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">제목</label>
+                    <input type="text" class="form-input" id="cTitle" placeholder="공지 제목">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">발송 대상</label>
+                    <select class="form-select" id="cTarget" onchange="toggleSpecific()">
+                        <option value="all">전체 (회원 + 트레이너)</option>
+                        <option value="all_members">전체 회원</option>
+                        <option value="all_trainers">전체 트레이너</option>
+                        <option value="specific">특정 대상</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="display:flex;align-items:center;gap:8px">
+                        <input type="checkbox" id="cPush"> 푸시 알림 발송
+                    </label>
+                </div>
+                <div class="form-group full" id="specificIds" style="display:none">
+                    <label class="form-label">특정 대상 ID <span style="font-size:11px;color:var(--text-muted)">(쉼표로 구분)</span></label>
+                    <input type="text" class="form-input" id="cTargetIds" placeholder="user_id1, user_id2, ...">
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">내용</label>
+                    <textarea class="form-textarea" id="cContent" rows="6" placeholder="공지 내용을 입력하세요..."></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="gap:8px">
+            <button class="btn btn-secondary" onclick="closeCreate()">취소</button>
+            <button class="btn btn-secondary" onclick="saveCreate(false)">임시저장</button>
+            <button class="btn btn-primary" onclick="saveCreate(true)">저장 후 발송</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 0;
+const pageSize  = 20;
+let currentTarget = '';
+let viewingId = null;
+
+function csrfHeaders(e) { return Object.assign({'Content-Type':'application/json'}, e); }
+
+const targetLabel = { all:'전체', all_members:'전체 회원', all_trainers:'전체 트레이너', specific:'특정 대상' };
+
+function filterTarget(t, btn) {
+    currentTarget = t;
+    currentPage   = 0;
+    document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadList();
+}
+
+async function loadList() {
+    const res  = await fetch(`/api/announcements?target=${currentTarget}&page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTable(json.data?.items, json.data?.total);
+}
+
+function renderTable(items, total) {
+    const tbody = document.getElementById('tableBody');
+    if (!items || !items.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">공지사항이 없습니다.</td></tr>`;
+        renderPagination(0); return;
+    }
+    tbody.innerHTML = items.map(a => {
+        const sent = !!a.sentAt;
+        return `<tr>
+            <td style="font-weight:500">${escHtml(a.title)}</td>
+            <td><span class="badge badge-pending" style="font-size:11px">${targetLabel[a.target]||a.target}</span></td>
+            <td><span class="badge ${sent?'badge-active':'badge-suspended'}">${sent?'발송 완료':'미발송'}</span></td>
+            <td>${a.sendPush ? '<span style="color:var(--success);font-size:12px">●</span>' : '<span style="color:var(--text-muted);font-size:12px">○</span>'}</td>
+            <td style="color:var(--text-secondary);font-size:13px">${a.authorName||'-'}</td>
+            <td style="font-size:12px;color:var(--text-muted)">${fmtDate(a.createdAt)}</td>
+            <td style="display:flex;gap:6px">
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px"
+                        onclick="viewDetail(${JSON.stringify(a).replace(/"/g,'&quot;')})">보기</button>
+                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px"
+                        onclick="deleteAnno('${a.id}')">삭제</button>
+            </td>
+        </tr>`;
+    }).join('');
+    renderPagination(total);
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pg = document.getElementById('pagination');
+    if (totalPages <= 1) { pg.innerHTML=''; return; }
+    pg.innerHTML = Array.from({length:totalPages}, (_,i) =>
+        `<button class="page-btn${i===currentPage?' active':''}" onclick="currentPage=${i};loadList()">${i+1}</button>`
+    ).join('');
+}
+
+function viewDetail(a) {
+    viewingId = a.id;
+    document.getElementById('viewTitle').textContent   = a.title;
+    document.getElementById('viewTarget').textContent  = targetLabel[a.target]||a.target;
+    document.getElementById('viewAuthor').textContent  = a.authorName||'-';
+    document.getElementById('viewDate').textContent    = fmtDate(a.createdAt);
+    document.getElementById('viewContent').textContent = a.content;
+    const sentSpan = document.getElementById('viewSentSpan');
+    if (a.sentAt) {
+        document.getElementById('viewSentAt').textContent = fmtDate(a.sentAt);
+        sentSpan.style.display = '';
+        document.getElementById('sendBtn').style.display = 'none';
+    } else {
+        sentSpan.style.display = 'none';
+        document.getElementById('sendBtn').style.display = '';
+    }
+    document.getElementById('viewModal').classList.add('open');
+}
+
+function closeView() { document.getElementById('viewModal').classList.remove('open'); viewingId=null; }
+
+async function sendAnnouncement() {
+    if (!viewingId) return;
+    if (!confirm('이 공지를 발송 완료 처리하시겠습니까?')) return;
+    await fetch(`/api/announcements/${viewingId}/send`, { method:'PATCH', headers:csrfHeaders() });
+    closeView();
+    loadList();
+}
+
+async function deleteAnno(id) {
+    if (!confirm('이 공지를 삭제하시겠습니까?')) return;
+    await fetch(`/api/announcements/${id}`, { method:'DELETE', headers:csrfHeaders() });
+    loadList();
+}
+
+function toggleSpecific() {
+    const isSpec = document.getElementById('cTarget').value === 'specific';
+    document.getElementById('specificIds').style.display = isSpec ? '' : 'none';
+}
+
+function openCreate() {
+    document.getElementById('cTitle').value    = '';
+    document.getElementById('cContent').value  = '';
+    document.getElementById('cTarget').value   = 'all';
+    document.getElementById('cPush').checked   = false;
+    document.getElementById('cTargetIds').value = '';
+    document.getElementById('specificIds').style.display = 'none';
+    document.getElementById('createModal').classList.add('open');
+}
+function closeCreate() { document.getElementById('createModal').classList.remove('open'); }
+
+async function saveCreate(andSend) {
+    const title   = document.getElementById('cTitle').value.trim();
+    const content = document.getElementById('cContent').value.trim();
+    const target  = document.getElementById('cTarget').value;
+    if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
+
+    let targetIds = null;
+    if (target === 'specific') {
+        const ids = document.getElementById('cTargetIds').value.trim();
+        if (!ids) { alert('특정 대상 ID를 입력해주세요.'); return; }
+        targetIds = JSON.stringify(ids.split(',').map(s => s.trim()).filter(Boolean));
+    }
+
+    const res = await fetch('/api/announcements', {
+        method:'POST', headers:csrfHeaders(),
+        body: JSON.stringify({ title, content, target, targetIds, sendPush: document.getElementById('cPush').checked })
+    });
+    if (!res.ok) { alert('저장에 실패했습니다.'); return; }
+
+    if (andSend) {
+        const json = await res.json();
+        // andSend: mark sent immediately via a list refresh + find the new item
+        // We'll re-load and let user click "발송 처리" manually for now
+    }
+    closeCreate();
+    loadList();
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtDate(s) { if (!s) return '-'; return String(s).replace('T',' ').substring(0,16); }
+function openSidebar() { document.querySelector('.sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.querySelector('.sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+
+loadList();
+</script>
+</body>
+</html>

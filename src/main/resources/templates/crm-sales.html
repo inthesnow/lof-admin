@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — CRM 매출</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('crm-sales')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">CRM 매출</h1>
+            <div class="date-nav" style="margin-left:16px">
+                <button class="date-btn" onclick="moveMonth(-1)">&#8249;</button>
+                <span class="date-label" id="monthLabel"></span>
+                <button class="date-btn" onclick="moveMonth(1)">&#8250;</button>
+            </div>
+        </div>
+        <div class="header-right" style="gap:8px">
+            <button class="btn btn-secondary" onclick="exportSales()" style="font-size:12px">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                엑셀 내보내기
+            </button>
+            <button class="btn btn-secondary" onclick="openTarget()" style="font-size:12px">목표 설정</button>
+            <button class="btn btn-primary" onclick="openCreate()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                매출 등록
+            </button>
+        </div>
+    </header>
+
+    <!-- 요약 카드 -->
+    <div style="display:flex;gap:12px;padding:16px 24px;flex-wrap:wrap" id="summaryArea">
+        <div class="sale-kpi" id="kpiTotal"><div class="kpi-v">-</div><div class="kpi-l">이번 달 매출</div></div>
+        <div class="sale-kpi" id="kpiTarget"><div class="kpi-v">-</div><div class="kpi-l">목표</div></div>
+        <div class="sale-kpi" id="kpiAchieve"><div class="kpi-v">-</div><div class="kpi-l">달성률</div></div>
+        <div class="sale-kpi" id="kpiMembership"><div class="kpi-v">-</div><div class="kpi-l">이용권</div></div>
+        <div class="sale-kpi" id="kpiPt"><div class="kpi-v">-</div><div class="kpi-l">PT</div></div>
+        <div class="sale-kpi" id="kpiFeedback"><div class="kpi-v">-</div><div class="kpi-l">피드백 티켓</div></div>
+    </div>
+
+    <!-- 목표 달성 바 -->
+    <div style="padding:0 24px 16px">
+        <div style="height:8px;background:var(--surface-up);border-radius:4px;overflow:hidden">
+            <div id="achieveBar" style="height:100%;background:var(--success);border-radius:4px;width:0%;transition:width .5s"></div>
+        </div>
+    </div>
+
+    <!-- 필터 -->
+    <div class="search-bar">
+        <select class="filter-select" id="typeFilter" onchange="currentPage=0;loadList()">
+            <option value="">전체 유형</option>
+            <option value="membership">이용권</option>
+            <option value="pt">PT</option>
+            <option value="feedback_ticket">피드백 티켓</option>
+        </select>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>날짜</th>
+                    <th>회원</th>
+                    <th>유형</th>
+                    <th>등록 구분</th>
+                    <th>담당 트레이너</th>
+                    <th>금액</th>
+                    <th>메모</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- 매출 등록 모달 -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+            <span class="modal-title">매출 등록</span>
+            <button class="modal-close" onclick="closeCreate()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">회원 ID</label>
+                    <input type="text" class="form-input" id="cMemberId" placeholder="users.user_id">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">유형</label>
+                    <select class="form-select" id="cSalesType">
+                        <option value="membership">이용권</option>
+                        <option value="pt">PT</option>
+                        <option value="feedback_ticket">피드백 티켓</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">등록 구분</label>
+                    <select class="form-select" id="cRegType">
+                        <option value="new">신규</option>
+                        <option value="re">재등록</option>
+                        <option value="referral">추천</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">금액 (원)</label>
+                    <input type="number" class="form-input" id="cAmount" min="0" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">날짜</label>
+                    <input type="date" class="form-input" id="cSaleDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">담당 트레이너 ID <span style="color:var(--text-muted);font-size:11px">(선택)</span></label>
+                    <input type="text" class="form-input" id="cTrainerId" placeholder="crm_users.id">
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">메모</label>
+                    <input type="text" class="form-input" id="cNote" placeholder="특이사항 (선택)">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeCreate()">취소</button>
+            <button class="btn btn-primary" onclick="saveCreate()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 목표 설정 모달 -->
+<div class="modal-overlay" id="targetModal">
+    <div class="modal" style="max-width:360px">
+        <div class="modal-header">
+            <span class="modal-title" id="targetModalTitle">월 목표 설정</span>
+            <button class="modal-close" onclick="closeTarget()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">목표 금액 (원)</label>
+                <input type="number" class="form-input" id="tAmount" min="0" placeholder="0">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTarget()">취소</button>
+            <button class="btn btn-primary" onclick="saveTarget()">저장</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.sale-kpi { background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 18px;min-width:100px;text-align:center; }
+.kpi-v { font-size:18px;font-weight:700;color:var(--accent); }
+.kpi-l { font-size:11px;color:var(--text-muted);margin-top:2px; }
+</style>
+
+<script>
+let currentPage = 0;
+const pageSize  = 20;
+let currentMonth = new Date().toISOString().substring(0, 7);
+
+function csrfHeaders(e) { return Object.assign({'Content-Type':'application/json'}, e); }
+
+const typeLabel = { membership:'이용권', pt:'PT', feedback_ticket:'피드백 티켓' };
+const regLabel  = { new:'신규', re:'재등록', referral:'추천' };
+const typeBadge = { membership:'badge-active', pt:'badge-admin', feedback_ticket:'badge-pending' };
+
+function updateMonthLabel() {
+    const [y, m] = currentMonth.split('-');
+    document.getElementById('monthLabel').textContent = `${y}년 ${m}월`;
+}
+
+function moveMonth(dir) {
+    const d = new Date(currentMonth + '-01');
+    d.setMonth(d.getMonth() + dir);
+    currentMonth = d.toISOString().substring(0, 7);
+    updateMonthLabel();
+    loadSummary();
+    loadList();
+}
+
+async function loadSummary() {
+    const res  = await fetch(`/api/crm-sales/summary?monthYear=${currentMonth}`);
+    const json = await res.json();
+    const d = json.data || {};
+    document.getElementById('kpiTotal').querySelector('.kpi-v').textContent    = fmt(d.total);
+    document.getElementById('kpiTarget').querySelector('.kpi-v').textContent   = fmt(d.target);
+    document.getElementById('kpiAchieve').querySelector('.kpi-v').textContent  = `${d.achievement ?? 0}%`;
+
+    const breakdown = d.breakdown || [];
+    const byType = {};
+    for (const row of breakdown) byType[row.salesType] = row.total;
+    document.getElementById('kpiMembership').querySelector('.kpi-v').textContent = fmt(byType.membership || 0);
+    document.getElementById('kpiPt').querySelector('.kpi-v').textContent         = fmt(byType.pt || 0);
+    document.getElementById('kpiFeedback').querySelector('.kpi-v').textContent   = fmt(byType.feedback_ticket || 0);
+
+    const pct = Math.min(100, parseFloat(d.achievement) || 0);
+    document.getElementById('achieveBar').style.width = pct + '%';
+    document.getElementById('achieveBar').style.background = pct >= 100 ? 'var(--success)' : pct >= 70 ? 'var(--warning)' : 'var(--error)';
+}
+
+async function loadList() {
+    const salesType = document.getElementById('typeFilter').value;
+    const start = currentMonth + '-01';
+    const end   = new Date(currentMonth + '-01');
+    end.setMonth(end.getMonth() + 1); end.setDate(end.getDate() - 1);
+    const endStr = end.toISOString().substring(0, 10);
+    const res  = await fetch(`/api/crm-sales?salesType=${salesType}&startDate=${start}&endDate=${endStr}&page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTable(json.data?.items, json.data?.total);
+}
+
+function renderTable(items, total) {
+    const tbody = document.getElementById('tableBody');
+    if (!items || !items.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">매출 데이터가 없습니다.</td></tr>`;
+        renderPagination(0); return;
+    }
+    tbody.innerHTML = items.map(s => `
+        <tr>
+            <td style="font-size:12px;color:var(--text-muted)">${s.saleDate || '-'}</td>
+            <td>${s.memberName || s.memberId}</td>
+            <td><span class="badge ${typeBadge[s.salesType]||'badge-pending'}" style="font-size:11px">${typeLabel[s.salesType]||s.salesType}</span></td>
+            <td><span class="badge badge-pending" style="font-size:11px">${regLabel[s.regType]||'-'}</span></td>
+            <td>${s.trainerName || '<span style="color:var(--text-muted)">-</span>'}</td>
+            <td style="font-weight:600;color:var(--success)">${fmt(s.amount)}</td>
+            <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:12px">${escHtml(s.note||'')}</td>
+            <td>
+                <button class="btn btn-danger" style="padding:4px 8px;font-size:11px"
+                        onclick="deleteSale('${s.id}')">삭제</button>
+            </td>
+        </tr>`).join('');
+    renderPagination(total);
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pg = document.getElementById('pagination');
+    if (totalPages <= 1) { pg.innerHTML=''; return; }
+    pg.innerHTML = Array.from({length:totalPages}, (_,i) =>
+        `<button class="page-btn${i===currentPage?' active':''}" onclick="currentPage=${i};loadList()">${i+1}</button>`
+    ).join('');
+}
+
+async function deleteSale(id) {
+    if (!confirm('이 매출 내역을 삭제하시겠습니까?')) return;
+    await fetch(`/api/crm-sales/${id}`, { method:'DELETE', headers:csrfHeaders() });
+    loadSummary(); loadList();
+}
+
+function openCreate() {
+    document.getElementById('cSaleDate').value = new Date().toISOString().substring(0,10);
+    document.getElementById('createModal').classList.add('open');
+}
+function closeCreate() { document.getElementById('createModal').classList.remove('open'); }
+
+async function saveCreate() {
+    const memberId  = document.getElementById('cMemberId').value.trim();
+    const amount    = document.getElementById('cAmount').value;
+    const saleDate  = document.getElementById('cSaleDate').value;
+    if (!memberId || !amount) { alert('회원 ID와 금액은 필수입니다.'); return; }
+    const res = await fetch('/api/crm-sales', {
+        method:'POST', headers:csrfHeaders(),
+        body: JSON.stringify({
+            memberId,
+            salesType: document.getElementById('cSalesType').value,
+            regType:   document.getElementById('cRegType').value,
+            trainerId: document.getElementById('cTrainerId').value || null,
+            amount:    parseFloat(amount),
+            saleDate,
+            note:      document.getElementById('cNote').value
+        })
+    });
+    if (!res.ok) { alert('저장에 실패했습니다.'); return; }
+    closeCreate(); loadSummary(); loadList();
+}
+
+function openTarget() {
+    document.getElementById('targetModalTitle').textContent = `${currentMonth} 목표 설정`;
+    fetch(`/api/crm-sales/target?monthYear=${currentMonth}`)
+        .then(r => r.json())
+        .then(j => { document.getElementById('tAmount').value = j.data?.target || ''; });
+    document.getElementById('targetModal').classList.add('open');
+}
+function closeTarget() { document.getElementById('targetModal').classList.remove('open'); }
+
+async function saveTarget() {
+    const target = parseFloat(document.getElementById('tAmount').value);
+    if (isNaN(target) || target < 0) { alert('유효한 금액을 입력해주세요.'); return; }
+    await fetch('/api/crm-sales/target', {
+        method:'PUT', headers:csrfHeaders(),
+        body:JSON.stringify({ monthYear: currentMonth, target })
+    });
+    closeTarget(); loadSummary();
+}
+
+function fmt(v) {
+    const n = parseFloat(v) || 0;
+    return n.toLocaleString('ko-KR') + '원';
+}
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function exportSales() {
+    const params = new URLSearchParams({ monthYear: currentMonth });
+    window.location.href = `/api/crm-sales/export?${params}`;
+}
+
+function openSidebar() { document.querySelector('.sidebar').classList.add('open'); document.getElementById('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { document.querySelector('.sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
+
+updateMonthLabel();
+loadSummary();
+loadList();
+</script>
+</body>
+</html>

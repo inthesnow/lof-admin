@@ -1,9 +1,15 @@
 package com.linkfit.admin.controller.api;
 
 import com.linkfit.admin.common.ApiResponse;
+import com.linkfit.admin.mapper.FeedbackRequestMapper;
+import com.linkfit.admin.mapper.MemberMapper;
+import com.linkfit.admin.mapper.ReRegistrationMapper;
+import com.linkfit.admin.security.CrmUserDetails;
 import com.linkfit.admin.service.DashboardService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -11,9 +17,18 @@ import java.util.Map;
 public class DashboardApiController {
 
     private final DashboardService dashboardService;
+    private final MemberMapper memberMapper;
+    private final FeedbackRequestMapper feedbackRequestMapper;
+    private final ReRegistrationMapper reRegistrationMapper;
 
-    public DashboardApiController(DashboardService dashboardService) {
+    public DashboardApiController(DashboardService dashboardService,
+                                   MemberMapper memberMapper,
+                                   FeedbackRequestMapper feedbackRequestMapper,
+                                   ReRegistrationMapper reRegistrationMapper) {
         this.dashboardService = dashboardService;
+        this.memberMapper = memberMapper;
+        this.feedbackRequestMapper = feedbackRequestMapper;
+        this.reRegistrationMapper = reRegistrationMapper;
     }
 
     @GetMapping("/members")
@@ -60,5 +75,16 @@ public class DashboardApiController {
             @RequestParam(defaultValue = "daily") String period,
             @RequestParam(defaultValue = "") String type) {
         return ApiResponse.ok(dashboardService.attendanceStats(date, period, type));
+    }
+
+    @GetMapping("/crm-summary")
+    public ApiResponse<Map<String, Object>> crmSummary(
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        Long gymId = (principal != null) ? principal.getGymId() : 1L;
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("expiringCount",        memberMapper.countExpiringMemberships(30));
+        data.put("pendingFeedback",       feedbackRequestMapper.count(gymId, "pending", null));
+        data.put("pendingReregistration", reRegistrationMapper.countByStatus(gymId, "pending"));
+        return ApiResponse.ok(data);
     }
 }

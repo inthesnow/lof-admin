@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.FeedbackRequestMapper">
+
+    <resultMap id="requestMap" type="com.linkfit.admin.domain.FeedbackRequest">
+        <id     property="id"           column="id"/>
+        <result property="ticketId"     column="ticket_id"/>
+        <result property="memberId"     column="member_id"/>
+        <result property="memberName"   column="member_name"/>
+        <result property="memberPhone"  column="member_phone"/>
+        <result property="gymId"        column="gym_id"/>
+        <result property="trainerId"    column="trainer_id"/>
+        <result property="trainerName"  column="trainer_name"/>
+        <result property="content"      column="content"/>
+        <result property="attachments"  column="attachments"/>
+        <result property="status"       column="status"/>
+        <result property="response"     column="response"/>
+        <result property="respondedAt"  column="responded_at"/>
+        <result property="createdAt"    column="created_at"/>
+    </resultMap>
+
+    <sql id="requestJoin">
+        SELECT r.id, r.ticket_id, r.member_id, r.gym_id, r.trainer_id,
+               r.content, r.attachments, r.status, r.response, r.responded_at, r.created_at,
+               up.name    AS member_name,
+               up.contact AS member_phone,
+               cu.name    AS trainer_name
+          FROM crm_feedback_requests r
+          LEFT JOIN user_profiles up ON up.user_id = r.member_id
+          LEFT JOIN crm_users cu     ON cu.id       = r.trainer_id
+    </sql>
+
+    <select id="findAll" resultMap="requestMap">
+        <include refid="requestJoin"/>
+         WHERE r.gym_id = #{gymId}
+        <if test="status != null and status != ''">
+           AND r.status = #{status}
+        </if>
+        <if test="trainerId != null and trainerId != ''">
+           AND r.trainer_id = #{trainerId}
+        </if>
+         ORDER BY r.created_at DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM crm_feedback_requests r
+         WHERE r.gym_id = #{gymId}
+        <if test="status != null and status != ''">
+           AND r.status = #{status}
+        </if>
+        <if test="trainerId != null and trainerId != ''">
+           AND r.trainer_id = #{trainerId}
+        </if>
+    </select>
+
+    <select id="findById" resultMap="requestMap">
+        <include refid="requestJoin"/>
+         WHERE r.id = #{id} LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.linkfit.admin.domain.FeedbackRequest">
+        INSERT INTO crm_feedback_requests
+               (id, ticket_id, member_id, gym_id, trainer_id, content, attachments, status, created_at)
+        VALUES (#{id}, #{ticketId}, #{memberId}, #{gymId}, #{trainerId}, #{content}, #{attachments},
+                #{status}, NOW())
+    </insert>
+
+    <update id="assignTrainer">
+        UPDATE crm_feedback_requests
+           SET trainer_id = #{trainerId},
+               status     = CASE WHEN status = 'pending' THEN 'in_progress' ELSE status END
+         WHERE id = #{id}
+    </update>
+
+    <update id="respond">
+        UPDATE crm_feedback_requests
+           SET response     = #{response},
+               responded_at = NOW(),
+               status       = 'completed'
+         WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE crm_feedback_requests SET status = #{status} WHERE id = #{id}
+    </update>
+
+</mapper>

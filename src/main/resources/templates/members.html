@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="_csrf" th:content="${_csrf.token}">
-    <meta name="_csrf_header" th:content="${_csrf.headerName}">
     <title>LINK_Fit Admin — 회원 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
@@ -23,6 +21,10 @@
             <h1 class="page-title">회원 관리</h1>
         </div>
         <div class="header-right">
+            <button class="btn btn-secondary" onclick="exportMembers()" style="font-size:12px">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                엑셀 내보내기
+            </button>
             <button class="btn btn-primary" onclick="openModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                 회원 등록
@@ -138,6 +140,116 @@
     </div>
 </div>
 
+<!-- 티켓 관리 모달 -->
+<div class="modal-overlay" id="ticketModal">
+    <div class="modal" style="max-width:460px">
+        <div class="modal-header">
+            <span class="modal-title" id="ticketModalTitle">티켓 관리</span>
+            <button class="modal-close" onclick="closeTicketModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <!-- 현재 잔량 -->
+            <div style="display:flex;gap:12px;margin-bottom:24px">
+                <div style="flex:1;background:var(--surface-up);border-radius:8px;padding:14px;text-align:center">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">원포인트 티켓</div>
+                    <div style="font-size:26px;font-weight:700;color:var(--accent)" id="ticketCountOp">-</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">개 보유</div>
+                </div>
+                <div style="flex:1;background:var(--surface-up);border-radius:8px;padding:14px;text-align:center">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">피드백 티켓</div>
+                    <div style="font-size:26px;font-weight:700;color:var(--success)" id="ticketCountFb">-</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">개 보유</div>
+                </div>
+            </div>
+
+            <!-- 지급/차감 폼 -->
+            <div class="form-group">
+                <label class="form-label">티켓 종류</label>
+                <select class="form-select" id="tTicketType">
+                    <option value="ONE_POINT">원포인트 티켓</option>
+                    <option value="FEEDBACK">피드백 티켓</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-top:12px">
+                <label class="form-label">수량</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <button class="btn btn-secondary" style="padding:6px 14px" onclick="setTicketAmount(-1)">차감 (–)</button>
+                    <button class="btn btn-secondary" style="padding:6px 14px" onclick="setTicketAmount(1)">지급 (+)</button>
+                    <input type="number" class="form-input" id="tAmount" value="1" min="1" style="width:90px;text-align:center">
+                    <span style="font-size:12px;color:var(--text-muted)">개</span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:6px">
+                    차감 시 (–) 클릭 후 수량 입력 — 0 미만으로 내려가지 않습니다.
+                </div>
+            </div>
+            <div class="form-group" style="margin-top:12px">
+                <label class="form-label">메모 <span style="color:var(--text-muted);font-size:11px">(선택)</span></label>
+                <input type="text" class="form-input" id="tDescription" placeholder="지급 사유 등">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTicketModal()">닫기</button>
+            <button class="btn btn-primary" id="ticketSaveBtn" onclick="saveTicket()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- CRM 메모/태그 모달 -->
+<div class="modal-overlay" id="crmModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <span class="modal-title" id="crmModalTitle">CRM — </span>
+            <button class="modal-close" onclick="closeCrmModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" style="padding-top:0">
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px">
+                <button id="crmTabNote" class="crm-tab active" onclick="switchCrmTab('note')">메모</button>
+                <button id="crmTabTag"  class="crm-tab"        onclick="switchCrmTab('tag')">태그</button>
+            </div>
+
+            <!-- 메모 탭 -->
+            <div id="crmPaneNote">
+                <div id="crmNoteList" style="max-height:240px;overflow-y:auto;margin-bottom:12px"></div>
+                <div style="display:flex;gap:8px">
+                    <textarea id="crmNoteInput" class="form-textarea" rows="2"
+                              placeholder="메모 입력..." style="flex:1;margin:0"></textarea>
+                    <button class="btn btn-primary" style="align-self:flex-end" onclick="addNote()">추가</button>
+                </div>
+            </div>
+
+            <!-- 태그 탭 -->
+            <div id="crmPaneTag" style="display:none">
+                <div id="crmTagList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;margin-bottom:16px"></div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <input type="text" id="crmTagInput" class="form-input" placeholder="태그 이름" maxlength="30" style="flex:1">
+                    <input type="color" id="crmTagColor" value="#58A6FF" style="width:36px;height:36px;border:none;background:none;cursor:pointer;padding:0">
+                    <button class="btn btn-primary" onclick="addTag()">추가</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeCrmModal()">닫기</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.crm-tab {
+    background: none; border: none; padding: 10px 18px; cursor: pointer;
+    color: var(--text-secondary); font-size: 13px; border-bottom: 2px solid transparent;
+}
+.crm-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.crm-note-item {
+    padding: 10px 12px; border-radius: 6px; background: var(--surface-up);
+    margin-bottom: 8px; font-size: 13px;
+}
+.crm-note-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+</style>
+
 <script>
 let currentPage = 0;
 const pageSize = 10;
@@ -152,9 +264,7 @@ const tierLabel = { BASIC: '기본', LIGHT_FIT: '라이트', REGULAR_FIT: '레�
 const tierBadge = { BASIC: 'badge-pending', LIGHT_FIT: 'badge-active', REGULAR_FIT: 'badge-admin', INTENSIVE_FIT: 'badge-super' };
 
 function csrfHeaders(extra) {
-    const token  = document.querySelector('meta[name="_csrf"]').content;
-    const header = document.querySelector('meta[name="_csrf_header"]').content;
-    return Object.assign({ 'Content-Type': 'application/json', [header]: token }, extra);
+    return Object.assign({ 'Content-Type': 'application/json' }, extra);
 }
 
 function debounceSearch() {
@@ -165,7 +275,8 @@ function debounceSearch() {
 async function loadMembers() {
     const keyword = document.getElementById('searchInput').value;
     const status  = document.getElementById('statusFilter').value;
-    const res = await fetch(`/api/members?keyword=${encodeURIComponent(keyword)}&status=${status}&page=${currentPage}&size=${pageSize}`);
+    const tier    = document.getElementById('tierFilter').value;
+    const res = await fetch(`/api/members?keyword=${encodeURIComponent(keyword)}&status=${status}&tier=${tier}&page=${currentPage}&size=${pageSize}`);
     const json = await res.json();
     renderTable(json.data.members, json.data.total);
 }
@@ -189,6 +300,8 @@ function renderTable(members, total) {
             <td>${m.membershipEnd || '-'}</td>
             <td style="display:flex;gap:6px">
                 <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;color:var(--accent)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;color:var(--success)" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">CRM</button>
                 <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteMember('${m.id}', '${m.name}')">삭제</button>
             </td>
         </tr>
@@ -271,6 +384,87 @@ async function deleteMember(id, name) {
     loadMembers();
 }
 
+// ── 티켓 관리 ────────────────────────────────────────────
+let ticketMemberId = null;
+let ticketSign = 1; // 1: 지급, -1: 차감
+
+async function openTicketModal(id, name) {
+    ticketMemberId = id;
+    ticketSign = 1;
+    document.getElementById('ticketModalTitle').textContent = `티켓 관리 — ${name}`;
+    document.getElementById('tAmount').value = 1;
+    document.getElementById('tDescription').value = '';
+    document.getElementById('tTicketType').value = 'ONE_POINT';
+    document.getElementById('ticketCountOp').textContent = '-';
+    document.getElementById('ticketCountFb').textContent = '-';
+    document.getElementById('ticketModal').classList.add('open');
+    await refreshTicketCounts();
+}
+
+async function refreshTicketCounts() {
+    const res = await fetch(`/api/members/${ticketMemberId}/tickets`);
+    const json = await res.json();
+    const tickets = json.data || [];
+    const op = tickets.find(t => t.ticketType === 'ONE_POINT');
+    const fb = tickets.find(t => t.ticketType === 'FEEDBACK');
+    document.getElementById('ticketCountOp').textContent = op ? op.remaining : 0;
+    document.getElementById('ticketCountFb').textContent = fb ? fb.remaining : 0;
+}
+
+function setTicketAmount(sign) {
+    ticketSign = sign;
+    const btn1 = document.querySelectorAll('#ticketModal .btn-secondary')[1];
+    const btn2 = document.querySelectorAll('#ticketModal .btn-secondary')[2];
+    if (sign === -1) {
+        btn1.style.background = 'var(--error)';
+        btn1.style.color = '#fff';
+        btn2.style.background = '';
+        btn2.style.color = '';
+    } else {
+        btn2.style.background = 'var(--success)';
+        btn2.style.color = '#fff';
+        btn1.style.background = '';
+        btn1.style.color = '';
+    }
+}
+
+async function saveTicket() {
+    const ticketType  = document.getElementById('tTicketType').value;
+    const rawAmount   = parseInt(document.getElementById('tAmount').value, 10);
+    const description = document.getElementById('tDescription').value.trim();
+    if (!rawAmount || rawAmount <= 0) { alert('수량을 1 이상 입력해주세요.'); return; }
+    const amount = ticketSign * rawAmount;
+
+    const btn = document.getElementById('ticketSaveBtn');
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/members/${ticketMemberId}/tickets/charge`, {
+            method: 'POST',
+            headers: csrfHeaders(),
+            body: JSON.stringify({ ticketType, amount, description })
+        });
+        if (!res.ok) { alert('저장에 실패했습니다.'); return; }
+        await refreshTicketCounts();
+        document.getElementById('tAmount').value = 1;
+        document.getElementById('tDescription').value = '';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function closeTicketModal() {
+    document.getElementById('ticketModal').classList.remove('open');
+    ticketMemberId = null;
+}
+
+function exportMembers() {
+    const keyword = document.getElementById('searchInput')?.value || '';
+    const status  = document.getElementById('statusFilter')?.value || '';
+    const tier    = document.getElementById('tierFilter')?.value || '';
+    const params  = new URLSearchParams({ keyword, status, tier });
+    window.location.href = `/api/members/export?${params}`;
+}
+
 function openSidebar() {
     document.querySelector('.sidebar').classList.add('open');
     document.getElementById('sidebarOverlay').classList.add('open');
@@ -281,6 +475,101 @@ function closeSidebar() {
 }
 
 loadMembers();
+
+// ── CRM Modal ──────────────────────────────────────────────────
+
+let crmMemberId = null;
+let crmActiveTab = 'note';
+
+async function openCrmModal(id, name) {
+    crmMemberId = id;
+    document.getElementById('crmModalTitle').textContent = `CRM — ${name}`;
+    document.getElementById('crmModal').classList.add('open');
+    switchCrmTab('note');
+}
+
+function closeCrmModal() {
+    document.getElementById('crmModal').classList.remove('open');
+    crmMemberId = null;
+}
+
+function switchCrmTab(tab) {
+    crmActiveTab = tab;
+    document.getElementById('crmTabNote').classList.toggle('active', tab === 'note');
+    document.getElementById('crmTabTag').classList.toggle('active',  tab === 'tag');
+    document.getElementById('crmPaneNote').style.display = tab === 'note' ? '' : 'none';
+    document.getElementById('crmPaneTag').style.display  = tab === 'tag'  ? '' : 'none';
+    if (tab === 'note') loadNotes();
+    if (tab === 'tag')  loadTags();
+}
+
+async function loadNotes() {
+    const res  = await fetch(`/api/members/${crmMemberId}/notes`);
+    const json = await res.json();
+    const list = document.getElementById('crmNoteList');
+    if (!json.success || !json.data.length) {
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">등록된 메모가 없습니다.</div>';
+        return;
+    }
+    list.innerHTML = json.data.map(n => `
+        <div class="crm-note-item">
+            <div>${escHtml(n.content)}</div>
+            <div class="crm-note-meta">${n.authorName || '관리자'} · ${fmtDatetime(n.createdAt)}</div>
+        </div>`).join('');
+}
+
+async function addNote() {
+    const content = document.getElementById('crmNoteInput').value.trim();
+    if (!content) return;
+    await fetch(`/api/members/${crmMemberId}/notes`, {
+        method: 'POST', headers: csrfHeaders(),
+        body: JSON.stringify({ content })
+    });
+    document.getElementById('crmNoteInput').value = '';
+    loadNotes();
+}
+
+async function loadTags() {
+    const res  = await fetch(`/api/members/${crmMemberId}/tags`);
+    const json = await res.json();
+    const list = document.getElementById('crmTagList');
+    if (!json.success || !json.data.length) {
+        list.innerHTML = '<span style="color:var(--text-muted);font-size:13px">등록된 태그가 없습니다.</span>';
+        return;
+    }
+    list.innerHTML = json.data.map(t => `
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;
+                     background:${t.color || '#30363D'};color:#fff;font-size:12px">
+            ${escHtml(t.tag)}
+            <button onclick="deleteTag('${t.id}')" style="background:none;border:none;cursor:pointer;
+                    color:rgba(255,255,255,.7);padding:0;font-size:14px;line-height:1">&times;</button>
+        </span>`).join('');
+}
+
+async function addTag() {
+    const tag   = document.getElementById('crmTagInput').value.trim();
+    const color = document.getElementById('crmTagColor').value;
+    if (!tag) return;
+    await fetch(`/api/members/${crmMemberId}/tags`, {
+        method: 'POST', headers: csrfHeaders(),
+        body: JSON.stringify({ tag, color })
+    });
+    document.getElementById('crmTagInput').value = '';
+    loadTags();
+}
+
+async function deleteTag(tagId) {
+    await fetch(`/api/members/${crmMemberId}/tags/${tagId}`, { method: 'DELETE', headers: csrfHeaders() });
+    loadTags();
+}
+
+function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDatetime(s) {
+    if (!s) return '';
+    return s.replace('T', ' ').substring(0, 16);
+}
 </script>
 </body>
 </html>

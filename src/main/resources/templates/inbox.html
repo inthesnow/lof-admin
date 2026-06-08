@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — 내부 쪽지함</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('inbox')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">내부 쪽지함</h1>
+        </div>
+        <div class="header-right" style="gap:8px">
+            <button class="btn btn-secondary" onclick="markAllRead()" style="font-size:12px">모두 읽음</button>
+            <button class="btn btn-primary" onclick="openCompose()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                새 메시지
+            </button>
+        </div>
+    </header>
+
+    <!-- 탭 -->
+    <div class="sub-tabs" style="padding:0 24px;border-bottom:1px solid var(--border)">
+        <button class="sub-tab active" onclick="switchTab('received', this)">받은 메시지 <span id="unreadBadge" class="inbox-cnt"></span></button>
+        <button class="sub-tab" onclick="switchTab('sent', this)">보낸 메시지</button>
+        <button class="sub-tab" onclick="switchTab('notice', this)">공지사항</button>
+    </div>
+
+    <div id="msgList" style="padding:0 24px">
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</div>
+    </div>
+    <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- 메시지 보기 모달 -->
+<div class="modal-overlay" id="viewModal">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+            <span class="modal-title">메시지 내용</span>
+            <button class="modal-close" onclick="closeView()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="viewMeta" style="display:flex;gap:20px;margin-bottom:14px;font-size:12px;color:var(--text-secondary)"></div>
+            <div id="viewContent" style="white-space:pre-wrap;font-size:14px;line-height:1.6;border:1px solid var(--border);border-radius:8px;padding:14px;min-height:80px"></div>
+        </div>
+        <div class="modal-footer" style="gap:8px">
+            <button class="btn btn-secondary" onclick="closeView()">닫기</button>
+            <button class="btn btn-primary" id="replyBtn" onclick="openReply()">답장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 메시지 작성 모달 -->
+<div class="modal-overlay" id="composeModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <span class="modal-title" id="composeTitle">새 메시지</span>
+            <button class="modal-close" onclick="closeCompose()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">수신자 유형</label>
+                <select class="form-select" id="cReceiverType">
+                    <option value="admin">관리자</option>
+                    <option value="trainer">트레이너</option>
+                    <option value="member">회원</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">수신자 ID</label>
+                <input type="text" class="form-input" id="cReceiverId" placeholder="수신자 user_id 또는 crm_users.id">
+            </div>
+            <div class="form-group">
+                <label class="form-label" style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="cIsNotice"> 공지사항으로 발송
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-label">내용</label>
+                <textarea class="form-textarea" id="cContent" rows="5" placeholder="메시지 내용을 입력하세요..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeCompose()">취소</button>
+            <button class="btn btn-primary" onclick="sendMessage()">보내기</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.msg-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.msg-row:hover { background: color-mix(in srgb, var(--surface-up) 30%, transparent); margin: 0 -4px; padding-left: 4px; padding-right: 4px; border-radius: 6px; }
+.msg-row.unread .msg-subject { font-weight: 700; color: var(--text-primary); }
+.msg-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface-up); display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; color: var(--accent); flex-shrink: 0;
+}
+.msg-subject { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.msg-preview { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 400px; }
+.msg-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; margin-left: auto; }
+.msg-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 4px; }
+.inbox-cnt { background: var(--error); color: #fff; font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 6px; margin-left: 4px; }
+.notice-badge { background: color-mix(in srgb,#58A6FF 20%,transparent); color: var(--accent); font-size: 10px; border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
+</style>
+
+<script>
+let currentTab = 'received';
+let currentPage = 0;
+const pageSize = 20;
+let replyParentId = null;
+
+function csrfHeaders(extra) {
+    return Object.assign({ 'Content-Type': 'application/json' }, extra);
+}
+
+function switchTab(tab, btn) {
+    currentTab = tab;
+    currentPage = 0;
+    document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('replyBtn').style.display = tab === 'received' ? '' : 'none';
+    loadList();
+}
+
+async function loadList() {
+    const res  = await fetch(`/api/inbox/messages?type=${currentTab}&page=${currentPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderList(json.data?.items, json.data?.total);
+}
+
+async function loadUnread() {
+    const res  = await fetch('/api/inbox/unread-count');
+    const json = await res.json();
+    const el = document.getElementById('unreadBadge');
+    if (json.data > 0) { el.textContent = json.data; el.style.display = 'inline'; }
+    else el.style.display = 'none';
+}
+
+function renderList(items, total) {
+    const container = document.getElementById('msgList');
+    if (!items || !items.length) {
+        container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted)">메시지가 없습니다.</div>`;
+        renderPagination(0);
+        return;
+    }
+    container.innerHTML = items.map(m => {
+        const from = m.senderName || m.senderId;
+        const initials = from.charAt(0).toUpperCase();
+        const preview = (m.content || '').replace(/\n/g,' ').substring(0, 60);
+        const unread = !m.read && currentTab === 'received';
+        const noticeBadge = m.notice ? '<span class="notice-badge">공지</span>' : '';
+        return `<div class="msg-row${unread ? ' unread' : ''}" onclick="viewMsg('${m.id}')">
+            <div class="msg-avatar">${initials}</div>
+            <div style="flex:1;min-width:0">
+                <div class="msg-subject">${escHtml(from)}${noticeBadge}</div>
+                <div class="msg-preview">${escHtml(preview)}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                <span class="msg-time">${fmtDate(m.createdAt)}</span>
+                ${unread ? '<div class="msg-unread-dot"></div>' : ''}
+            </div>
+        </div>`;
+    }).join('');
+    renderPagination(total);
+}
+
+function renderPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pg = document.getElementById('pagination');
+    if (totalPages <= 1) { pg.innerHTML = ''; return; }
+    pg.innerHTML = Array.from({length: totalPages}, (_, i) =>
+        `<button class="page-btn${i === currentPage ? ' active' : ''}" onclick="currentPage=${i};loadList()">${i+1}</button>`
+    ).join('');
+}
+
+let viewingMsg = null;
+
+async function viewMsg(id) {
+    const res = await fetch(`/api/inbox/messages/${id}`);
+    const json = await res.json();
+    if (!json.success) return;
+    viewingMsg = json.data;
+    const m = viewingMsg;
+    document.getElementById('viewMeta').innerHTML = `
+        <span>보낸 사람: <b>${escHtml(m.senderName || m.senderId)}</b></span>
+        <span>받는 사람: <b>${escHtml(m.receiverName || m.receiverId)}</b></span>
+        <span>${fmtDate(m.createdAt)}</span>`;
+    document.getElementById('viewContent').textContent = m.content;
+    document.getElementById('viewModal').classList.add('open');
+    loadList();
+    loadUnread();
+}
+
+function closeView() {
+    document.getElementById('viewModal').classList.remove('open');
+    viewingMsg = null;
+}
+
+function openReply() {
+    if (!viewingMsg) return;
+    closeView();
+    document.getElementById('composeTitle').textContent = '답장';
+    document.getElementById('cReceiverType').value = viewingMsg.senderType || 'admin';
+    document.getElementById('cReceiverId').value   = viewingMsg.senderId;
+    document.getElementById('cContent').value      = '';
+    document.getElementById('cIsNotice').checked   = false;
+    replyParentId = viewingMsg.id;
+    document.getElementById('composeModal').classList.add('open');
+}
+
+function openCompose() {
+    document.getElementById('composeTitle').textContent = '새 메시지';
+    document.getElementById('cReceiverType').value = 'admin';
+    document.getElementById('cReceiverId').value   = '';
+    document.getElementById('cContent').value      = '';
+    document.getElementById('cIsNotice').checked   = false;
+    replyParentId = null;
+    document.getElementById('composeModal').classList.add('open');
+}
+
+function closeCompose() {
+    document.getElementById('composeModal').classList.remove('open');
+    replyParentId = null;
+}
+
+async function sendMessage() {
+    const receiverId   = document.getElementById('cReceiverId').value.trim();
+    const receiverType = document.getElementById('cReceiverType').value;
+    const content      = document.getElementById('cContent').value.trim();
+    const isNotice     = document.getElementById('cIsNotice').checked;
+    if (!receiverId) { alert('수신자 ID를 입력해주세요.'); return; }
+    if (!content)    { alert('내용을 입력해주세요.'); return; }
+
+    const res = await fetch('/api/inbox/messages', {
+        method: 'POST',
+        headers: csrfHeaders(),
+        body: JSON.stringify({ receiverType, receiverId, content, notice: isNotice,
+                                parentId: replyParentId })
+    });
+    if (!res.ok) { alert('전송에 실패했습니다.'); return; }
+    closeCompose();
+    if (currentTab === 'sent') loadList();
+}
+
+async function markAllRead() {
+    await fetch('/api/inbox/messages/read-all', { method: 'PATCH', headers: csrfHeaders() });
+    loadList();
+    loadUnread();
+}
+
+function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(s) {
+    if (!s) return '-';
+    return String(s).replace('T',' ').substring(0, 16);
+}
+
+function openSidebar() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+document.getElementById('replyBtn').style.display = '';
+loadList();
+loadUnread();
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.CrmCsTicketMapper">
+
+    <resultMap id="ticketMap" type="com.linkfit.admin.domain.CrmCsTicket">
+        <id     property="id"             column="id"/>
+        <result property="gymId"          column="gym_id"/>
+        <result property="memberId"       column="member_id"/>
+        <result property="memberName"     column="member_name"/>
+        <result property="memberPhone"    column="member_phone"/>
+        <result property="category"       column="category"/>
+        <result property="title"          column="title"/>
+        <result property="content"        column="content"/>
+        <result property="status"         column="status"/>
+        <result property="assignedTo"     column="assigned_to"/>
+        <result property="assignedToName" column="assigned_to_name"/>
+        <result property="response"       column="response"/>
+        <result property="respondedAt"    column="responded_at"/>
+        <result property="createdAt"      column="created_at"/>
+    </resultMap>
+
+    <sql id="ticketJoin">
+        SELECT t.*,
+               up.name    AS member_name,
+               up.contact AS member_phone,
+               cu.name    AS assigned_to_name
+          FROM crm_cs_tickets t
+          LEFT JOIN user_profiles up ON up.user_id = t.member_id
+          LEFT JOIN crm_users cu     ON cu.id       = t.assigned_to
+    </sql>
+
+    <select id="findAll" resultMap="ticketMap">
+        <include refid="ticketJoin"/>
+         WHERE t.gym_id = #{gymId}
+        <if test="status != null and status != ''">AND t.status = #{status}</if>
+        <if test="category != null and category != ''">AND t.category = #{category}</if>
+         ORDER BY t.created_at DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM crm_cs_tickets t
+         WHERE t.gym_id = #{gymId}
+        <if test="status != null and status != ''">AND t.status = #{status}</if>
+        <if test="category != null and category != ''">AND t.category = #{category}</if>
+    </select>
+
+    <select id="findById" resultMap="ticketMap">
+        <include refid="ticketJoin"/>
+         WHERE t.id = #{id} LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.linkfit.admin.domain.CrmCsTicket">
+        INSERT INTO crm_cs_tickets (id, gym_id, member_id, category, title, content, status, created_at)
+        VALUES (#{id}, #{gymId}, #{memberId}, #{category}, #{title}, #{content}, 'received', NOW())
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE crm_cs_tickets SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <update id="assign">
+        UPDATE crm_cs_tickets
+           SET assigned_to = #{assignedTo},
+               status = CASE WHEN status = 'received' THEN 'checking' ELSE status END
+         WHERE id = #{id}
+    </update>
+
+    <update id="respond">
+        UPDATE crm_cs_tickets
+           SET response = #{response}, responded_at = NOW(),
+               status = 'answered'
+         WHERE id = #{id}
+    </update>
+
+    <select id="countByStatus" resultType="int">
+        SELECT COUNT(*) FROM crm_cs_tickets WHERE gym_id = #{gymId} AND status = #{status}
+    </select>
+
+</mapper>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.CrmMessageMapper">
+
+    <resultMap id="msgMap" type="com.linkfit.admin.domain.CrmMessage">
+        <id     property="id"           column="id"/>
+        <result property="gymId"        column="gym_id"/>
+        <result property="senderType"   column="sender_type"/>
+        <result property="senderId"     column="sender_id"/>
+        <result property="senderName"   column="sender_name"/>
+        <result property="receiverType" column="receiver_type"/>
+        <result property="receiverId"   column="receiver_id"/>
+        <result property="receiverName" column="receiver_name"/>
+        <result property="content"      column="content"/>
+        <result property="isRead"       column="is_read"/>
+        <result property="isNotice"     column="is_notice"/>
+        <result property="parentId"     column="parent_id"/>
+        <result property="createdAt"    column="created_at"/>
+    </resultMap>
+
+    <sql id="msgJoin">
+        SELECT m.*,
+               COALESCE(sup.name, su.name, m.sender_id)   AS sender_name,
+               COALESCE(rup.name, ru.name, m.receiver_id) AS receiver_name
+          FROM crm_messages m
+          LEFT JOIN crm_users su  ON m.sender_type   IN ('admin','trainer') AND su.id   = m.sender_id
+          LEFT JOIN user_profiles sup ON m.sender_type = 'member' AND sup.user_id = m.sender_id
+          LEFT JOIN crm_users ru  ON m.receiver_type IN ('admin','trainer') AND ru.id   = m.receiver_id
+          LEFT JOIN user_profiles rup ON m.receiver_type = 'member' AND rup.user_id = m.receiver_id
+    </sql>
+
+    <select id="findReceived" resultMap="msgMap">
+        <include refid="msgJoin"/>
+         WHERE m.gym_id = #{gymId} AND m.receiver_id = #{receiverId}
+         ORDER BY m.created_at DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findSent" resultMap="msgMap">
+        <include refid="msgJoin"/>
+         WHERE m.gym_id = #{gymId} AND m.sender_id = #{senderId}
+         ORDER BY m.created_at DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findNotices" resultMap="msgMap">
+        <include refid="msgJoin"/>
+         WHERE m.gym_id = #{gymId} AND m.is_notice = 1
+         ORDER BY m.created_at DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countReceived" resultType="long">
+        SELECT COUNT(*) FROM crm_messages
+         WHERE gym_id = #{gymId} AND receiver_id = #{receiverId}
+    </select>
+
+    <select id="countSent" resultType="long">
+        SELECT COUNT(*) FROM crm_messages
+         WHERE gym_id = #{gymId} AND sender_id = #{senderId}
+    </select>
+
+    <select id="countNotices" resultType="long">
+        SELECT COUNT(*) FROM crm_messages WHERE gym_id = #{gymId} AND is_notice = 1
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*) FROM crm_messages
+         WHERE gym_id = #{gymId} AND receiver_id = #{receiverId} AND is_read = 0
+    </select>
+
+    <select id="findById" resultMap="msgMap">
+        <include refid="msgJoin"/>
+         WHERE m.id = #{id} LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.linkfit.admin.domain.CrmMessage">
+        INSERT INTO crm_messages
+               (id, gym_id, sender_type, sender_id, receiver_type, receiver_id,
+                content, is_read, is_notice, parent_id, created_at)
+        VALUES (#{id}, #{gymId}, #{senderType}, #{senderId}, #{receiverType}, #{receiverId},
+                #{content}, 0, #{notice}, #{parentId}, NOW())
+    </insert>
+
+    <update id="markRead">
+        UPDATE crm_messages SET is_read = 1 WHERE id = #{id}
+    </update>
+
+    <update id="markAllRead">
+        UPDATE crm_messages SET is_read = 1
+         WHERE gym_id = #{gymId} AND receiver_id = #{receiverId} AND is_read = 0
+    </update>
+
+    <delete id="delete">
+        DELETE FROM crm_messages WHERE id = #{id}
+    </delete>
+
+</mapper>

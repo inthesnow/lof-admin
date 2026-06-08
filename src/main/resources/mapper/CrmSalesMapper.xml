@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.CrmSalesMapper">
+
+    <resultMap id="saleMap" type="com.linkfit.admin.domain.CrmSale">
+        <id     property="id"          column="id"/>
+        <result property="gymId"       column="gym_id"/>
+        <result property="memberId"    column="member_id"/>
+        <result property="memberName"  column="member_name"/>
+        <result property="salesType"   column="sales_type"/>
+        <result property="regType"     column="reg_type"/>
+        <result property="trainerId"   column="trainer_id"/>
+        <result property="trainerName" column="trainer_name"/>
+        <result property="amount"      column="amount"/>
+        <result property="saleDate"    column="sale_date"/>
+        <result property="note"        column="note"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <sql id="saleJoin">
+        SELECT s.*,
+               up.name    AS member_name,
+               cu.name    AS trainer_name
+          FROM crm_sales s
+          LEFT JOIN user_profiles up ON up.user_id = s.member_id
+          LEFT JOIN crm_users cu     ON cu.id       = s.trainer_id
+    </sql>
+
+    <select id="findAll" resultMap="saleMap">
+        <include refid="saleJoin"/>
+         WHERE s.gym_id = #{gymId}
+        <if test="salesType != null and salesType != ''">AND s.sales_type = #{salesType}</if>
+        <if test="startDate != null and startDate != ''">AND s.sale_date &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND s.sale_date &lt;= #{endDate}</if>
+         ORDER BY s.sale_date DESC, s.created_at DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM crm_sales s
+         WHERE s.gym_id = #{gymId}
+        <if test="salesType != null and salesType != ''">AND s.sales_type = #{salesType}</if>
+        <if test="startDate != null and startDate != ''">AND s.sale_date &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND s.sale_date &lt;= #{endDate}</if>
+    </select>
+
+    <insert id="insert" parameterType="com.linkfit.admin.domain.CrmSale">
+        INSERT INTO crm_sales (id, gym_id, member_id, sales_type, reg_type, trainer_id, amount, sale_date, note, created_at)
+        VALUES (#{id}, #{gymId}, #{memberId}, #{salesType}, #{regType}, #{trainerId}, #{amount}, #{saleDate}, #{note}, NOW())
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM crm_sales WHERE id = #{id}
+    </delete>
+
+    <select id="monthlySummary" resultType="map">
+        SELECT sales_type AS salesType,
+               SUM(amount) AS total,
+               COUNT(*) AS cnt
+          FROM crm_sales
+         WHERE gym_id = #{gymId}
+           AND DATE_FORMAT(sale_date, '%Y-%m') = #{monthYear}
+         GROUP BY sales_type
+    </select>
+
+    <select id="findTarget" resultType="java.math.BigDecimal">
+        SELECT target FROM crm_sales_targets
+         WHERE gym_id = #{gymId} AND month_year = #{monthYear}
+         LIMIT 1
+    </select>
+
+    <insert id="upsertTarget">
+        INSERT INTO crm_sales_targets (gym_id, month_year, target)
+        VALUES (#{gymId}, #{monthYear}, #{target})
+        ON DUPLICATE KEY UPDATE target = #{target}
+    </insert>
+
+</mapper>

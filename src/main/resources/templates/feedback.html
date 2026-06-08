@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINK_Fit Admin — 피드백 관리</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<aside th:replace="~{fragments/sidebar :: sidebar('feedback')}"></aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h1 class="page-title">피드백 관리</h1>
+        </div>
+    </header>
+
+    <!-- 탭 네비게이션 -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 24px;margin-bottom:0">
+        <button id="tabRequests" class="page-tab active" onclick="switchTab('requests')">피드백 요청</button>
+        <button id="tabTickets"  class="page-tab"        onclick="switchTab('tickets')">티켓 현황</button>
+        <button id="tabSettings" class="page-tab"        onclick="switchTab('settings')">발행 설정</button>
+    </div>
+
+    <!-- ── 피드백 요청 탭 ─────────────────────────────────────── -->
+    <div id="paneRequests" class="tab-pane">
+        <div class="table-controls" style="padding:16px 24px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <select class="form-select" id="reqStatusFilter" onchange="loadRequests()" style="width:130px">
+                    <option value="">전체 상태</option>
+                    <option value="pending">대기</option>
+                    <option value="in_progress">처리 중</option>
+                    <option value="completed">완료</option>
+                    <option value="held">보류</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>회원명</th>
+                        <th>전화번호</th>
+                        <th>요청 내용</th>
+                        <th>담당 트레이너</th>
+                        <th>상태</th>
+                        <th>요청일</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="requestTableBody">
+                    <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="reqPagination"></div>
+    </div>
+
+    <!-- ── 티켓 현황 탭 ─────────────────────────────────────── -->
+    <div id="paneTickets" class="tab-pane" style="display:none">
+        <div class="table-controls" style="padding:16px 24px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <input type="month" class="form-input" id="ticketMonthFilter"
+                       onchange="loadTicketSummary();loadTickets()" style="width:160px">
+                <select class="form-select" id="ticketStatusFilter" onchange="loadTickets()" style="width:130px">
+                    <option value="">전체 상태</option>
+                    <option value="issued">발급됨</option>
+                    <option value="used">사용됨</option>
+                    <option value="expired">만료</option>
+                    <option value="pending">대기</option>
+                </select>
+                <button class="btn btn-primary" onclick="openIssueModal()">티켓 수동 발급</button>
+            </div>
+        </div>
+        <!-- 요약 카드 -->
+        <div style="display:flex;gap:12px;padding:0 24px 16px;flex-wrap:wrap" id="ticketSummary"></div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>회원명</th>
+                        <th>티켓 유형</th>
+                        <th>상태</th>
+                        <th>담당 트레이너</th>
+                        <th>발급일</th>
+                        <th>만료일</th>
+                        <th>월</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="ticketTableBody">
+                    <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="ticketPagination"></div>
+    </div>
+
+    <!-- ── 발행 설정 탭 ─────────────────────────────────────── -->
+    <div id="paneSettings" class="tab-pane" style="display:none">
+        <div style="padding:24px;max-width:480px">
+            <div class="form-group" style="margin-bottom:20px">
+                <label class="form-label">회원 1인당 월 기본 무료 티켓</label>
+                <input type="number" class="form-input" id="settingFreePerMember" min="0" max="10" value="2">
+            </div>
+            <div class="form-group" style="margin-bottom:20px">
+                <label class="form-label">헬스장 전체 월 발행 한도 <span style="color:var(--text-muted);font-size:11px">(비워두면 무제한)</span></label>
+                <input type="number" class="form-input" id="settingMaxPerMonth" min="0" placeholder="무제한">
+            </div>
+            <div class="form-group" style="margin-bottom:24px">
+                <label class="form-label">베타 모드</label>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+                    <input type="checkbox" id="settingIsBeta" style="width:18px;height:18px;cursor:pointer">
+                    <span style="font-size:13px;color:var(--text-secondary)">베타 기간 중 무료 티켓 제공</span>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">설정 저장</button>
+            <div id="settingsSaveMsg" style="margin-top:12px;font-size:13px;color:var(--success);display:none">저장되었습니다.</div>
+        </div>
+    </div>
+</main>
+
+<!-- 피드백 요청 상세 모달 -->
+<div class="modal-overlay" id="requestModal">
+    <div class="modal" style="max-width:600px">
+        <div class="modal-header">
+            <span class="modal-title">피드백 요청 상세</span>
+            <button class="modal-close" onclick="closeRequestModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:12px">
+                <span style="font-size:12px;color:var(--text-muted)">회원</span>
+                <div id="rdMemberName" style="font-weight:600;margin-top:2px"></div>
+            </div>
+            <div style="margin-bottom:12px">
+                <span style="font-size:12px;color:var(--text-muted)">요청 내용</span>
+                <div id="rdContent" style="margin-top:6px;padding:12px;background:var(--surface-up);border-radius:6px;font-size:13px;line-height:1.6;white-space:pre-wrap"></div>
+            </div>
+            <div id="rdResponseArea" style="margin-bottom:12px;display:none">
+                <span style="font-size:12px;color:var(--text-muted)">답변</span>
+                <div id="rdResponse" style="margin-top:6px;padding:12px;background:color-mix(in srgb,var(--success) 10%,transparent);border-radius:6px;font-size:13px;line-height:1.6;white-space:pre-wrap"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">답변 작성</label>
+                <textarea class="form-textarea" id="rdResponseInput" rows="4" placeholder="답변을 입력하세요..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeRequestModal()">닫기</button>
+            <button class="btn btn-primary" onclick="submitResponse()">답변 완료</button>
+        </div>
+    </div>
+</div>
+
+<!-- 티켓 발급 모달 -->
+<div class="modal-overlay" id="issueModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">티켓 수동 발급</span>
+            <button class="modal-close" onclick="closeIssueModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">회원 ID</label>
+                <input type="text" class="form-input" id="issueMemberId" placeholder="회원 user_id 입력">
+            </div>
+            <div class="form-group">
+                <label class="form-label">티켓 유형</label>
+                <select class="form-select" id="issueTicketType">
+                    <option value="free">무료</option>
+                    <option value="paid">유료</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">대상 월</label>
+                <input type="month" class="form-input" id="issueMonth">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeIssueModal()">취소</button>
+            <button class="btn btn-primary" onclick="issueTicket()">발급</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.page-tab {
+    background: none; border: none; padding: 12px 20px; cursor: pointer;
+    color: var(--text-secondary); font-size: 14px; border-bottom: 2px solid transparent;
+}
+.page-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { padding: 0; }
+</style>
+
+<script>
+let reqPage = 0, ticketPage = 0;
+const pageSize = 20;
+let activeTab = 'requests';
+let currentRequestId = null;
+
+const reqStatusLabel = { pending: '대기', in_progress: '처리 중', completed: '완료', held: '보류' };
+const reqStatusBadge = { pending: 'badge-pending', in_progress: 'badge-admin', completed: 'badge-active', held: 'badge-suspended' };
+const ticketStatusLabel = { issued: '발급됨', used: '사용됨', expired: '만료', pending: '대기' };
+const ticketStatusBadge = { issued: 'badge-active', used: 'badge-admin', expired: 'badge-expired', pending: 'badge-pending' };
+const ticketTypeLabel   = { free: '무료', paid: '유료' };
+
+function csrfHeaders(extra) {
+    return Object.assign({ 'Content-Type': 'application/json' }, extra);
+}
+
+function switchTab(tab) {
+    activeTab = tab;
+    ['requests','tickets','settings'].forEach(t => {
+        document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+        document.getElementById('pane' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? '' : 'none';
+    });
+    if (tab === 'requests') loadRequests();
+    if (tab === 'tickets')  { loadTickets(); loadTicketSummary(); }
+    if (tab === 'settings') loadSettings();
+}
+
+// ── 피드백 요청 ─────────────────────────────────────────────
+
+async function loadRequests() {
+    const status = document.getElementById('reqStatusFilter').value;
+    const res  = await fetch(`/api/feedback/requests?status=${status}&page=${reqPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderRequestTable(json.data.requests, json.data.total);
+}
+
+function renderRequestTable(list, total) {
+    const tbody = document.getElementById('requestTableBody');
+    if (!list || !list.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">피드백 요청이 없습니다.</td></tr>`;
+        renderReqPagination(0);
+        return;
+    }
+    tbody.innerHTML = list.map(r => `
+        <tr>
+            <td>${r.memberName || r.memberId}</td>
+            <td>${r.memberPhone || '-'}</td>
+            <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.content)}">${escHtml(r.content)}</td>
+            <td>${r.trainerName || '<span style="color:var(--text-muted)">미배정</span>'}</td>
+            <td><span class="badge ${reqStatusBadge[r.status] || ''}">${reqStatusLabel[r.status] || r.status}</span></td>
+            <td>${fmtDate(r.createdAt)}</td>
+            <td style="display:flex;gap:6px">
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="openRequestDetail('${r.id}')">상세</button>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;color:var(--warning)" onclick="holdRequest('${r.id}')">보류</button>
+            </td>
+        </tr>`).join('');
+    renderReqPagination(total);
+}
+
+function renderReqPagination(total) {
+    const totalPages = Math.ceil(total / pageSize);
+    const pg = document.getElementById('reqPagination');
+    if (totalPages <= 1) { pg.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 0; i < totalPages; i++) {
+        html += `<button class="page-btn${i === reqPage ? ' active' : ''}" onclick="reqPage=${i};loadRequests()">${i+1}</button>`;
+    }
+    pg.innerHTML = html;
+}
+
+async function openRequestDetail(id) {
+    const res  = await fetch(`/api/feedback/requests/${id}`);
+    const json = await res.json();
+    if (!json.success) return;
+    const r = json.data;
+    currentRequestId = id;
+    document.getElementById('rdMemberName').textContent = (r.memberName || r.memberId) + (r.memberPhone ? ` (${r.memberPhone})` : '');
+    document.getElementById('rdContent').textContent = r.content;
+    document.getElementById('rdResponseInput').value = '';
+    const respArea = document.getElementById('rdResponseArea');
+    if (r.response) {
+        document.getElementById('rdResponse').textContent = r.response;
+        respArea.style.display = '';
+    } else {
+        respArea.style.display = 'none';
+    }
+    document.getElementById('requestModal').classList.add('open');
+}
+
+function closeRequestModal() {
+    document.getElementById('requestModal').classList.remove('open');
+    currentRequestId = null;
+}
+
+async function submitResponse() {
+    const response = document.getElementById('rdResponseInput').value.trim();
+    if (!response) { alert('답변을 입력하세요.'); return; }
+    await fetch(`/api/feedback/requests/${currentRequestId}/respond`, {
+        method: 'POST', headers: csrfHeaders(),
+        body: JSON.stringify({ response })
+    });
+    closeRequestModal();
+    loadRequests();
+}
+
+async function holdRequest(id) {
+    await fetch(`/api/feedback/requests/${id}/status`, {
+        method: 'PATCH', headers: csrfHeaders(),
+        body: JSON.stringify({ status: 'held' })
+    });
+    loadRequests();
+}
+
+// ── 티켓 현황 ───────────────────────────────────────────────
+
+async function loadTickets() {
+    const monthYear = document.getElementById('ticketMonthFilter').value;
+    const status    = document.getElementById('ticketStatusFilter').value;
+    const res  = await fetch(`/api/feedback/tickets?monthYear=${monthYear}&status=${status}&page=${ticketPage}&size=${pageSize}`);
+    const json = await res.json();
+    renderTicketTable(json.data.tickets, json.data.total);
+}
+
+function renderTicketTable(list, total) {
+    const tbody = document.getElementById('ticketTableBody');
+    if (!list || !list.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">티켓 데이터가 없습니다.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map(t => `
+        <tr>
+            <td>${t.memberName || t.memberId}</td>
+            <td>${ticketTypeLabel[t.ticketType] || t.ticketType}</td>
+            <td><span class="badge ${ticketStatusBadge[t.status] || ''}">${ticketStatusLabel[t.status] || t.status}</span></td>
+            <td>${t.trainerName || '<span style="color:var(--text-muted)">미배정</span>'}</td>
+            <td>${fmtDate(t.issuedAt)}</td>
+            <td>${fmtDate(t.expiresAt)}</td>
+            <td>${t.monthYear || '-'}</td>
+            <td>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px"
+                        onclick="markExpired('${t.id}')">만료처리</button>
+            </td>
+        </tr>`).join('');
+}
+
+async function loadTicketSummary() {
+    const monthYear = document.getElementById('ticketMonthFilter').value;
+    const res  = await fetch(`/api/feedback/tickets/summary?monthYear=${monthYear}`);
+    const json = await res.json();
+    if (!json.success) return;
+    const d = json.data;
+    const total = (d.issued || 0) + (d.used || 0) + (d.expired || 0) + (d.pending || 0);
+    document.getElementById('ticketSummary').innerHTML = [
+        ['전체', total, '--accent'],
+        ['발급됨', d.issued || 0, '--success'],
+        ['사용됨', d.used || 0, '--accent'],
+        ['만료', d.expired || 0, '--error'],
+        ['대기', d.pending || 0, '--warning'],
+    ].map(([label, val, color]) => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 20px;min-width:100px;text-align:center">
+            <div style="font-size:22px;font-weight:700;color:var(${color})">${val}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${label}</div>
+        </div>`).join('');
+}
+
+async function markExpired(id) {
+    await fetch(`/api/feedback/tickets/${id}/status`, {
+        method: 'PATCH', headers: csrfHeaders(),
+        body: JSON.stringify({ status: 'expired' })
+    });
+    loadTickets();
+    loadTicketSummary();
+}
+
+function openIssueModal() {
+    const now = new Date();
+    document.getElementById('issueMonth').value =
+        `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    document.getElementById('issueMemberId').value = '';
+    document.getElementById('issueModal').classList.add('open');
+}
+function closeIssueModal() { document.getElementById('issueModal').classList.remove('open'); }
+
+async function issueTicket() {
+    const memberId   = document.getElementById('issueMemberId').value.trim();
+    const ticketType = document.getElementById('issueTicketType').value;
+    const monthYear  = document.getElementById('issueMonth').value;
+    if (!memberId) { alert('회원 ID를 입력하세요.'); return; }
+    const res = await fetch('/api/feedback/tickets/issue', {
+        method: 'POST', headers: csrfHeaders(),
+        body: JSON.stringify({ memberId, ticketType, monthYear })
+    });
+    const json = await res.json();
+    if (json.success) {
+        closeIssueModal();
+        loadTickets();
+        loadTicketSummary();
+    } else {
+        alert(json.message || '발급에 실패했습니다.');
+    }
+}
+
+// ── 발행 설정 ────────────────────────────────────────────────
+
+async function loadSettings() {
+    const res  = await fetch('/api/feedback/settings');
+    const json = await res.json();
+    if (!json.success || !json.data) return;
+    const s = json.data;
+    document.getElementById('settingFreePerMember').value = s.freeTicketsPerMember ?? 2;
+    document.getElementById('settingMaxPerMonth').value   = s.maxTicketsPerMonth   ?? '';
+    document.getElementById('settingIsBeta').checked      = s.beta ?? true;
+}
+
+async function saveSettings() {
+    const body = {
+        freeTicketsPerMember: parseInt(document.getElementById('settingFreePerMember').value) || 2,
+        maxTicketsPerMonth:   document.getElementById('settingMaxPerMonth').value
+                              ? parseInt(document.getElementById('settingMaxPerMonth').value) : null,
+        isBeta: document.getElementById('settingIsBeta').checked
+    };
+    const res = await fetch('/api/feedback/settings', {
+        method: 'PUT', headers: csrfHeaders(), body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    const msg = document.getElementById('settingsSaveMsg');
+    if (json.success) {
+        msg.style.display = ''; setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    }
+}
+
+// ── 공통 유틸 ────────────────────────────────────────────────
+
+function escHtml(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(s) {
+    if (!s) return '-';
+    return String(s).replace('T',' ').substring(0,16);
+}
+
+function openSidebar() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+// 초기화
+(function() {
+    const now = new Date();
+    document.getElementById('ticketMonthFilter').value =
+        `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    loadRequests();
+})();
+</script>
+</body>
+</html>

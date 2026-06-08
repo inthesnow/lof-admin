@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.CrmAnnouncementMapper">
+
+    <resultMap id="annoMap" type="com.linkfit.admin.domain.CrmAnnouncement">
+        <id     property="id"          column="id"/>
+        <result property="gymId"       column="gym_id"/>
+        <result property="authorId"    column="author_id"/>
+        <result property="authorName"  column="author_name"/>
+        <result property="target"      column="target"/>
+        <result property="targetIds"   column="target_ids"/>
+        <result property="title"       column="title"/>
+        <result property="content"     column="content"/>
+        <result property="sendPush"    column="send_push"/>
+        <result property="sentAt"      column="sent_at"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <sql id="annoJoin">
+        SELECT a.*, cu.name AS author_name
+          FROM crm_announcements a
+          LEFT JOIN crm_users cu ON cu.id = a.author_id
+    </sql>
+
+    <select id="findAll" resultMap="annoMap">
+        <include refid="annoJoin"/>
+         WHERE a.gym_id = #{gymId}
+        <if test="target != null and target != ''">AND a.target = #{target}</if>
+         ORDER BY a.created_at DESC
+         LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM crm_announcements a
+         WHERE a.gym_id = #{gymId}
+        <if test="target != null and target != ''">AND a.target = #{target}</if>
+    </select>
+
+    <select id="findById" resultMap="annoMap">
+        <include refid="annoJoin"/>
+         WHERE a.id = #{id} LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.linkfit.admin.domain.CrmAnnouncement">
+        INSERT INTO crm_announcements
+               (id, gym_id, author_id, target, target_ids, title, content, send_push, created_at)
+        VALUES (#{id}, #{gymId}, #{authorId}, #{target}, #{targetIds}, #{title}, #{content},
+                #{sendPush}, NOW())
+    </insert>
+
+    <update id="markSent">
+        UPDATE crm_announcements SET sent_at = NOW() WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM crm_announcements WHERE id = #{id}
+    </delete>
+
+</mapper>
