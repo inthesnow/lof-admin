@@ -8,5 +8,7 @@ import java.util.Optional;
 
 @Mapper
 public interface AdminUserMapper {
-    Optional<AdminUser> findByUsername(@Param("username") String username);
+    Optional<AdminUser> findByBranchCodeAndUsername(
+            @Param("branchCode") String branchCode,
+            @Param("username")   String username);
 }

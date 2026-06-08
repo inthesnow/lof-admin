@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.CrmUserMapper">
+
+    <resultMap id="crmUserResultMap" type="CrmUser">
+        <id     property="id"           column="id"/>
+        <result property="gymId"        column="gym_id"/>
+        <result property="branchCode"   column="branch_code"/>
+        <result property="appUserId"    column="app_user_id"/>
+        <result property="name"         column="name"/>
+        <result property="email"        column="email"/>
+        <result property="username"     column="username"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="role"         column="role"/>
+        <result property="active"       column="is_active"/>
+        <result property="createdAt"    column="created_at"/>
+    </resultMap>
+
+    <select id="findByBranchCodeAndUsername" resultMap="crmUserResultMap">
+        SELECT cu.*, g.branch_code
+        FROM crm_users cu
+        JOIN gym g ON cu.gym_id = g.id
+        WHERE g.branch_code = #{branchCode}
+          AND cu.username   = #{username}
+          AND cu.is_active  = 1
+    </select>
+
+    <select id="findById" resultMap="crmUserResultMap">
+        SELECT cu.*, g.branch_code
+        FROM crm_users cu
+        JOIN gym g ON cu.gym_id = g.id
+        WHERE cu.id = #{id}
+          AND cu.is_active = 1
+    </select>
+
+    <select id="findByGymIdAndUsername" resultMap="crmUserResultMap">
+        SELECT cu.*, g.branch_code
+        FROM crm_users cu
+        JOIN gym g ON cu.gym_id = g.id
+        WHERE cu.gym_id   = #{gymId}
+          AND cu.username = #{username}
+          AND cu.is_active = 1
+    </select>
+
+    <insert id="insert">
+        INSERT INTO crm_users
+            (id, gym_id, app_user_id, name, email, username, password_hash, role, is_active)
+        VALUES
+            (#{id}, #{gymId}, #{appUserId}, #{name}, #{email}, #{username}, #{passwordHash}, #{role}, #{active})
+    </insert>
+
+</mapper>

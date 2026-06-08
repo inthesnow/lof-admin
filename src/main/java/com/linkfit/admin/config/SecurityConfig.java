@@ -1,57 +1,54 @@
 package com.linkfit.admin.config;
 
-import com.linkfit.admin.service.AdminUserDetailsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.linkfit.admin.security.JwtCookieFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired(required = false)
-    private AdminUserDetailsService adminUserDetailsService;
+    private final JwtCookieFilter jwtCookieFilter;
+
+    public SecurityConfig(JwtCookieFilter jwtCookieFilter) {
+        this.jwtCookieFilter = jwtCookieFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        UserDetailsService uds = (adminUserDetailsService != null)
-            ? adminUserDetailsService
-            : new InMemoryUserDetailsManager(
-                User.withUsername("admin")
-                    .password(passwordEncoder().encode("admin123"))
-                    .roles("ADMIN")
-                    .build()
-            );
         http
-            .userDetailsService(uds)
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/css/**", "/js/**", "/favicon.svg", "/error").permitAll()
+                .requestMatchers(
+                    "/login", "/api/auth/login", "/api/auth/logout",
+                    "/css/**", "/js/**", "/favicon.svg", "/error"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
-            .formLogin(form -> form
-                .loginPage("/login")
-                .loginProcessingUrl("/login")
-                .defaultSuccessUrl("/dashboard", true)
-                .failureUrl("/login?error=true")
-                .usernameParameter("username")
-                .passwordParameter("password")
-                .permitAll()
-            )
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout=true")
-                .invalidateHttpSession(true)
-                .deleteCookies("JSESSIONID")
-                .permitAll()
+            .addFilterBefore(jwtCookieFilter, UsernamePasswordAuthenticationFilter.class)
+            .formLogin(form -> form.disable())
+            .logout(logout -> logout.disable())
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    String accept = request.getHeader("Accept");
+                    if (accept != null && accept.contains("application/json")) {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                    } else {
+                        response.sendRedirect("/login");
+                    }
+                })
             );
+
         return http.build();
     }
 

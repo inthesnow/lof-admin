@@ -4,17 +4,25 @@
 <mapper namespace="com.linkfit.admin.mapper.AdminUserMapper">
 
     <resultMap id="adminUserResultMap" type="AdminUser">
-        <id     property="id"        column="id"/>
-        <result property="username"  column="username"/>
-        <result property="password"  column="password"/>
-        <result property="name"      column="name"/>
-        <result property="role"      column="role"/>
-        <result property="active"    column="is_active"/>
-        <result property="createdAt" column="created_at"/>
+        <id     property="id"          column="id"/>
+        <result property="gymId"       column="gym_id"/>
+        <result property="branchCode"  column="branch_code"/>
+        <result property="username"    column="username"/>
+        <result property="password"    column="password"/>
+        <result property="name"        column="name"/>
+        <result property="role"        column="role"/>
+        <result property="active"      column="is_active"/>
+        <result property="createdAt"   column="created_at"/>
     </resultMap>
 
-    <select id="findByUsername" resultMap="adminUserResultMap">
-        SELECT * FROM admin_user WHERE username=#{username} AND is_active=1
+    <select id="findByBranchCodeAndUsername" resultMap="adminUserResultMap">
+        SELECT a.*, g.branch_code
+        FROM admin_user a
+        JOIN gym g ON a.gym_id = g.id
+        WHERE g.branch_code = #{branchCode}
+          AND a.username    = #{username}
+          AND a.is_active   = 1
+          AND g.is_active   = 1
     </select>
 
 </mapper>

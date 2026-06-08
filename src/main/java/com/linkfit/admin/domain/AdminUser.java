@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 public class AdminUser {
     private Long id;
+    private Long gymId;
+    private String branchCode;
     private String username;
     private String password;
     private String name;
@@ -15,6 +17,10 @@ public class AdminUser {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Long getGymId() { return gymId; }
+    public void setGymId(Long gymId) { this.gymId = gymId; }
+    public String getBranchCode() { return branchCode; }
+    public void setBranchCode(String branchCode) { this.branchCode = branchCode; }
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
     public String getPassword() { return password; }

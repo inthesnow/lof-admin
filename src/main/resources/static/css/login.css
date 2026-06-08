@@ -152,6 +152,12 @@ body {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
+.field-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding-left: 2px;
+}
+
 /* ─── Button ─────────────────────────────────────────── */
 .btn-login {
     margin-top: 8px;
