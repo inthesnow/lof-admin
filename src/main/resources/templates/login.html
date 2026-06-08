@@ -134,18 +134,18 @@ async function doLogin(e) {
     try {
         const res = await fetch('/api/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ branchCode, username, password })
         });
-        const json = await res.json();
+        const json = await res.json().catch(() => null);
 
-        if (json.success) {
+        if (json && json.success) {
             location.href = '/dashboard';
         } else {
-            showError(json.message || '로그인에 실패했습니다.');
+            showError((json && json.message) || '로그인에 실패했습니다.');
         }
     } catch (err) {
-        showError('서버와 연결할 수 없습니다.');
+        showError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
     } finally {
         btn.disabled = false;
         btn.textContent = '로그인';
