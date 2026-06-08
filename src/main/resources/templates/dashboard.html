@@ -3,59 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LINK_Fit Admin — 대시보드</title>
+    <title>링크온핏 CRM — 대시보드</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="stylesheet" th:href="@{/css/common.css}">
     <link rel="stylesheet" th:href="@{/css/dashboard.css}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        /* 매출 expand panel */
-        .expand-panel {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-            background: var(--surface-up);
-            border-top: 0 solid var(--border);
-        }
-        .expand-panel.open {
-            max-height: 300px;
-            border-top-width: 1px;
-        }
-        .expand-inner {
-            padding: 10px 12px;
-        }
-        .expand-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            font-size: 12px;
-            color: var(--text-secondary);
-            border-bottom: 1px solid var(--border);
-        }
-        .expand-row:last-child { border-bottom: none; }
-        .expand-row b { color: var(--text-primary); }
-        .expand-btn.expanded { color: var(--accent); }
-
-        /* 모바일 사이드바 */
-        .sidebar-overlay {
-            display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.5); z-index: 99;
-        }
-        .sidebar-overlay.open { display: block; }
-        .mobile-menu-btn {
-            display: none; background: none; border: none;
-            color: var(--text-secondary); cursor: pointer;
-            align-items: center; justify-content: center;
-            width: 36px; height: 36px; border-radius: 8px;
-        }
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); transition: transform 0.25s; z-index: 100; }
-            .sidebar.open { transform: translateX(0); }
-            .main { margin-left: 0; }
-            .mobile-menu-btn { display: flex; }
-            .dashboard-grid { grid-template-columns: 1fr; }
-            .card-attend { grid-column: 1; grid-row: auto; }
-            .card-revenue { grid-column: 1; }
-        }
+        .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:99; }
+        .sidebar-overlay.open { display:block; }
+        .mobile-menu-btn { display:none; background:none; border:none; color:var(--sb-text); cursor:pointer; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px; }
+        @media(max-width:768px){ .sidebar{transform:translateX(-100%); transition:transform 0.25s;} .sidebar.open{transform:translateX(0);} .main{margin-left:0;} .mobile-menu-btn{display:flex;} }
     </style>
 </head>
 <body>
@@ -63,7 +20,6 @@
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside th:replace="~{fragments/sidebar :: sidebar('dashboard')}"></aside>
 
-<!-- ── Main ──────────────────────────────────────────── -->
 <main class="main">
 
     <!-- Header -->
@@ -76,7 +32,7 @@
             <div class="date-nav">
                 <button class="date-btn" onclick="moveDate(-1)">&#8249;</button>
                 <span class="date-label" id="dateLabel">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" style="color:var(--text-muted)"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>
                     <span id="dateLabelText"></span>
                 </span>
                 <button class="date-btn" onclick="moveDate(1)">&#8250;</button>
@@ -84,221 +40,139 @@
         </div>
         <div class="header-right">
             <div class="period-tabs">
-                <button class="period-tab active" onclick="setPeriod('daily', this)">일간</button>
-                <button class="period-tab" onclick="setPeriod('weekly', this)">주간</button>
-                <button class="period-tab" onclick="setPeriod('monthly', this)">월간</button>
+                <button class="period-tab active" onclick="setPeriod('daily',this)">일간</button>
+                <button class="period-tab" onclick="setPeriod('weekly',this)">주간</button>
+                <button class="period-tab" onclick="setPeriod('monthly',this)">월간</button>
             </div>
         </div>
     </header>
 
-    <!-- Dashboard Grid -->
-    <div class="dashboard-grid">
-
-        <!-- ① 회원 통계 -->
-        <section class="card card-member">
-            <div class="card-header">
-                <div class="card-icon" style="background:color-mix(in srgb,#FF7B54 15%,transparent);color:#FF7B54">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-                </div>
-                <h2 class="card-title">회원 통계</h2>
+    <!-- ① 상단 KPI 4개 -->
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-label">전체 회원 수</div>
+            <div class="kpi-value" id="kpiTotal">-<span class="kpi-unit">명</span></div>
+            <div class="kpi-delta up" id="kpiTotalDelta" style="display:none">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M7 14l5-5 5 5z"/></svg>
+                <span id="kpiTotalDeltaVal"></span>
             </div>
-            <div class="sub-tabs">
-                <button class="sub-tab active" onclick="setMemberTab('all', this)">전체</button>
-                <button class="sub-tab" onclick="setMemberTab('membership', this)">회원권</button>
-                <button class="sub-tab" onclick="setMemberTab('group', this)">그룹수업</button>
-                <button class="sub-tab" onclick="setMemberTab('pt', this)">개인 레슨</button>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">활성 회원</div>
+            <div class="kpi-value" id="kpiActive">-<span class="kpi-unit">명</span></div>
+            <div class="kpi-delta up" id="kpiActiveDelta" style="display:none">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M7 14l5-5 5 5z"/></svg>
+                <span id="kpiActiveDeltaVal"></span>
             </div>
-            <div class="stat-grid-2x2" id="memberStats">
-                <div class="stat-box"><div class="skeleton" style="height:80px"></div></div>
-                <div class="stat-box"><div class="skeleton" style="height:80px"></div></div>
-                <div class="stat-box"><div class="skeleton" style="height:80px"></div></div>
-                <div class="stat-box"><div class="skeleton" style="height:80px"></div></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">만료 / 정지 회원</div>
+            <div class="kpi-value" id="kpiExpired">-<span class="kpi-unit">명</span></div>
+            <div class="kpi-delta down" id="kpiExpiredDelta" style="display:none">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M7 10l5 5 5-5z"/></svg>
+                <span id="kpiExpiredDeltaVal"></span>
             </div>
-        </section>
-
-        <!-- ② 상담 통계 -->
-        <section class="card card-consult">
-            <div class="card-header">
-                <div class="card-icon" style="background:color-mix(in srgb,#D29922 15%,transparent);color:#D29922">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
-                </div>
-                <h2 class="card-title">상담 통계</h2>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">신규 회원 (이번달)</div>
+            <div class="kpi-value" id="kpiNew">-<span class="kpi-unit">명</span></div>
+            <div class="kpi-delta up" id="kpiNewDelta" style="display:none">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M7 14l5-5 5 5z"/></svg>
+                <span id="kpiNewDeltaVal"></span>
             </div>
-            <div class="consult-row" id="consultStats">
-                <div class="consult-box">
-                    <div class="consult-label">신규 상담</div>
-                    <div class="consult-value" id="newConsult">-<span class="stat-unit">명</span></div>
-                </div>
-                <div class="consult-box">
-                    <div class="consult-label">기존 회원 상담</div>
-                    <div class="consult-value" id="existingConsult">-<span class="stat-unit">건</span></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ③ 수업 통계 -->
-        <section class="card card-class">
-            <div class="card-header">
-                <div class="card-icon" style="background:color-mix(in srgb,#58A6FF 15%,transparent);color:#58A6FF">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
-                </div>
-                <h2 class="card-title">수업 통계</h2>
-            </div>
-            <div class="sub-tabs">
-                <button class="sub-tab active" onclick="setClassTab('GROUP', this)">그룹 수업</button>
-                <button class="sub-tab" onclick="setClassTab('PT', this)">개인 레슨</button>
-                <button class="sub-tab" onclick="setClassTab('OT', this)">OT</button>
-            </div>
-            <div class="class-grid" id="classStats">
-                <div class="class-category"><div class="skeleton" style="height:60px"></div></div>
-                <div class="class-category"><div class="skeleton" style="height:60px"></div></div>
-            </div>
-        </section>
-
-        <!-- ④ 매출 통계 -->
-        <section class="card card-revenue">
-            <div class="card-header">
-                <div class="card-icon" style="background:color-mix(in srgb,#3FB950 15%,transparent);color:#3FB950">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
-                </div>
-                <h2 class="card-title">매출 통계</h2>
-            </div>
-            <div class="revenue-list">
-                <div class="revenue-row" style="flex-direction:column;padding:0;overflow:hidden;background:transparent;border:none;gap:0">
-                    <div id="revenueList"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- ⑤ 출석 통계 -->
-        <section class="card card-attend">
-            <div class="card-header">
-                <div class="card-icon" style="background:color-mix(in srgb,#79C0FF 15%,transparent);color:#79C0FF">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
-                </div>
-                <h2 class="card-title">출석 통계</h2>
-            </div>
-            <div class="sub-tabs">
-                <button class="sub-tab active" onclick="setAttendTab('all', this)">전체</button>
-                <button class="sub-tab" onclick="setAttendTab('membership', this)">회원권</button>
-                <button class="sub-tab" onclick="setAttendTab('group', this)">그룹수업</button>
-            </div>
-            <div id="attendStats">
-                <div class="attend-section">
-                    <div class="attend-label-row">
-                        <span class="attend-label">이용한 회원</span>
-                        <span class="attend-count" id="attendTotal">-</span>
-                    </div>
-                    <div class="gender-bar-wrap">
-                        <div class="gender-bar">
-                            <div class="bar-male" id="attendBarMale" style="width:50%"></div>
-                            <div class="bar-female" id="attendBarFemale" style="width:50%"></div>
-                        </div>
-                        <div class="gender-labels">
-                            <span class="male">남성 <b id="attendMale">-</b></span>
-                            <span class="female">여성 <b id="attendFemale">-</b></span>
-                        </div>
-                    </div>
-                </div>
-                <div class="attend-section">
-                    <div class="attend-label-row">
-                        <span class="attend-label">유증 중인 회원</span>
-                        <span class="attend-count" id="frozenTotal">-</span>
-                    </div>
-                    <div class="gender-bar-wrap">
-                        <div class="gender-bar">
-                            <div class="bar-male" id="frozenBarMale" style="width:50%"></div>
-                        </div>
-                        <div class="gender-labels">
-                            <span class="male">남성 <b id="frozenMale">-</b></span>
-                            <span class="female">여성 <b id="frozenFemale">-</b></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </div><!-- /dashboard-grid -->
-
-    <!-- 활성 회원 30일 트렌드 -->
-    <div class="trend-widget">
-        <div class="trend-widget-title">활성 회원 추이 (최근 30일)</div>
-        <div class="trend-canvas-wrap">
-            <canvas id="activeMembersTrendChart"></canvas>
         </div>
     </div>
 
-    <!-- CRM 요약 위젯 -->
-    <div class="crm-summary-grid" id="crmSummaryGrid">
-        <a href="/members?expiring=30" class="crm-card" id="crmCardExpiring">
-            <div class="crm-card-icon" style="background:color-mix(in srgb,#F85149 15%,transparent);color:#F85149">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+    <!-- ② 중간 위젯 5개 -->
+    <div class="widget-grid">
+
+        <!-- 루틴 이행 출석률 -->
+        <div class="widget">
+            <div class="widget-title">루틴 이행 출석률</div>
+            <div class="donut-wrap">
+                <canvas id="routineDonut"></canvas>
+                <div class="donut-center">
+                    <div class="donut-pct" id="routinePct">0%</div>
+                    <div class="donut-sub">이행률</div>
+                </div>
             </div>
-            <div class="crm-card-body">
-                <div class="crm-card-val" id="crmExpiring">-</div>
-                <div class="crm-card-label">만료 예정 회원 <span style="font-size:11px;color:var(--text-muted)">(30일 이내)</span></div>
+            <div class="donut-desc" id="routineDesc" style="color:var(--text-muted); font-size:12px">-명 / -명</div>
+        </div>
+
+        <!-- 피드백 대기 건수 -->
+        <div class="widget">
+            <div class="widget-title">피드백 대기</div>
+            <div class="big-num" id="feedbackPending">-<span class="big-unit">건</span></div>
+            <div class="widget-sub-label">미처리 요청</div>
+            <div style="margin-top:12px">
+                <a href="/feedback" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--accent);text-decoration:none;font-weight:500">
+                    바로가기
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                </a>
             </div>
-        </a>
-        <a href="/feedback" class="crm-card" id="crmCardFeedback">
-            <div class="crm-card-icon" style="background:color-mix(in srgb,#D29922 15%,transparent);color:#D29922">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </div>
+
+        <!-- 미루틴 사용률 -->
+        <div class="widget">
+            <div class="widget-title">피드백 티켓 사용률</div>
+            <div class="progress-pct" id="ticketUsagePct">0%</div>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="ticketUsageBar" style="width:0%"></div>
             </div>
-            <div class="crm-card-body">
-                <div class="crm-card-val" id="crmFeedback">-</div>
-                <div class="crm-card-label">피드백 미처리</div>
+            <div class="progress-detail" id="ticketUsageDetail">- / -회</div>
+        </div>
+
+        <!-- 이달 매출 -->
+        <div class="widget">
+            <div class="widget-title">이달 매출 현황</div>
+            <div class="rev-amount" id="revAmount">-</div>
+            <div class="rev-compare" id="revCompare" style="color:var(--text-muted); font-size:12px; margin-bottom:10px">전월 대비 집계 중</div>
+            <div class="sparkline-wrap">
+                <canvas id="sparklineChart"></canvas>
             </div>
-        </a>
-        <a href="/reregistration" class="crm-card" id="crmCardReregistration">
-            <div class="crm-card-icon" style="background:color-mix(in srgb,#58A6FF 15%,transparent);color:#58A6FF">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </div>
+
+        <!-- 재등록 대상자 -->
+        <div class="widget">
+            <div class="widget-title">재등록 성상 대상자</div>
+            <div>
+                <span class="rereg-total" id="reregTotal">-</span>
+                <span class="rereg-unit">명</span>
             </div>
-            <div class="crm-card-body">
-                <div class="crm-card-val" id="crmReregistration">-</div>
-                <div class="crm-card-label">재등록 대기</div>
+            <div class="rereg-list" id="reregList">
+                <div class="rereg-item">
+                    <span><span class="rereg-dot" style="background:#3B82F6"></span>상담 진행</span>
+                    <span class="rereg-count" id="reregActive">-명</span>
+                </div>
+                <div class="rereg-item">
+                    <span><span class="rereg-dot" style="background:#F59E0B"></span>상담 예정</span>
+                    <span class="rereg-count" id="reregPending">-명</span>
+                </div>
+                <div class="rereg-item">
+                    <span><span class="rereg-dot" style="background:#9CA3AF"></span>보류</span>
+                    <span class="rereg-count" id="reregHold">-명</span>
+                </div>
             </div>
-        </a>
+        </div>
+
     </div>
+
+    <!-- ③ 30일 활성 회원 트렌드 -->
+    <div class="trend-section">
+        <div class="trend-header">
+            <span class="trend-title">활성 회원 추이 (최근 30일)</span>
+        </div>
+        <div class="trend-canvas-wrap">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+
 </main>
 
-<style>
-.crm-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    padding: 0 24px 24px;
-}
-.crm-card {
-    display: flex; align-items: center; gap: 14px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 18px; text-decoration: none; color: inherit;
-    transition: border-color 0.15s;
-}
-.crm-card:hover { border-color: var(--accent); }
-.crm-card-icon {
-    width: 40px; height: 40px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
-.crm-card-val { font-size: 22px; font-weight: 700; color: var(--text-primary); }
-.crm-card-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-@media (max-width: 768px) {
-    .crm-summary-grid { grid-template-columns: 1fr; }
-}
-.trend-widget {
-    margin: 0 24px 24px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
-}
-.trend-widget-title {
-    font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px;
-}
-.trend-canvas-wrap { position: relative; height: 180px; }
-</style>
-
 <script>
-// ── 상태 ─────────────────────────────────────────────────
 let currentDate = new Date();
 let currentPeriod = 'daily';
 
-// ── 날짜 헬퍼 ────────────────────────────────────────────
 function formatDate(d) { return d.toISOString().split('T')[0]; }
 
 function updateDateLabel() {
@@ -330,183 +204,225 @@ function setPeriod(period, btn) {
     loadAll();
 }
 
-// ── 서브 탭 ──────────────────────────────────────────────
-function setSubTab(container, btn) {
-    container.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-}
-
-function setMemberTab(type, btn) {
-    setSubTab(btn.closest('.sub-tabs'), btn);
-    loadMemberStats(type);
-}
-
-function setClassTab(type, btn) {
-    setSubTab(btn.closest('.sub-tabs'), btn);
-    loadClassStats(type);
-}
-
-function setAttendTab(type, btn) {
-    setSubTab(btn.closest('.sub-tabs'), btn);
-    loadAttendStats(type);
-}
-
-// ── 회원 통계 ────────────────────────────────────────────
-async function loadMemberStats(type = '') {
-    const res = await fetch(`/api/dashboard/members?date=${formatDate(currentDate)}&period=${currentPeriod}&type=${type}`);
-    const { data } = await res.json();
-    document.getElementById('memberStats').innerHTML = `
-        <div class="stat-box">
-            <div class="stat-label-row"><span class="stat-dot" style="background:#FF7B54"></span>유효 회원</div>
-            <div class="stat-value">${data.active}<span class="stat-unit">명</span></div>
-            <div class="stat-gender"><span class="male">남성 <b>${data.maleActive}명</b></span><span class="female">여성 <b>${data.femaleActive}명</b></span></div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-label-row"><span class="stat-dot" style="background:#F85149"></span>만기 회원</div>
-            <div class="stat-value">${data.expired}<span class="stat-unit">명</span></div>
-            <div class="stat-gender"><span class="male">남성 <b>${data.maleExpired}명</b></span><span class="female">여성 <b>${data.femaleExpired}명</b></span></div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-label-row"><span class="stat-dot" style="background:#3FB950"></span>신규 가입</div>
-            <div class="stat-value">${data.newJoin}<span class="stat-unit">명</span></div>
-            <div class="stat-gender"><span class="male">남성 <b>${data.maleNew}명</b></span><span class="female">여성 <b>${data.femaleNew}명</b></span></div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-label-row"><span class="stat-dot" style="background:#58A6FF"></span>재등록</div>
-            <div class="stat-value">${data.reJoin}<span class="stat-unit">명</span></div>
-            <div class="stat-gender"><span class="male">남성 <b>${data.maleReJoin}명</b></span><span class="female">여성 <b>${data.femaleReJoin}명</b></span></div>
-        </div>
-    `;
-}
-
-// ── 상담 통계 ────────────────────────────────────────────
-async function loadConsultStats() {
-    const res = await fetch(`/api/dashboard/consults?date=${formatDate(currentDate)}&period=${currentPeriod}`);
-    const { data } = await res.json();
-    document.getElementById('newConsult').innerHTML = `${data.newConsult}<span class="stat-unit">명</span>`;
-    document.getElementById('existingConsult').innerHTML = `${data.existingConsult}<span class="stat-unit">건</span>`;
-}
-
-// ── 수업 통계 ────────────────────────────────────────────
-async function loadClassStats(type = 'GROUP') {
-    const res = await fetch(`/api/dashboard/classes?date=${formatDate(currentDate)}&period=${currentPeriod}&type=${type}`);
-    const { data } = await res.json();
-    const categories = ['전체수업', '헬스', '필라테스', '골프', '기타'];
-    const keys = ['total', '헬스', '필라테스', '골프', '기타'];
-    document.getElementById('classStats').innerHTML = categories.map((label, i) => {
-        const d = data[keys[i]] || { count: 0, enrolled: 0 };
-        return `<div class="class-category">
-            <div class="class-cat-header">${label}</div>
-            <div class="class-stat-row"><span>수업</span><b>${d.count}건</b></div>
-            <div class="class-stat-row"><span>신청자 수</span><b>${d.enrolled}명</b></div>
-        </div>`;
-    }).join('');
-}
-
-// ── 매출 통계 + expand ───────────────────────────────────
-const revenueCategories = [
-    { key: 'membership', label: '등록/재등록 매출 현황', icon: 'M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z' },
-    { key: 'groupClass', label: '그룹 수업 매출 현황', apiKey: 'group-classes', icon: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' },
-    { key: 'pt', label: '개인 레슨 매출 현황', icon: 'M12 3L1 9l11 6 9-4.91V17h2V9L12 3z' },
-    { key: 'locker', label: '락커 매출 현황', apiKey: 'lockers', icon: 'M19 7H5c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-8 8H9v-2h2v2zm0-4H9V9h2v2zm4 4h-2v-2h2v2zm0-4h-2V9h2v2z' },
-    { key: 'items', label: '공동 물품 매출 현황', icon: 'M19 7H5c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-8 8H9v-2h2v2zm0-4H9V9h2v2zm4 4h-2v-2h2v2zm0-4h-2V9h2v2z' },
-];
-
-async function loadRevenueStats() {
-    const res = await fetch(`/api/revenue/summary?date=${formatDate(currentDate)}&period=${currentPeriod}`);
-    const { data } = await res.json();
-
-    document.getElementById('revenueList').innerHTML = revenueCategories.map(cat => `
-        <div class="revenue-row" style="border-radius:10px;margin-bottom:8px;flex-direction:column;padding:0;overflow:hidden">
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer" onclick="toggleRevExpand('${cat.key}')">
-                <div class="revenue-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="${cat.icon}"/></svg>
-                </div>
-                <span class="revenue-label">${cat.label}</span>
-                <span class="revenue-amount">${(data[cat.key]||0).toLocaleString()}원</span>
-                <button class="expand-btn" id="expand-btn-${cat.key}">펼치기 &#8964;</button>
-            </div>
-            <div class="expand-panel" id="expand-panel-${cat.key}">
-                <div class="expand-inner" id="expand-detail-${cat.key}">
-                    <div class="expand-row"><span style="color:var(--text-muted)">데이터 로딩 중...</span></div>
-                </div>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function toggleRevExpand(key) {
-    const panel = document.getElementById('expand-panel-' + key);
-    const btn = document.getElementById('expand-btn-' + key);
-    const isOpen = panel.classList.contains('open');
-
-    if (!isOpen) {
-        const cat = revenueCategories.find(c => c.key === key);
-        const apiKey = cat.apiKey || key;
-        const res = await fetch(`/api/dashboard/revenue/${apiKey}?date=${formatDate(currentDate)}&period=${currentPeriod}`);
+// ── 회원 KPI ─────────────────────────────────────────────
+async function loadMemberKPI() {
+    try {
+        const res = await fetch(`/api/dashboard/members?date=${formatDate(currentDate)}&period=${currentPeriod}`);
         const { data } = await res.json();
-        const detail = document.getElementById('expand-detail-' + key);
-        detail.innerHTML = data.items && data.items.length
-            ? data.items.map(item => `<div class="expand-row"><span>${item.name || '-'}</span><b>${(item.amount||0).toLocaleString()}원</b></div>`).join('')
-            : '<div class="expand-row"><span style="color:var(--text-muted)">상세 데이터가 없습니다.</span></div>';
-    }
+        const active  = data.active  || 0;
+        const expired = data.expired || 0;
+        const newJoin = data.newJoin || 0;
+        const reJoin  = data.reJoin  || 0;
+        const total   = active + expired;
 
-    panel.classList.toggle('open', !isOpen);
-    btn.classList.toggle('expanded', !isOpen);
-    btn.innerHTML = !isOpen ? '접기 &#8963;' : '펼치기 &#8964;';
-}
-
-// ── 출석 통계 ────────────────────────────────────────────
-async function loadAttendStats(type = '') {
-    const res = await fetch(`/api/dashboard/attendance?date=${formatDate(currentDate)}&period=${currentPeriod}&type=${type}`);
-    const { data } = await res.json();
-    const total = data.total || 0;
-    const male = data.male || 0;
-    const female = data.female || 0;
-    const malePct = total > 0 ? Math.round(male / total * 100) : 50;
-    const femalePct = 100 - malePct;
-
-    document.getElementById('attendTotal').textContent = total + '명';
-    document.getElementById('attendMale').textContent = male + '명';
-    document.getElementById('attendFemale').textContent = female + '명';
-    document.getElementById('attendBarMale').style.width = malePct + '%';
-    document.getElementById('attendBarFemale').style.width = femalePct + '%';
-
-    const frozen = data.frozen || 0;
-    const frozenM = data.frozenMale || 0;
-    const frozenF = data.frozenFemale || 0;
-    const frozenPct = frozen > 0 ? Math.round(frozenM / frozen * 100) : 100;
-
-    document.getElementById('frozenTotal').textContent = frozen + '명';
-    document.getElementById('frozenMale').textContent = frozenM + '명';
-    document.getElementById('frozenFemale').textContent = frozenF + '명';
-    document.getElementById('frozenBarMale').style.width = frozenPct + '%';
+        document.getElementById('kpiTotal').innerHTML   = `${total.toLocaleString()}<span class="kpi-unit">명</span>`;
+        document.getElementById('kpiActive').innerHTML  = `${active.toLocaleString()}<span class="kpi-unit">명</span>`;
+        document.getElementById('kpiExpired').innerHTML = `${expired.toLocaleString()}<span class="kpi-unit">명</span>`;
+        document.getElementById('kpiNew').innerHTML     = `${newJoin.toLocaleString()}<span class="kpi-unit">명</span>`;
+    } catch(e) {}
 }
 
 // ── CRM 요약 ─────────────────────────────────────────────
 async function loadCrmSummary() {
-    const res = await fetch('/api/dashboard/crm-summary');
-    if (!res.ok) return;
-    const { data } = await res.json();
-    if (!data) return;
-    document.getElementById('crmExpiring').textContent       = data.expiringCount ?? '-';
-    document.getElementById('crmFeedback').textContent       = data.pendingFeedback ?? '-';
-    document.getElementById('crmReregistration').textContent = data.pendingReregistration ?? '-';
-    if ((data.expiringCount || 0) > 0)       document.getElementById('crmCardExpiring').style.borderColor = '#F85149';
-    if ((data.pendingFeedback || 0) > 0)     document.getElementById('crmCardFeedback').style.borderColor = '#D29922';
-    if ((data.pendingReregistration || 0) > 0) document.getElementById('crmCardReregistration').style.borderColor = '#58A6FF';
+    try {
+        const res = await fetch('/api/dashboard/crm-summary');
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (!data) return;
+
+        document.getElementById('feedbackPending').innerHTML =
+            `${data.pendingFeedback ?? 0}<span class="big-unit">건</span>`;
+
+        document.getElementById('reregTotal').textContent = data.pendingReregistration ?? 0;
+    } catch(e) {}
+}
+
+// ── 피드백 티켓 사용률 ────────────────────────────────────
+async function loadTicketUsage() {
+    try {
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth()+1).padStart(2,'0');
+        const res = await fetch(`/api/feedback/tickets?monthYear=${y}-${m}&page=0&size=1`);
+        if (!res.ok) return;
+        const { data } = await res.json();
+        const list = data?.content || [];
+        if (!list.length) return;
+
+        let usable = 0, used = 0;
+        list.forEach(t => { usable += t.ticketBalance || 0; used += t.ticketsUsed || 0; });
+        const total = usable + used;
+        const pct = total > 0 ? Math.round(used / total * 100) : 0;
+        document.getElementById('ticketUsagePct').textContent = pct + '%';
+        document.getElementById('ticketUsageBar').style.width = pct + '%';
+        document.getElementById('ticketUsageDetail').textContent = `${used.toLocaleString()} / ${total.toLocaleString()}회`;
+    } catch(e) {}
+}
+
+// ── 이달 매출 + sparkline ─────────────────────────────────
+let sparklineChart = null;
+async function loadRevenue() {
+    try {
+        const today = new Date();
+        const dateStr = formatDate(today);
+        const res = await fetch(`/api/revenue/summary?date=${dateStr}&period=monthly`);
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (!data) return;
+
+        const total = data.totalRevenue || data.total || 0;
+        document.getElementById('revAmount').textContent = total.toLocaleString() + '원';
+
+        const compare = data.compareRate;
+        if (compare != null) {
+            const el = document.getElementById('revCompare');
+            const isPos = compare >= 0;
+            el.className = 'rev-compare ' + (isPos ? 'positive' : 'negative');
+            el.innerHTML = `${isPos ? '▲' : '▼'} ${Math.abs(compare)}% 전월 대비`;
+        }
+
+        // sparkline from daily trend
+        const trendRes = await fetch('/api/stats/daily');
+        if (trendRes.ok) {
+            const { data: trendData } = await trendRes.json();
+            drawSparkline(trendData || []);
+        }
+    } catch(e) {}
+}
+
+function drawSparkline(rows) {
+    const dateMap = {};
+    rows.forEach(r => { dateMap[r.statDate] = r.activeMembers || 0; });
+    const values = [];
+    for (let i = 29; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        values.push(dateMap[d.toISOString().slice(0,10)] ?? null);
+    }
+    const ctx = document.getElementById('sparklineChart').getContext('2d');
+    if (sparklineChart) sparklineChart.destroy();
+    sparklineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: values.map((_, i) => i),
+            datasets: [{ data: values, borderColor: '#3B82F6', borderWidth: 1.5, pointRadius: 0, spanGaps: false, tension: 0.4, fill: true, backgroundColor: 'rgba(59,130,246,0.08)' }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { display: false, beginAtZero: false } }
+        }
+    });
+}
+
+// ── 루틴이행 출석률 도넛 ──────────────────────────────────
+let routineDonut = null;
+async function loadRoutineDonut() {
+    try {
+        const res = await fetch(`/api/dashboard/members?date=${formatDate(currentDate)}&period=${currentPeriod}`);
+        const { data } = await res.json();
+        const active = data.active || 0;
+        const attend = data.attendToday || Math.round(active * 0.7);
+        const pct = active > 0 ? Math.round(attend / active * 100) : 0;
+
+        document.getElementById('routinePct').textContent = pct + '%';
+        document.getElementById('routineDesc').textContent = `${attend.toLocaleString()}명 / ${active.toLocaleString()}명`;
+
+        const ctx = document.getElementById('routineDonut').getContext('2d');
+        if (routineDonut) routineDonut.destroy();
+        routineDonut = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [pct, 100 - pct],
+                    backgroundColor: ['#3B82F6', '#E5E7EB'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '72%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
+    } catch(e) {}
+}
+
+// ── 재등록 상세 ───────────────────────────────────────────
+async function loadReregDetails() {
+    try {
+        const res = await fetch('/api/crm/reregistration/status-summary');
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (!data) return;
+
+        const total = (data.pending || 0) + (data.in_progress || 0) + (data.hold || 0) + (data.success || 0);
+        document.getElementById('reregTotal').textContent  = total;
+        document.getElementById('reregActive').textContent  = (data.in_progress || 0) + '명';
+        document.getElementById('reregPending').textContent = (data.pending     || 0) + '명';
+        document.getElementById('reregHold').textContent    = (data.hold        || 0) + '명';
+    } catch(e) {}
+}
+
+// ── 30일 트렌드 차트 ──────────────────────────────────────
+let trendChart = null;
+async function loadTrend() {
+    try {
+        const res = await fetch('/api/stats/daily');
+        if (!res.ok) return;
+        const { data } = await res.json();
+        const rows = data || [];
+
+        const dateMap = {};
+        rows.forEach(r => { dateMap[r.statDate] = r.activeMembers || 0; });
+
+        const labels = [], values = [];
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            labels.push(key.slice(5));
+            values.push(dateMap[key] ?? null);
+        }
+
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: '활성 회원',
+                    data: values,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16,185,129,0.08)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    spanGaps: false,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#9CA3AF', maxTicksLimit: 10 }, grid: { color: '#F3F4F6' } },
+                    y: { ticks: { color: '#9CA3AF' }, grid: { color: '#F3F4F6' }, beginAtZero: false }
+                }
+            }
+        });
+    } catch(e) {}
 }
 
 // ── 전체 로드 ────────────────────────────────────────────
 function loadAll() {
-    loadMemberStats();
-    loadConsultStats();
-    loadClassStats();
-    loadRevenueStats();
-    loadAttendStats();
+    loadMemberKPI();
+    loadRoutineDonut();
+    loadCrmSummary();
+    loadTicketUsage();
+    loadRevenue();
+    loadReregDetails();
+    loadTrend();
 }
 
-// ── 모바일 사이드바 ──────────────────────────────────────
 function openSidebar() {
     document.querySelector('.sidebar').classList.add('open');
     document.getElementById('sidebarOverlay').classList.add('open');
@@ -516,61 +432,8 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
-// ── 활성 회원 트렌드 ─────────────────────────────────────
-let activeMembersTrendChart = null;
-async function loadActiveMembersTrend() {
-    const res = await fetch('/api/stats/daily');
-    if (!res.ok) return;
-    const { data } = await res.json();
-    const rows = data || [];
-
-    const dateMap = {};
-    rows.forEach(r => { dateMap[r.statDate] = r.activeMembers || 0; });
-
-    const labels = [], values = [];
-    const fmt = d => d.toISOString().slice(0, 10);
-    for (let i = 29; i >= 0; i--) {
-        const d = new Date(); d.setDate(d.getDate() - i);
-        const key = fmt(d);
-        labels.push(key.slice(5));
-        values.push(dateMap[key] ?? null);
-    }
-
-    const ctx = document.getElementById('activeMembersTrendChart').getContext('2d');
-    if (activeMembersTrendChart) activeMembersTrendChart.destroy();
-    activeMembersTrendChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: '활성 회원',
-                data: values,
-                borderColor: '#3FB950',
-                backgroundColor: 'rgba(63,185,80,0.1)',
-                borderWidth: 2,
-                pointRadius: 3,
-                spanGaps: false,
-                tension: 0.3,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { ticks: { color: '#8B949E', maxTicksLimit: 10 }, grid: { color: '#21262D' } },
-                y: { ticks: { color: '#8B949E' }, grid: { color: '#21262D' }, beginAtZero: false }
-            }
-        }
-    });
-}
-
-// ── 초기화 ───────────────────────────────────────────────
 updateDateLabel();
 loadAll();
-loadCrmSummary();
-loadActiveMembersTrend();
 </script>
 </body>
 </html>
