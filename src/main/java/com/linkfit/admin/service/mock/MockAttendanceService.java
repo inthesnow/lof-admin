@@ -2,13 +2,11 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Attendance;
 import com.linkfit.admin.service.AttendanceService;
-import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Service
 public class MockAttendanceService implements AttendanceService {
 
     private final Map<Long, Attendance> store = new LinkedHashMap<>();

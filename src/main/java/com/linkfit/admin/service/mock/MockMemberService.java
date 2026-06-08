@@ -3,13 +3,10 @@ package com.linkfit.admin.service.mock;
 import com.linkfit.admin.domain.Member;
 import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.service.MemberService;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service
 public class MockMemberService implements MemberService {
 
     private final Map<String, Member> store = new LinkedHashMap<>();

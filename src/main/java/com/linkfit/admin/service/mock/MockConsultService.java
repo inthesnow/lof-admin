@@ -2,14 +2,12 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Consult;
 import com.linkfit.admin.service.ConsultService;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-@Service
 public class MockConsultService implements ConsultService {
 
     private final Map<Long, Consult> store = new LinkedHashMap<>();

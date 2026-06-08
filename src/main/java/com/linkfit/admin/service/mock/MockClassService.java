@@ -2,7 +2,6 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.ClassSession;
 import com.linkfit.admin.service.ClassService;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -10,7 +9,6 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-@Service
 public class MockClassService implements ClassService {
 
     private final Map<Long, ClassSession> store = new LinkedHashMap<>();

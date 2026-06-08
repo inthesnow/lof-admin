@@ -2,14 +2,12 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Message;
 import com.linkfit.admin.service.MessageService;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-@Service
 public class MockMessageService implements MessageService {
 
     private final Map<Long, Message> store = new LinkedHashMap<>();

@@ -2,13 +2,11 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Staff;
 import com.linkfit.admin.service.StaffService;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
-@Service
 public class MockStaffService implements StaffService {
 
     private final Map<String, Staff> store = new LinkedHashMap<>();

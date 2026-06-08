@@ -2,13 +2,11 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Product;
 import com.linkfit.admin.service.ProductService;
-import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-@Service
 public class MockProductService implements ProductService {
 
     private final Map<Long, Product> store = new LinkedHashMap<>();
