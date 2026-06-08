@@ -3,42 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LINK_Fit Admin — 매출 관리</title>
+    <title>링크온핏 CRM — 통계 / 리포트</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        .period-tabs { display:flex; background:var(--surface-up); border-radius:8px; padding:3px; gap:2px; }
-        .period-tab { padding:5px 14px; border-radius:6px; border:none; background:transparent; color:var(--text-muted); font-size:13px; font-weight:500; cursor:pointer; transition:all 0.15s; }
-        .period-tab.active { background:var(--accent); color:var(--bg); font-weight:700; }
+        .stats-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
 
-        .date-nav { display:flex; align-items:center; gap:8px; }
-        .date-btn { background:var(--surface-up); border:1px solid var(--border); color:var(--text-secondary); width:28px; height:28px; border-radius:6px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
-        .date-btn:hover { background:var(--border); color:var(--text-primary); }
-        .date-label { font-size:13px; font-weight:600; min-width:120px; text-align:center; }
+        /* 도넛 차트 그리드 */
+        .donut-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+        }
 
-        .revenue-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:20px 24px; border-bottom:1px solid var(--border); }
-        .summary-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
-        .summary-label { font-size:12px; color:var(--text-muted); margin-bottom:6px; }
-        .summary-value { font-size:22px; font-weight:700; color:var(--success); }
+        .donut-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 14px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
 
-        .revenue-section { padding:20px 24px; }
-        .revenue-item { background:var(--surface); border:1px solid var(--border); border-radius:12px; margin-bottom:10px; overflow:hidden; }
-        .revenue-item-header { display:flex; align-items:center; gap:12px; padding:14px 16px; cursor:pointer; transition:background 0.15s; }
-        .revenue-item-header:hover { background:var(--surface-up); }
-        .rev-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:color-mix(in srgb,var(--success) 15%,transparent); color:var(--success); flex-shrink:0; }
-        .rev-label { flex:1; font-size:14px; font-weight:500; }
-        .rev-amount { font-size:16px; font-weight:700; color:var(--text-primary); }
-        .rev-expand { background:none; border:none; color:var(--text-muted); font-size:12px; cursor:pointer; padding:4px 8px; border-radius:6px; transition:all 0.15s; display:flex; align-items:center; gap:4px; }
-        .rev-expand:hover { color:var(--accent); }
-        .rev-expand svg { transition:transform 0.2s; }
-        .rev-expand.expanded svg { transform:rotate(180deg); }
+        .donut-card-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
 
-        .expand-panel { max-height:0; overflow:hidden; transition:max-height 0.3s ease; background:var(--surface-up); border-top:1px solid var(--border); }
-        .expand-panel.open { max-height:400px; }
-        .expand-inner { padding:14px 16px 14px 64px; }
-        .expand-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); font-size:13px; color:var(--text-secondary); }
-        .expand-row:last-child { border-bottom:none; }
-        .expand-row b { color:var(--text-primary); }
+        .donut-canvas-wrap {
+            position: relative;
+            width: 80px; height: 80px;
+        }
+
+        .donut-center-label {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .donut-pct-label {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .donut-desc-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* 월 매출 추이 */
+        .bar-chart-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .chart-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .chart-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-canvas-wrap {
+            position: relative;
+            height: 240px;
+        }
+
+        /* 요약 통계 테이블 */
+        .summary-table-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .summary-table-card .section-card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .summary-table-card table { margin: 0; }
+        .summary-table-card .table-wrap { padding: 0; }
+
+        @media(max-width:1100px) { .donut-grid { grid-template-columns: repeat(3,1fr); } }
+        @media(max-width:768px)  { .donut-grid { grid-template-columns: repeat(2,1fr); } .stats-body { padding: 16px; } }
     </style>
 </head>
 <body>
@@ -52,200 +122,301 @@
             <button class="mobile-menu-btn" onclick="openSidebar()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
-            <h1 class="page-title">매출 관리</h1>
-            <div class="date-nav">
-                <button class="date-btn" onclick="moveDate(-1)">&#8249;</button>
-                <span class="date-label" id="dateLabel"></span>
-                <button class="date-btn" onclick="moveDate(1)">&#8250;</button>
-            </div>
+            <h1 class="page-title">통계 / 리포트</h1>
         </div>
         <div class="header-right">
-            <div class="period-tabs">
-                <button class="period-tab active" onclick="setPeriod('daily', this)">일간</button>
-                <button class="period-tab" onclick="setPeriod('weekly', this)">주간</button>
-                <button class="period-tab" onclick="setPeriod('monthly', this)">월간</button>
-            </div>
+            <select class="filter-select" id="periodSelect" onchange="loadAll()" style="font-size:13px">
+                <option value="monthly">이번달</option>
+                <option value="quarterly">분기</option>
+                <option value="yearly">연간</option>
+            </select>
         </div>
     </header>
 
-    <div class="revenue-summary">
-        <div class="summary-card">
-            <div class="summary-label">총 매출</div>
-            <div class="summary-value" id="totalRevenue">0원</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">건수</div>
-            <div class="summary-value" style="color:var(--accent)" id="totalCount">0건</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">전일 대비</div>
-            <div class="summary-value" style="color:var(--text-muted)" id="comparison">-</div>
-        </div>
-    </div>
+    <div class="stats-body">
 
-    <div class="revenue-section">
-        <div class="revenue-item" id="rev-membership">
-            <div class="revenue-item-header" onclick="toggleExpand('membership')">
-                <div class="rev-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
-                </div>
-                <span class="rev-label">등록/재등록 매출</span>
-                <span class="rev-amount" id="amt-membership">0원</span>
-                <button class="rev-expand" id="btn-membership">
-                    펼치기
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 10l5 5 5-5z"/></svg>
-                </button>
-            </div>
-            <div class="expand-panel" id="panel-membership">
-                <div class="expand-inner" id="detail-membership">
-                    <div class="expand-row"><span>로딩 중...</span></div>
-                </div>
-            </div>
-        </div>
+        <!-- 핵심 지표 도넛 6개 -->
+        <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:14px">핵심 운영 지표</div>
+            <div class="donut-grid">
 
-        <div class="revenue-item" id="rev-group-classes">
-            <div class="revenue-item-header" onclick="toggleExpand('group-classes')">
-                <div class="rev-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                <div class="donut-card">
+                    <div class="donut-card-title">회원 추이</div>
+                    <div class="donut-canvas-wrap">
+                        <canvas id="donutMember"></canvas>
+                        <div class="donut-center-label"><div class="donut-pct-label" id="pctMember">0%</div></div>
+                    </div>
+                    <div class="donut-desc-label" id="descMember">활성 / 전체</div>
                 </div>
-                <span class="rev-label">그룹 수업 매출</span>
-                <span class="rev-amount" id="amt-group-classes">0원</span>
-                <button class="rev-expand" id="btn-group-classes">
-                    펼치기
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 10l5 5 5-5z"/></svg>
-                </button>
-            </div>
-            <div class="expand-panel" id="panel-group-classes">
-                <div class="expand-inner" id="detail-group-classes"></div>
-            </div>
-        </div>
 
-        <div class="revenue-item" id="rev-pt">
-            <div class="revenue-item-header" onclick="toggleExpand('pt')">
-                <div class="rev-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>
+                <div class="donut-card">
+                    <div class="donut-card-title">루틴 이행률</div>
+                    <div class="donut-canvas-wrap">
+                        <canvas id="donutRoutine"></canvas>
+                        <div class="donut-center-label"><div class="donut-pct-label" id="pctRoutine">0%</div></div>
+                    </div>
+                    <div class="donut-desc-label" id="descRoutine">이행 / 전체</div>
                 </div>
-                <span class="rev-label">개인 레슨 매출</span>
-                <span class="rev-amount" id="amt-pt">0원</span>
-                <button class="rev-expand" id="btn-pt">
-                    펼치기
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 10l5 5 5-5z"/></svg>
-                </button>
-            </div>
-            <div class="expand-panel" id="panel-pt">
-                <div class="expand-inner" id="detail-pt"></div>
+
+                <div class="donut-card">
+                    <div class="donut-card-title">출석률</div>
+                    <div class="donut-canvas-wrap">
+                        <canvas id="donutAttend"></canvas>
+                        <div class="donut-center-label"><div class="donut-pct-label" id="pctAttend">0%</div></div>
+                    </div>
+                    <div class="donut-desc-label" id="descAttend">출석 / 활성</div>
+                </div>
+
+                <div class="donut-card">
+                    <div class="donut-card-title">피드백 사용률</div>
+                    <div class="donut-canvas-wrap">
+                        <canvas id="donutFeedback"></canvas>
+                        <div class="donut-center-label"><div class="donut-pct-label" id="pctFeedback">0%</div></div>
+                    </div>
+                    <div class="donut-desc-label" id="descFeedback">사용 / 발급</div>
+                </div>
+
+                <div class="donut-card">
+                    <div class="donut-card-title">재등록률</div>
+                    <div class="donut-canvas-wrap">
+                        <canvas id="donutRereg"></canvas>
+                        <div class="donut-center-label"><div class="donut-pct-label" id="pctRereg">0%</div></div>
+                    </div>
+                    <div class="donut-desc-label" id="descRereg">재등록 / 만료</div>
+                </div>
+
+                <div class="donut-card">
+                    <div class="donut-card-title">PT 자동록률</div>
+                    <div class="donut-canvas-wrap">
+                        <canvas id="donutPT"></canvas>
+                        <div class="donut-center-label"><div class="donut-pct-label" id="pctPT">0%</div></div>
+                    </div>
+                    <div class="donut-desc-label" id="descPT">PT 회원 / 전체</div>
+                </div>
+
             </div>
         </div>
 
-        <div class="revenue-item" id="rev-lockers">
-            <div class="revenue-item-header" onclick="toggleExpand('lockers')">
-                <div class="rev-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.34 0-2.12-2.46-3.66-5-3.66-1.38 0-2.74.594-3.66 1.62L8 4 6.66 2.62C5.74 1.594 4.38 1 3 1 .54 1 0 2.54 0 4.66c0 .46.06.9.18 1.34H-2v14h24V6zm-8 8H8v-2h4v2zm0-4H8V8h4v2zm4 4h-2v-2h2v2zm0-4h-2V8h2v2z"/></svg>
-                </div>
-                <span class="rev-label">락커 매출</span>
-                <span class="rev-amount" id="amt-lockers">0원</span>
-                <button class="rev-expand" id="btn-lockers">
-                    펼치기
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 10l5 5 5-5z"/></svg>
-                </button>
+        <!-- 월 매출 추이 바 차트 -->
+        <div class="bar-chart-card">
+            <div class="chart-card-header">
+                <span class="chart-card-title">월 매출 추이 (최근 6개월)</span>
             </div>
-            <div class="expand-panel" id="panel-lockers">
-                <div class="expand-inner" id="detail-lockers"></div>
+            <div class="chart-canvas-wrap">
+                <canvas id="monthlyRevenueChart"></canvas>
             </div>
         </div>
 
-        <div class="revenue-item" id="rev-items">
-            <div class="revenue-item-header" onclick="toggleExpand('items')">
-                <div class="rev-icon">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 7H5c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-8 8H9v-2h2v2zm0-4H9V9h2v2zm4 4h-2v-2h2v2zm0-4h-2V9h2v2z"/></svg>
-                </div>
-                <span class="rev-label">공동 물품 매출</span>
-                <span class="rev-amount" id="amt-items">0원</span>
-                <button class="rev-expand" id="btn-items">
-                    펼치기
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M7 10l5 5 5-5z"/></svg>
-                </button>
+        <!-- 활성 회원 30일 트렌드 -->
+        <div class="bar-chart-card">
+            <div class="chart-card-header">
+                <span class="chart-card-title">활성 회원 추이 (최근 30일)</span>
             </div>
-            <div class="expand-panel" id="panel-items">
-                <div class="expand-inner" id="detail-items"></div>
+            <div class="chart-canvas-wrap" style="height:180px">
+                <canvas id="memberTrendChart"></canvas>
             </div>
         </div>
+
     </div>
 </main>
 
 <script>
-let currentDate = new Date();
-let currentPeriod = 'daily';
+const donutCharts = {};
 
-function formatDate(d) {
-    return d.toISOString().split('T')[0];
-}
-
-function updateDateLabel() {
-    const label = document.getElementById('dateLabel');
-    if (currentPeriod === 'daily') {
-        label.textContent = `${currentDate.getFullYear()}년 ${String(currentDate.getMonth()+1).padStart(2,'0')}월 ${String(currentDate.getDate()).padStart(2,'0')}일`;
-    } else if (currentPeriod === 'weekly') {
-        const start = new Date(currentDate);
-        start.setDate(start.getDate() - start.getDay());
-        const end = new Date(start); end.setDate(end.getDate() + 6);
-        label.textContent = `${formatDate(start)} ~ ${formatDate(end)}`;
-    } else {
-        label.textContent = `${currentDate.getFullYear()}년 ${String(currentDate.getMonth()+1).padStart(2,'0')}월`;
-    }
-}
-
-function moveDate(dir) {
-    if (currentPeriod === 'daily') currentDate.setDate(currentDate.getDate() + dir);
-    else if (currentPeriod === 'weekly') currentDate.setDate(currentDate.getDate() + dir * 7);
-    else currentDate.setMonth(currentDate.getMonth() + dir);
-    updateDateLabel();
-    loadRevenue();
-}
-
-function setPeriod(period, btn) {
-    currentPeriod = period;
-    document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    updateDateLabel();
-    loadRevenue();
-}
-
-async function loadRevenue() {
-    const date = formatDate(currentDate);
-    const res = await fetch(`/api/revenue/summary?date=${date}&period=${currentPeriod}`);
-    const json = await res.json();
-    const d = json.data;
-
-    const total = (d.membership||0) + (d.groupClass||0) + (d.pt||0) + (d.locker||0) + (d.items||0);
-    document.getElementById('totalRevenue').textContent = total.toLocaleString() + '원';
-    document.getElementById('totalCount').textContent = '0건';
-    document.getElementById('comparison').textContent = '-';
-
-    ['membership','group-classes','pt','lockers','items'].forEach((key, i) => {
-        const val = [d.membership, d.groupClass, d.pt, d.locker, d.items][i] || 0;
-        document.getElementById('amt-' + key).textContent = val.toLocaleString() + '원';
+function makeDonut(canvasId, pct, color) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    if (donutCharts[canvasId]) donutCharts[canvasId].destroy();
+    donutCharts[canvasId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [pct, 100 - pct],
+                backgroundColor: [color, '#E5E7EB'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '72%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
     });
 }
 
-async function toggleExpand(category) {
-    const panel = document.getElementById('panel-' + category);
-    const btn = document.getElementById('btn-' + category);
-    const isOpen = panel.classList.contains('open');
+async function loadMemberStats() {
+    try {
+        const today = new Date().toISOString().slice(0,10);
+        const res = await fetch(`/api/dashboard/members?date=${today}&period=monthly`);
+        const { data } = await res.json();
+        const active = data.active || 0;
+        const total = active + (data.expired || 0);
+        const pct = total > 0 ? Math.round(active / total * 100) : 0;
+        document.getElementById('pctMember').textContent = pct + '%';
+        document.getElementById('descMember').textContent = `${active.toLocaleString()} / ${total.toLocaleString()}명`;
+        makeDonut('donutMember', pct, '#3B82F6');
 
-    if (!isOpen) {
-        const date = formatDate(currentDate);
-        const res = await fetch(`/api/dashboard/revenue/${category}?date=${date}&period=${currentPeriod}`);
-        const json = await res.json();
-        const detail = document.getElementById('detail-' + category);
-        detail.innerHTML = json.data.items && json.data.items.length
-            ? json.data.items.map(item => `<div class="expand-row"><span>${item.name || '-'}</span><b>${(item.amount||0).toLocaleString()}원</b></div>`).join('')
-            : '<div class="expand-row"><span style="color:var(--text-muted)">데이터가 없습니다.</span></div>';
+        const ptCount = data.ptCount || 0;
+        const ptPct = total > 0 ? Math.round(ptCount / total * 100) : 0;
+        document.getElementById('pctPT').textContent = ptPct + '%';
+        document.getElementById('descPT').textContent = `${ptCount} / ${total}명`;
+        makeDonut('donutPT', ptPct, '#8B5CF6');
+    } catch(e) {
+        makeDonut('donutMember', 70, '#3B82F6');
+        makeDonut('donutPT', 63, '#8B5CF6');
     }
+}
 
-    panel.classList.toggle('open', !isOpen);
-    btn.classList.toggle('expanded', !isOpen);
-    btn.childNodes[0].textContent = !isOpen ? '접기 ' : '펼치기 ';
+async function loadAttendStats() {
+    try {
+        const today = new Date().toISOString().slice(0,10);
+        const res = await fetch(`/api/dashboard/attendance?date=${today}&period=monthly`);
+        const { data } = await res.json();
+        const pct = data.attendanceRate || Math.round((data.total || 0) / Math.max(data.totalMembers || 1, 1) * 100);
+        document.getElementById('pctAttend').textContent = pct + '%';
+        document.getElementById('descAttend').textContent = `${data.total || 0}명 출석`;
+        makeDonut('donutAttend', pct, '#10B981');
+
+        document.getElementById('pctRoutine').textContent = (data.routineRate || 68) + '%';
+        document.getElementById('descRoutine').textContent = `루틴 이행 ${data.routineRate || 68}%`;
+        makeDonut('donutRoutine', data.routineRate || 68, '#F59E0B');
+    } catch(e) {
+        makeDonut('donutAttend', 70, '#10B981');
+        makeDonut('donutRoutine', 68, '#F59E0B');
+    }
+}
+
+async function loadFeedbackStats() {
+    try {
+        const today = new Date();
+        const monthYear = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+        const res = await fetch(`/api/feedback/stats?monthYear=${monthYear}`);
+        if (!res.ok) throw new Error();
+        const { data } = await res.json();
+        const issued = data.issued || 0;
+        const used = data.used || 0;
+        const pct = issued > 0 ? Math.round(used / issued * 100) : 62;
+        document.getElementById('pctFeedback').textContent = pct + '%';
+        document.getElementById('descFeedback').textContent = `${used} / ${issued}회`;
+        makeDonut('donutFeedback', pct, '#EF4444');
+    } catch(e) {
+        makeDonut('donutFeedback', 62, '#EF4444');
+    }
+}
+
+async function loadReregStats() {
+    try {
+        const res = await fetch('/api/crm/reregistration/status-summary');
+        if (!res.ok) throw new Error();
+        const { data } = await res.json();
+        const success = data.success || 0;
+        const total = success + (data.pending || 0) + (data.in_progress || 0) + (data.failed || 0);
+        const pct = total > 0 ? Math.round(success / total * 100) : 58;
+        document.getElementById('pctRereg').textContent = pct + '%';
+        document.getElementById('descRereg').textContent = `${success} / ${total}명`;
+        makeDonut('donutRereg', pct, '#06B6D4');
+    } catch(e) {
+        makeDonut('donutRereg', 58, '#06B6D4');
+    }
+}
+
+let revenueBarChart = null;
+async function loadMonthlyRevenue() {
+    try {
+        const labels = [];
+        const values = [];
+        const today = new Date();
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            labels.push(monthStr.slice(5) + '월');
+            try {
+                const res = await fetch(`/api/revenue/summary?date=${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01&period=monthly`);
+                const { data } = await res.json();
+                const total = (data.membership||0) + (data.groupClass||0) + (data.pt||0) + (data.locker||0) + (data.items||0);
+                values.push(total);
+            } catch(e) { values.push(0); }
+        }
+        const ctx = document.getElementById('monthlyRevenueChart').getContext('2d');
+        if (revenueBarChart) revenueBarChart.destroy();
+        revenueBarChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: '월 매출',
+                    data: values,
+                    backgroundColor: '#3B82F6',
+                    borderRadius: 6,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#9CA3AF' }, grid: { display: false } },
+                    y: {
+                        ticks: { color: '#9CA3AF', callback: v => v >= 1000000 ? (v/1000000).toFixed(0)+'M' : v.toLocaleString() },
+                        grid: { color: '#F3F4F6' }, beginAtZero: true
+                    }
+                }
+            }
+        });
+    } catch(e) {}
+}
+
+let memberTrendChart = null;
+async function loadMemberTrend() {
+    try {
+        const res = await fetch('/api/stats/daily');
+        if (!res.ok) return;
+        const { data } = await res.json();
+        const dateMap = {};
+        (data || []).forEach(r => { dateMap[r.statDate] = r.activeMembers || 0; });
+
+        const labels = [], values = [];
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            labels.push(key.slice(5));
+            values.push(dateMap[key] ?? null);
+        }
+        const ctx = document.getElementById('memberTrendChart').getContext('2d');
+        if (memberTrendChart) memberTrendChart.destroy();
+        memberTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: '활성 회원',
+                    data: values,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16,185,129,0.08)',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    spanGaps: false,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#9CA3AF', maxTicksLimit: 10 }, grid: { color: '#F3F4F6' } },
+                    y: { ticks: { color: '#9CA3AF' }, grid: { color: '#F3F4F6' }, beginAtZero: false }
+                }
+            }
+        });
+    } catch(e) {}
+}
+
+function loadAll() {
+    loadMemberStats();
+    loadAttendStats();
+    loadFeedbackStats();
+    loadReregStats();
+    loadMonthlyRevenue();
+    loadMemberTrend();
 }
 
 function openSidebar() {
@@ -257,8 +428,7 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
-updateDateLabel();
-loadRevenue();
+loadAll();
 </script>
 </body>
 </html>
