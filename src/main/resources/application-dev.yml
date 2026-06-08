@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:mariadb://localhost:3306/linkfit?allowMultiQueries=true
+    driver-class-name: org.mariadb.jdbc.Driver
+    username: linkfit
+    password: link_fit!
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.linkfit.admin.domain
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  jwt:
+    secret: "linkfit-crm-jwt-secret-key-must-be-at-least-32-characters-long-2026"
+    expiration: 86400000       # 24h (ms)
+    refresh-expiration: 604800000  # 7d (ms)
+    cookie-name: crm_token
+
+logging:
+  level:
+    com.linkfit.admin: DEBUG
+    org.springframework.security: DEBUG

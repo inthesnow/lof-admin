@@ -27,3 +27,6 @@ logs/
 # Spring Boot
 application-local.properties
 application-secret.properties
+
+# 운영 환경 변수 (절대 커밋 금지)
+.env
