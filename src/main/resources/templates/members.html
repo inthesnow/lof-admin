@@ -32,6 +32,14 @@
         </div>
     </header>
 
+    <!-- 회원 유형 탭 -->
+    <div class="sub-tabs" style="padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface)">
+        <button class="sub-tab active" onclick="setMemberTab('', this)">전체</button>
+        <button class="sub-tab" onclick="setMemberTab('membership', this)">이용권 회원</button>
+        <button class="sub-tab" onclick="setMemberTab('PT', this)">PT 회원</button>
+        <button class="sub-tab" onclick="setMemberTab('expiring', this)">곧 만료 회원</button>
+    </div>
+
     <div class="search-bar">
         <div class="search-input-wrap">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
@@ -55,19 +63,18 @@
         <table>
             <thead>
                 <tr>
-                    <th>이름</th>
-                    <th>전화번호</th>
-                    <th>성별</th>
-                    <th>구분</th>
+                    <th>회원명</th>
+                    <th>연락처</th>
+                    <th>가입일</th>
+                    <th>회원구분</th>
                     <th>등급</th>
                     <th>상태</th>
-                    <th>가입일</th>
                     <th>회원권 만료</th>
                     <th>관리</th>
                 </tr>
             </thead>
             <tbody id="memberTableBody">
-                <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
             </tbody>
         </table>
     </div>
@@ -255,6 +262,7 @@ let currentPage = 0;
 const pageSize = 10;
 let editingId = null;
 let searchTimer = null;
+let memberTypeFilter = '';
 
 const statusLabel = { ACTIVE: '유효', SUSPENDED: '정지' };
 const statusBadge = { ACTIVE: 'badge-active', SUSPENDED: 'badge-suspended' };
@@ -272,11 +280,23 @@ function debounceSearch() {
     searchTimer = setTimeout(() => { currentPage = 0; loadMembers(); }, 350);
 }
 
+function setMemberTab(typeVal, btn) {
+    memberTypeFilter = typeVal;
+    currentPage = 0;
+    document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    loadMembers();
+}
+
 async function loadMembers() {
     const keyword = document.getElementById('searchInput').value;
     const status  = document.getElementById('statusFilter').value;
     const tier    = document.getElementById('tierFilter').value;
-    const res = await fetch(`/api/members?keyword=${encodeURIComponent(keyword)}&status=${status}&tier=${tier}&page=${currentPage}&size=${pageSize}`);
+    let url = `/api/members?keyword=${encodeURIComponent(keyword)}&status=${status}&tier=${tier}&page=${currentPage}&size=${pageSize}`;
+    if (memberTypeFilter === 'PT')         url += '&memberType=PT';
+    else if (memberTypeFilter === 'membership') url += '&memberType=MEMBERSHIP';
+    else if (memberTypeFilter === 'expiring')   url += '&expiring=30';
+    const res = await fetch(url);
     const json = await res.json();
     renderTable(json.data.members, json.data.total);
 }
@@ -284,7 +304,7 @@ async function loadMembers() {
 function renderTable(members, total) {
     const tbody = document.getElementById('memberTableBody');
     if (!members || !members.length) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">회원 데이터가 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">회원 데이터가 없습니다.</td></tr>`;
         renderPagination(0);
         return;
     }
@@ -292,17 +312,16 @@ function renderTable(members, total) {
         <tr>
             <td>${m.name || '-'}</td>
             <td>${m.phone || '-'}</td>
-            <td>${genderLabel[m.gender] || m.gender || '-'}</td>
-            <td>${m.memberType ? `<span class="badge badge-trainer">${memberTypeLabel[m.memberType] || m.memberType}</span>` : '<span style="color:var(--text-muted)">일반</span>'}</td>
+            <td>${m.joinDate || '-'}</td>
+            <td>${m.memberType ? `<span class="badge badge-trainer">${memberTypeLabel[m.memberType] || m.memberType}</span>` : '<span style="color:var(--text-muted);font-size:12px">이용권</span>'}</td>
             <td>${m.tier ? `<span class="badge ${tierBadge[m.tier] || ''}">${tierLabel[m.tier] || m.tier}</span>` : '-'}</td>
             <td><span class="badge ${statusBadge[m.status] || ''}">${statusLabel[m.status] || m.status}</span></td>
-            <td>${m.joinDate || '-'}</td>
             <td>${m.membershipEnd || '-'}</td>
-            <td style="display:flex;gap:6px">
-                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
-                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;color:var(--accent)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
-                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;color:var(--success)" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">CRM</button>
-                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteMember('${m.id}', '${m.name}')">삭제</button>
+            <td style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--success)" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">메모</button>
+                <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteMember('${m.id}', '${m.name}')">삭제</button>
             </td>
         </tr>
     `).join('');

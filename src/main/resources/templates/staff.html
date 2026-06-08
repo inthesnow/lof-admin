@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LINK_Fit Admin — 직원 관리</title>
+    <title>링크온핏 CRM — 트레이너 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
 </head>
@@ -18,40 +18,47 @@
             <button class="mobile-menu-btn" onclick="openSidebar()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
-            <h1 class="page-title">직원 관리</h1>
+            <h1 class="page-title">트레이너 관리</h1>
         </div>
         <div class="header-right">
             <button class="btn btn-primary" onclick="openModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-                직원 등록
+                트레이너 등록
             </button>
         </div>
     </header>
 
+    <!-- 역할 탭 -->
+    <div class="sub-tabs" style="padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface)">
+        <button class="sub-tab active" onclick="setRoleTab('',this)">전체</button>
+        <button class="sub-tab" onclick="setRoleTab('TRAINER',this)">트레이너</button>
+        <button class="sub-tab" onclick="setRoleTab('ADMIN',this)">관리자</button>
+        <button class="sub-tab" onclick="setRoleTab('SUPER_ADMIN',this)">슈퍼 관리자</button>
+    </div>
+
     <div class="search-bar">
-        <select class="filter-select" id="roleFilter" onchange="loadStaff()">
-            <option value="">전체 역할</option>
-            <option value="SUPER_ADMIN">슈퍼 관리자</option>
-            <option value="ADMIN">일반 관리자</option>
-            <option value="TRAINER">트레이너</option>
-        </select>
+        <div class="search-input-wrap">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input type="text" class="search-input" id="staffSearch" placeholder="이름, 이메일 검색..." oninput="debounceStaffSearch()">
+        </div>
     </div>
 
     <div class="table-wrap">
         <table>
             <thead>
                 <tr>
-                    <th>이름</th>
+                    <th>트레이너명</th>
                     <th>전화번호</th>
                     <th>이메일</th>
                     <th>역할</th>
+                    <th>담당 회원수</th>
                     <th>입사일</th>
                     <th>상태</th>
                     <th>관리</th>
                 </tr>
             </thead>
             <tbody id="staffTableBody">
-                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
             </tbody>
         </table>
     </div>
@@ -103,6 +110,8 @@
 let currentPage = 0;
 const pageSize = 10;
 let editingId = null;
+let currentRole = '';
+let staffSearchTimer = null;
 
 const roleLabel = { SUPER_ADMIN: '슈퍼 관리자', ADMIN: '일반 관리자', TRAINER: '트레이너' };
 const roleBadge = { SUPER_ADMIN: 'badge-super', ADMIN: 'badge-admin', TRAINER: 'badge-trainer' };
@@ -111,8 +120,21 @@ function csrfHeaders(extra) {
     return Object.assign({ 'Content-Type': 'application/json' }, extra);
 }
 
+function setRoleTab(role, btn) {
+    currentRole = role;
+    currentPage = 0;
+    document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    loadStaff();
+}
+
+function debounceStaffSearch() {
+    clearTimeout(staffSearchTimer);
+    staffSearchTimer = setTimeout(() => { currentPage = 0; loadStaff(); }, 350);
+}
+
 async function loadStaff() {
-    const role = document.getElementById('roleFilter').value;
+    const role = currentRole;
     const res = await fetch(`/api/staff?role=${role}&page=${currentPage}&size=${pageSize}`);
     const json = await res.json();
     renderTable(json.data.staff, json.data.total);
@@ -121,7 +143,7 @@ async function loadStaff() {
 function renderTable(staff, total) {
     const tbody = document.getElementById('staffTableBody');
     if (!staff || !staff.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">직원 데이터가 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">트레이너 데이터가 없습니다.</td></tr>`;
         return;
     }
     tbody.innerHTML = staff.map(s => `
@@ -130,12 +152,13 @@ function renderTable(staff, total) {
             <td>${s.phone || '-'}</td>
             <td>${s.email || '-'}</td>
             <td><span class="badge ${roleBadge[s.role] || 'badge-trainer'}">${roleLabel[s.role] || s.role}</span></td>
+            <td style="color:var(--text-secondary)">${s.assignedMemberCount != null ? s.assignedMemberCount + '명' : '-'}</td>
             <td>${s.hireDate || '-'}</td>
             <td><span class="badge ${s.status === 'ACTIVE' ? 'badge-active' : 'badge-expired'}">${s.status === 'ACTIVE' ? '재직중' : '퇴직'}</span></td>
             <td style="display:flex;gap:6px">
-                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="editStaff('${s.id}')">수정</button>
-                ${s.role === 'TRAINER' ? `<button class="btn btn-secondary" style="padding:5px 10px;font-size:12px;color:var(--accent)" onclick="openDashboard('${s.id}','${(s.name||'').replace(/'/g,'')}')">대시보드</button>` : ''}
-                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteStaff('${s.id}', '${s.name}')">삭제</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="editStaff('${s.id}')">수정</button>
+                ${s.role === 'TRAINER' ? `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openDashboard('${s.id}','${(s.name||'').replace(/'/g,'')}')">상세</button>` : ''}
+                <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteStaff('${s.id}', '${s.name}')">삭제</button>
             </td>
         </tr>
     `).join('');
@@ -158,7 +181,7 @@ function goPage(p) { currentPage = p; loadStaff(); }
 
 function openModal() {
     editingId = null;
-    document.getElementById('modalTitle').textContent = '직원 등록';
+    document.getElementById('modalTitle').textContent = '트레이너 등록';
     ['sName','sPhone','sEmail'].forEach(fid => document.getElementById(fid).value = '');
     document.getElementById('sRole').value = 'TRAINER';
     document.getElementById('staffModal').classList.add('open');
