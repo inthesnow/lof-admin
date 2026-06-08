@@ -2,6 +2,7 @@ package com.linkfit.admin.service.mock;
 
 import com.linkfit.admin.domain.Staff;
 import com.linkfit.admin.service.StaffService;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;

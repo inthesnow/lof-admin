@@ -3,6 +3,7 @@ package com.linkfit.admin.service.mock;
 import com.linkfit.admin.domain.Member;
 import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.service.MemberService;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;
