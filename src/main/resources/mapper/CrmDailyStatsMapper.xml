@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.CrmDailyStatsMapper">
+
+    <resultMap id="statsMap" type="com.linkfit.admin.domain.CrmDailyStats">
+        <result property="gymId"            column="gym_id"/>
+        <result property="statDate"         column="stat_date"/>
+        <result property="totalMembers"     column="total_members"/>
+        <result property="activeMembers"    column="active_members"/>
+        <result property="dormantMembers"   column="dormant_members"/>
+        <result property="routineCompleted" column="routine_completed"/>
+        <result property="attendanceRate"   column="attendance_rate"/>
+        <result property="feedbackIssued"   column="feedback_issued"/>
+        <result property="feedbackUsed"     column="feedback_used"/>
+    </resultMap>
+
+    <insert id="aggregate">
+        INSERT INTO crm_daily_stats
+               (gym_id, stat_date, total_members, active_members, dormant_members,
+                routine_completed, attendance_rate, feedback_issued, feedback_used)
+        SELECT
+            #{gymId},
+            #{statDate},
+            (SELECT COUNT(*) FROM users WHERE role = 'MEMBER'),
+            (SELECT COUNT(DISTINCT ms.user_id) FROM membership ms WHERE ms.end_date &gt;= #{statDate}),
+            GREATEST(0,
+                (SELECT COUNT(*) FROM users WHERE role = 'MEMBER') -
+                (SELECT COUNT(DISTINCT ms2.user_id) FROM membership ms2 WHERE ms2.end_date &gt;= #{statDate})
+            ),
+            0,
+            0.00,
+            (SELECT COUNT(*) FROM crm_feedback_tickets WHERE gym_id = #{gymId} AND DATE(issued_at) = #{statDate}),
+            (SELECT COUNT(*) FROM crm_feedback_tickets WHERE gym_id = #{gymId} AND status = 'used' AND DATE(used_at) = #{statDate})
+        ON DUPLICATE KEY UPDATE
+            total_members     = VALUES(total_members),
+            active_members    = VALUES(active_members),
+            dormant_members   = VALUES(dormant_members),
+            feedback_issued   = VALUES(feedback_issued),
+            feedback_used     = VALUES(feedback_used)
+    </insert>
+
+    <select id="findAllGymIds" resultType="long">
+        SELECT DISTINCT gym_id FROM crm_users ORDER BY gym_id
+    </select>
+
+    <insert id="upsert" parameterType="com.linkfit.admin.domain.CrmDailyStats">
+        INSERT INTO crm_daily_stats
+               (gym_id, stat_date, total_members, active_members, dormant_members,
+                routine_completed, attendance_rate, feedback_issued, feedback_used)
+        VALUES (#{gymId}, #{statDate}, #{totalMembers}, #{activeMembers}, #{dormantMembers},
+                #{routineCompleted}, #{attendanceRate}, #{feedbackIssued}, #{feedbackUsed})
+        ON DUPLICATE KEY UPDATE
+            total_members     = VALUES(total_members),
+            active_members    = VALUES(active_members),
+            dormant_members   = VALUES(dormant_members),
+            routine_completed = VALUES(routine_completed),
+            attendance_rate   = VALUES(attendance_rate),
+            feedback_issued   = VALUES(feedback_issued),
+            feedback_used     = VALUES(feedback_used)
+    </insert>
+
+    <select id="findRecent" resultMap="statsMap">
+        SELECT * FROM crm_daily_stats
+         WHERE gym_id = #{gymId}
+        <if test="startDate != null and startDate != ''">
+           AND stat_date &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+           AND stat_date &lt;= #{endDate}
+        </if>
+         ORDER BY stat_date ASC
+    </select>
+
+    <select id="findByDate" resultMap="statsMap">
+        SELECT * FROM crm_daily_stats
+         WHERE gym_id = #{gymId} AND stat_date = #{statDate}
+         LIMIT 1
+    </select>
+
+</mapper>
