@@ -193,41 +193,64 @@ ALTER TABLE user_exercise_info
 
 ### 실행 순서
 
-1. `admin_user`
-2. `product`
-3. `gym_setting`
-4. `member_freeze`
-5. `membership`
-6. `class_session`
-7. `class_attendee`
-8. `attendance`
-9. `consult`
-10. `message`
-11. `message_recipient`
-12. `sale`
+1. `gym`
+2. `admin_user`
+3. `product`
+4. `gym_setting`
+5. `member_freeze`
+6. `membership`
+7. `class_session`
+8. `class_attendee`
+9. `attendance`
+10. `consult`
+11. `message`
+12. `message_recipient`
+13. `sale`
 
 ### DDL
 
 ```sql
 -- ─────────────────────────────────────────────────────────────
--- admin_user (어드민 로그인 계정 — users 테이블과 별개)
+-- gym (지점 — 다중 헬스장 지원)
+-- branch_code: 영문 2자리 + 숫자 2자리 (예: LF01, GY02)
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS admin_user (
-    id          BIGINT       NOT NULL AUTO_INCREMENT,
-    username    VARCHAR(50)  NOT NULL,
-    password    VARCHAR(255) NOT NULL,
-    name        VARCHAR(50)  NOT NULL,
-    role        VARCHAR(20)  NOT NULL
-                    CHECK (role IN ('SUPER_ADMIN','ADMIN','TRAINER')),
-    is_active   TINYINT(1)   NOT NULL DEFAULT 1,
-    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE IF NOT EXISTS gym (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    branch_code CHAR(4)         NOT NULL COMMENT '영문2+숫자2, e.g. LF01',
+    name        VARCHAR(100)    NOT NULL,
+    is_active   TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_admin_user_username (username)
+    UNIQUE KEY uq_branch_code (branch_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 슈퍼어드민 계정 (비밀번호: admin1234 → BCrypt)
-INSERT IGNORE INTO admin_user (username, password, name, role)
-VALUES ('admin', '$2b$10$f2PFkWjuVXSrtRcbONISbeM8tCNfLEVaTSLzPiQm0R7O4ElQbMv0u', '관리자', 'SUPER_ADMIN');
+-- 기본 지점 (최초 1회)
+INSERT IGNORE INTO gym (branch_code, name) VALUES ('LF01', 'LINK_Fit 본점');
+
+-- ─────────────────────────────────────────────────────────────
+-- admin_user (어드민 로그인 계정 — users 테이블과 별개)
+-- gym_id FK → gym.id (지점별 계정 분리)
+-- username 유일성: 지점 내에서만 (uq_gym_username)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS admin_user (
+    id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    gym_id      BIGINT UNSIGNED NOT NULL,
+    username    VARCHAR(50)     NOT NULL,
+    password    VARCHAR(255)    NOT NULL,
+    name        VARCHAR(50)     NOT NULL,
+    role        VARCHAR(20)     NOT NULL
+                    CHECK (role IN ('SUPER_ADMIN','ADMIN','TRAINER')),
+    is_active   TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_gym_username (gym_id, username),
+    CONSTRAINT fk_admin_gym FOREIGN KEY (gym_id) REFERENCES gym (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 슈퍼어드민 계정 (비밀번호: admin1234 → BCrypt, LF01 지점)
+INSERT IGNORE INTO admin_user (gym_id, username, password, name, role)
+SELECT id, 'admin', '$2b$10$f2PFkWjuVXSrtRcbONISbeM8tCNfLEVaTSLzPiQm0R7O4ElQbMv0u', '관리자', 'SUPER_ADMIN'
+FROM gym WHERE branch_code = 'LF01';
 
 -- ─────────────────────────────────────────────────────────────
 -- product (상품)
@@ -475,7 +498,8 @@ CREATE TABLE IF NOT EXISTS sale (
 ## 테이블 관계 요약
 
 ```
-admin_user (어드민 로그인 — users와 별개)
+gym (지점)
+└─ admin_user (gym_id) — 지점별 관리자 계정
 
 gym_setting (단일 행, id=1 고정)
 
@@ -490,6 +514,409 @@ users (role=MEMBER)  ←→  user_profiles
 sale
     ├─ users (user_id)
     └─ product (product_id)
+```
+
+
+> 마이그레이션 이력은 `docs/db.md` 를 참고.
+
+---
+
+## CRM 전용 테이블 DDL (crm_* prefix)
+
+> 앱 테이블에 FK 없이 논리적 참조만 사용.
+> `member_id VARCHAR(50)` = `users.user_id` 참조.
+> `gym_id BIGINT UNSIGNED` = `gym.id` 참조.
+> 모든 CRM 테이블 PK = `CHAR(36)` UUID (애플리케이션에서 `UUID.randomUUID().toString()` 생성).
+
+### 실행 순서
+
+1. `crm_users`
+2. `crm_member_assignments`
+3. `crm_member_tags`
+4. `crm_member_notes`
+5. `crm_membership_history`
+6. `crm_pt_registration_type`
+7. `crm_feedback_tickets`
+8. `crm_ticket_settings`
+9. `crm_ticket_purchases`
+10. `crm_ticket_inventory`
+11. `crm_feedback_requests`
+12. `crm_messages`
+13. `crm_cs_tickets`
+14. `crm_sales`
+15. `crm_sales_targets`
+16. `crm_re_registration`
+17. `crm_announcements`
+18. `crm_daily_stats`
+
+### DDL
+
+```sql
+-- ─────────────────────────────────────────────────────────────
+-- crm_users (CRM 계정 — admin_user 대체 / JWT 인증용)
+-- role: super_admin (플랫폼 전체), gym_admin (헬스장 관리자), trainer (트레이너)
+-- app_user_id: 앱 users.user_id 연결 (트레이너 계정 연동 시 선택적 사용)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_users (
+    id            CHAR(36)        NOT NULL,
+    gym_id        BIGINT UNSIGNED NOT NULL,
+    app_user_id   VARCHAR(50)     NULL                        COMMENT '앱 users.user_id 연결 (트레이너용)',
+    name          VARCHAR(50)     NOT NULL,
+    email         VARCHAR(100)    NULL,
+    username      VARCHAR(50)     NOT NULL,
+    password_hash TEXT            NOT NULL,
+    role          ENUM('super_admin','gym_admin','trainer')  NOT NULL,
+    is_active     TINYINT(1)      NOT NULL DEFAULT 1,
+    created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_crm_gym_username (gym_id, username),
+    KEY idx_crm_users_gym (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- admin_user 데이터 이관 (최초 1회)
+INSERT IGNORE INTO crm_users (id, gym_id, name, email, username, password_hash, role, is_active, created_at)
+SELECT
+    UUID(),
+    a.gym_id,
+    a.name,
+    CONCAT(a.username, '@', g.branch_code, '.crm.local'),
+    a.username,
+    a.password,
+    CASE a.role
+        WHEN 'SUPER_ADMIN' THEN 'super_admin'
+        WHEN 'ADMIN'       THEN 'gym_admin'
+        WHEN 'TRAINER'     THEN 'trainer'
+        ELSE 'gym_admin'
+    END,
+    a.is_active,
+    a.created_at
+FROM admin_user a
+JOIN gym g ON a.gym_id = g.id;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 2 — 회원 관리 보조 테이블
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_member_assignments (
+    id          CHAR(36)        NOT NULL,
+    member_id   VARCHAR(50)     NOT NULL                     COMMENT 'users.user_id',
+    trainer_id  CHAR(36)        NOT NULL                     COMMENT 'crm_users.id',
+    gym_id      BIGINT UNSIGNED NOT NULL,
+    assigned_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_cma_member_gym (member_id, gym_id),
+    KEY idx_cma_trainer (trainer_id),
+    KEY idx_cma_gym     (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS crm_member_tags (
+    id         CHAR(36)        NOT NULL,
+    member_id  VARCHAR(50)     NOT NULL,
+    gym_id     BIGINT UNSIGNED NOT NULL,
+    tag        VARCHAR(30)     NOT NULL,
+    color      CHAR(7)         NULL                          COMMENT 'HEX 색상 e.g. #FF5733',
+    created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cmt_member (member_id),
+    KEY idx_cmt_gym    (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS crm_member_notes (
+    id         CHAR(36)        NOT NULL,
+    member_id  VARCHAR(50)     NOT NULL,
+    gym_id     BIGINT UNSIGNED NOT NULL,
+    author_id  CHAR(36)        NULL                          COMMENT 'crm_users.id',
+    content    TEXT            NOT NULL,
+    created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cmn_member (member_id),
+    KEY idx_cmn_gym    (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 3 — 이용권 변경 이력
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_membership_history (
+    id           CHAR(36)        NOT NULL,
+    member_id    VARCHAR(50)     NOT NULL,
+    gym_id       BIGINT UNSIGNED NOT NULL,
+    action       ENUM('pause','extend','change','cancel')   NOT NULL,
+    reason       TEXT            NULL,
+    processed_by CHAR(36)        NULL                       COMMENT 'crm_users.id',
+    created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cmh_member (member_id),
+    KEY idx_cmh_gym    (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 4 — PT 등록 유형 (신규/재등록/소개)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_pt_registration_type (
+    id            CHAR(36)        NOT NULL,
+    member_id     VARCHAR(50)     NOT NULL,
+    gym_id        BIGINT UNSIGNED NOT NULL,
+    pt_package_id BIGINT UNSIGNED NULL                      COMMENT 'user_subscriptions.id 논리참조',
+    reg_type      ENUM('new','re','referral')               NOT NULL,
+    referrer_id   VARCHAR(50)     NULL                      COMMENT '소개자 users.user_id',
+    created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cprt_member (member_id),
+    KEY idx_cprt_gym    (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 7 — 피드백 티켓
+-- month_year: 'YYYY-MM' 형식
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_feedback_tickets (
+    id          CHAR(36)        NOT NULL,
+    member_id   VARCHAR(50)     NOT NULL,
+    gym_id      BIGINT UNSIGNED NOT NULL,
+    trainer_id  CHAR(36)        NULL                        COMMENT 'crm_users.id',
+    ticket_type ENUM('free','paid')                         NOT NULL DEFAULT 'free',
+    status      ENUM('issued','used','expired','pending')   NOT NULL DEFAULT 'issued',
+    issued_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    used_at     DATETIME        NULL,
+    expires_at  DATETIME        NULL,
+    month_year  CHAR(7)         NOT NULL                    COMMENT 'YYYY-MM',
+    PRIMARY KEY (id),
+    KEY idx_cft_member     (member_id),
+    KEY idx_cft_gym        (gym_id),
+    KEY idx_cft_trainer    (trainer_id),
+    KEY idx_cft_month_year (month_year),
+    KEY idx_cft_status     (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 8 — 티켓 발행 설정 (헬스장별 1행)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_ticket_settings (
+    id                      CHAR(36)        NOT NULL,
+    gym_id                  BIGINT UNSIGNED NOT NULL,
+    free_tickets_per_member INT             NOT NULL DEFAULT 2,
+    max_tickets_per_month   INT             NULL,
+    is_beta                 TINYINT(1)      NOT NULL DEFAULT 1,
+    updated_at              DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_by              CHAR(36)        NULL                               COMMENT 'crm_users.id',
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_cts_gym (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 기본 설정 삽입 (gym 테이블의 각 지점에 대해)
+INSERT IGNORE INTO crm_ticket_settings (id, gym_id)
+SELECT UUID(), id FROM gym;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 9 — 티켓 구매 및 재고
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_ticket_purchases (
+    id           CHAR(36)        NOT NULL,
+    gym_id       BIGINT UNSIGNED NOT NULL,
+    quantity     INT             NOT NULL,
+    unit_price   DECIMAL(10,2)   NOT NULL,
+    total_price  DECIMAL(10,2)   NOT NULL,
+    purchased_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    purchased_by CHAR(36)        NULL                        COMMENT 'crm_users.id',
+    PRIMARY KEY (id),
+    KEY idx_ctp_gym (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS crm_ticket_inventory (
+    id         CHAR(36)        NOT NULL,
+    gym_id     BIGINT UNSIGNED NOT NULL,
+    total_qty  INT             NOT NULL DEFAULT 0,
+    used_qty   INT             NOT NULL DEFAULT 0,
+    updated_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_cti_gym (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO crm_ticket_inventory (id, gym_id)
+SELECT UUID(), id FROM gym;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 10 — 피드백 요청 (회원 앱 → CRM 처리)
+-- attachments: JSON 배열 [{url, type: 'image'|'video'}]
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_feedback_requests (
+    id           CHAR(36)        NOT NULL,
+    ticket_id    CHAR(36)        NULL                        COMMENT 'crm_feedback_tickets.id',
+    member_id    VARCHAR(50)     NOT NULL,
+    gym_id       BIGINT UNSIGNED NOT NULL,
+    trainer_id   CHAR(36)        NULL                        COMMENT 'crm_users.id',
+    content      TEXT            NOT NULL,
+    attachments  JSON            NULL,
+    status       ENUM('pending','in_progress','completed','held') NOT NULL DEFAULT 'pending',
+    response     TEXT            NULL,
+    responded_at DATETIME        NULL,
+    created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cfr_member  (member_id),
+    KEY idx_cfr_gym     (gym_id),
+    KEY idx_cfr_trainer (trainer_id),
+    KEY idx_cfr_status  (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 11 — CRM 내부 쪽지
+-- sender_id / receiver_id: member는 users.user_id(VARCHAR50), crm는 crm_users.id(CHAR36)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_messages (
+    id            CHAR(36)        NOT NULL,
+    gym_id        BIGINT UNSIGNED NOT NULL,
+    sender_type   ENUM('member','trainer','admin')          NOT NULL,
+    sender_id     VARCHAR(100)    NOT NULL,
+    receiver_type ENUM('member','trainer','admin')          NOT NULL,
+    receiver_id   VARCHAR(100)    NOT NULL,
+    content       TEXT            NOT NULL,
+    is_read       TINYINT(1)      NOT NULL DEFAULT 0,
+    is_notice     TINYINT(1)      NOT NULL DEFAULT 0,
+    parent_id     CHAR(36)        NULL                      COMMENT '답장 대상 crm_messages.id',
+    created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cm_gym      (gym_id),
+    KEY idx_cm_receiver (receiver_id),
+    KEY idx_cm_parent   (parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 12 — CS 티켓
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_cs_tickets (
+    id           CHAR(36)        NOT NULL,
+    gym_id       BIGINT UNSIGNED NOT NULL,
+    member_id    VARCHAR(50)     NOT NULL,
+    category     ENUM('app_error','membership','pt','feedback','payment','other') NOT NULL,
+    title        VARCHAR(200)    NOT NULL,
+    content      TEXT            NOT NULL,
+    status       ENUM('received','checking','processing','answered','closed') NOT NULL DEFAULT 'received',
+    assigned_to  CHAR(36)        NULL                       COMMENT 'crm_users.id',
+    response     TEXT            NULL,
+    responded_at DATETIME        NULL,
+    created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cct_gym    (gym_id),
+    KEY idx_cct_member (member_id),
+    KEY idx_cct_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 14 — CRM 매출 (이용권·PT·피드백 티켓 통합)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_sales (
+    id          CHAR(36)        NOT NULL,
+    gym_id      BIGINT UNSIGNED NOT NULL,
+    member_id   VARCHAR(50)     NOT NULL,
+    sales_type  ENUM('membership','pt','feedback_ticket')   NOT NULL,
+    reg_type    ENUM('new','re','referral')                 NULL,
+    trainer_id  CHAR(36)        NULL                        COMMENT 'crm_users.id',
+    amount      DECIMAL(12,2)   NOT NULL,
+    sale_date   DATE            NOT NULL,
+    note        TEXT            NULL,
+    created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_cs_gym       (gym_id),
+    KEY idx_cs_member    (member_id),
+    KEY idx_cs_sale_date (sale_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS crm_sales_targets (
+    gym_id     BIGINT UNSIGNED NOT NULL,
+    month_year CHAR(7)         NOT NULL                     COMMENT 'YYYY-MM',
+    target     DECIMAL(12,2)   NOT NULL,
+    PRIMARY KEY (gym_id, month_year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 15 — 재등록 관리 (이탈 위험 회원 자동 분류)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_re_registration (
+    id           CHAR(36)        NOT NULL,
+    member_id    VARCHAR(50)     NOT NULL,
+    gym_id       BIGINT UNSIGNED NOT NULL,
+    reason       ENUM('membership_expiry','pt_low','low_routine','low_app_usage','feedback_history') NOT NULL,
+    status       ENUM('pending','in_progress','success','failed','hold') NOT NULL DEFAULT 'pending',
+    assigned_to  CHAR(36)        NULL                       COMMENT 'crm_users.id',
+    memo         TEXT            NULL,
+    scheduled_at DATETIME        NULL,
+    resolved_at  DATETIME        NULL,
+    created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_crr_member (member_id),
+    KEY idx_crr_gym    (gym_id),
+    KEY idx_crr_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 16 — 공지/알림 발송
+-- target_ids: JSON 배열 ["user_id1", "user_id2", ...]
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_announcements (
+    id         CHAR(36)        NOT NULL,
+    gym_id     BIGINT UNSIGNED NOT NULL,
+    author_id  CHAR(36)        NULL                         COMMENT 'crm_users.id',
+    target     ENUM('all_members','all_trainers','specific','all') NOT NULL,
+    target_ids JSON            NULL,
+    title      VARCHAR(200)    NOT NULL,
+    content    TEXT            NOT NULL,
+    send_push  TINYINT(1)      NOT NULL DEFAULT 0,
+    sent_at    DATETIME        NULL,
+    created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_ca_gym    (gym_id),
+    KEY idx_ca_author (author_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ─────────────────────────────────────────────────────────────
+-- Sector 17 — 일별 통계 집계 (배치로 매일 02:00 갱신)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS crm_daily_stats (
+    gym_id            BIGINT UNSIGNED NOT NULL,
+    stat_date         DATE            NOT NULL,
+    total_members     INT             NOT NULL DEFAULT 0,
+    active_members    INT             NOT NULL DEFAULT 0,
+    dormant_members   INT             NOT NULL DEFAULT 0,
+    routine_completed INT             NOT NULL DEFAULT 0,
+    attendance_rate   DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
+    feedback_issued   INT             NOT NULL DEFAULT 0,
+    feedback_used     INT             NOT NULL DEFAULT 0,
+    PRIMARY KEY (gym_id, stat_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+---
+
+## CRM 테이블 관계 요약
+
+```
+gym (지점)
+├─ admin_user (gym_id)        ← 기존 (유지)
+└─ crm_users (gym_id)         ← 신규 JWT 인증용
+
+crm_users (CRM 계정)
+├─ crm_member_assignments (trainer_id)
+├─ crm_member_notes (author_id)
+├─ crm_membership_history (processed_by)
+├─ crm_feedback_tickets (trainer_id)
+├─ crm_ticket_settings (updated_by)
+├─ crm_ticket_purchases (purchased_by)
+├─ crm_feedback_requests (trainer_id)
+├─ crm_cs_tickets (assigned_to)
+├─ crm_sales (trainer_id)
+├─ crm_re_registration (assigned_to)
+└─ crm_announcements (author_id)
+
+users.user_id (앱 회원) ← 논리 참조 (FK 없음)
+├─ crm_member_assignments (member_id)
+├─ crm_member_tags (member_id)
+├─ crm_member_notes (member_id)
+├─ crm_membership_history (member_id)
+├─ crm_pt_registration_type (member_id)
+├─ crm_feedback_tickets (member_id)
+├─ crm_feedback_requests (member_id)
+├─ crm_cs_tickets (member_id)
+├─ crm_sales (member_id)
+└─ crm_re_registration (member_id)
 ```
 
 ---

@@ -33,9 +33,9 @@
 - [x] 회원 상세 조회 / 등록 / 수정 / 삭제 (모달 UI + REST API)
 - [x] 회원권 상태 관리 (활성 / 정지) — 목록 필터 + PATCH `/api/members/{id}/status`
 - [x] 회원 검색 및 필터링 — 이름/전화번호 검색, 상태 필터
-- [ ] 구독 등급 관리 (Basic / Light Fit / Regular Fit / Intensive Fit) — 목록 표시 + 수동 조정 UI
+- [x] 구독 등급 관리 (BASIC / LIGHT_FIT / REGULAR_FIT / INTENSIVE_FIT) — 목록 배지 + tier 필터 + 수동 조정 UI (`user_profiles.tier` 연동)
+- [x] OT/PT 유형 부여 (관리자 전용) — `memberType` 관리 UI (일반 / OT / PT) + PATCH API
 - [ ] 이용권 부여·회수·만료일 설정
-- [ ] OT/PT 유형 부여 (관리자 전용) — `memberType` 관리 UI (일반 / OT / PT)
 - [ ] 회원 탈퇴 처리
 
 ### 4. 이용권(티켓) 관리 _(신규 — DB 테이블 이미 존재)_
@@ -104,16 +104,15 @@
 
 > DB 스키마는 `docs/database.md` 기준으로 이미 구성되어 있음. **DB 변경 없이** 어드민 코드 연동만 필요.
 
-### ⚠️ Mapper 호환성 수정 (선행 필수)
-> 현재 어드민 Mapper XML이 `users.user_id BIGINT`를 가정하지만  
-> 실제 DB의 `users.user_id`는 `VARCHAR(50)` (loginId). 전체 Mapper 수정 필요.
-- [ ] `MemberMapper.xml` — `user_id` 타입을 `VARCHAR(50)`으로 수정 (JOIN, WHERE, INSERT 전체)
-- [ ] `StaffMapper.xml` — 동일
-- [ ] `AttendanceMapper.xml` — 동일
-- [ ] `ConsultMapper.xml` — 동일
-- [ ] `SaleMapper.xml` — 동일
-- [ ] `Member` 도메인 클래스 — `id` 필드 타입 `Long` → `String` 변경
-- [ ] `MemberApiController` 등 id 파라미터 타입 수정
+### ⚠️ Mapper 호환성 수정 _(완료)_
+> `users.user_id VARCHAR(50)` 대응 및 도메인 타입 수정 완료.
+- [x] `MemberMapper.xml` — `user_id` 타입을 `VARCHAR(50)`으로 수정 (JOIN, WHERE, INSERT 전체)
+- [x] `StaffMapper.xml` — 동일
+- [x] `AttendanceMapper.xml` — 동일
+- [x] `ConsultMapper.xml` — 동일
+- [x] `SaleMapper.xml` — 동일
+- [x] `Member` 도메인 클래스 — `id` 필드 타입 `Long` → `String` 변경
+- [x] `MemberApiController` 등 id 파라미터 타입 수정
 
 ### DB 스키마 확인 (이미 존재 — 코드 연동 필요)
 - [x] 등급 컬럼 — `user_profiles.tier ENUM('BASIC','LIGHT_FIT','REGULAR_FIT','INTENSIVE_FIT')`
@@ -123,20 +122,20 @@
 - [x] `user_exercise_info`: `plan_frequency`, `exercise_note` (구 복잡 필드 이미 제거됨)
 - [x] 티켓 테이블: `member_tickets`, `ticket_logs`, `ticket_purchases` 이미 존재
 
-### 4-1. 회원 등급(Tier) 관리
+### 4-1. 회원 등급(Tier) 관리 _(완료)_
 > 등급은 `users.grade`가 아닌 `user_profiles.tier`에 저장됨
-- [ ] `Member` 도메인 클래스에 `tier` 필드 추가 (`String`)
-- [ ] `MemberMapper.xml` — SELECT 쿼리에 `up.tier` 컬럼 포함
-- [ ] 회원 목록 페이지 — `tier` 배지 컬럼 표시 (BASIC / LIGHT_FIT / REGULAR_FIT / INTENSIVE_FIT)
-- [ ] 회원 목록 페이지 — `tier` 필터 드롭다운 추가 (`?tier=` 파라미터)
-- [ ] 회원 상세 모달 — tier 표시 및 수동 조정 셀렉트 박스 (관리자 전용)
-- [ ] `PATCH /api/members/{id}/tier` 엔드포인트 구현 → `UPDATE user_profiles SET tier`
+- [x] `Member` 도메인 클래스에 `tier` 필드 추가 (`String`)
+- [x] `MemberMapper.xml` — SELECT 쿼리에 `up.tier` 컬럼 포함
+- [x] 회원 목록 페이지 — `tier` 배지 컬럼 표시 (BASIC / LIGHT_FIT / REGULAR_FIT / INTENSIVE_FIT)
+- [x] 회원 목록 페이지 — `tier` 필터 드롭다운 추가 (`?tier=` 파라미터)
+- [x] 회원 상세 모달 — tier 표시 및 수동 조정 셀렉트 박스 (관리자 전용)
+- [x] `PATCH /api/members/{id}/tier` 엔드포인트 구현 → `UPDATE user_profiles SET tier`
 
-### 4-2. OT/PT 유형 부여 (관리자 전용)
+### 4-2. OT/PT 유형 부여 (관리자 전용) _(완료)_
 > `user_profiles.member_type ENUM('PT','OT')` — null이면 일반 회원
-- [ ] 회원 상세 모달에 `memberType` 관리 UI 추가 (일반 / OT / PT 라디오 버튼)
-- [ ] `PATCH /api/members/{id}/member-type` 엔드포인트 구현 → `UPDATE user_profiles SET member_type`
-- [ ] `MemberMapper.xml` — `updateMemberType` 쿼리 추가
+- [x] 회원 상세 모달에 `memberType` 관리 UI 추가 (일반 / OT / PT 셀렉트)
+- [x] `PATCH /api/members/{id}/member-type` 엔드포인트 구현 → `UPDATE user_profiles SET member_type`
+- [x] `MemberMapper.xml` — `updateMemberType` 쿼리 추가
 
 ### 4-3. 회원 프로필 조회 화면 업데이트
 - [ ] 회원 상세 모달 — 섹션 재정렬 (기본정보 → 방문경로 → 운동목적 → 운동계획 → 일상/식단 → 특이사항)
@@ -151,7 +150,7 @@
 ### 백엔드
 - [x] **데이터베이스 연동 — MyBatis + MariaDB**
   - [x] `build.gradle` 의존성 추가 (`mybatis-spring-boot-starter:3.0.3`, `mariadb-java-client`)
-  - [x] `application-dev.properties` DataSource 및 MyBatis 설정
+  - [x] `application-dev.yml` DataSource 및 MyBatis 설정
   - [x] 전 도메인 Mapper 인터페이스 + XML 작성 (Member, Staff, Class, Attendance, Consult, Product, Message, Sale, Dashboard, GymSetting)
   - [x] DB 연동 완료 — Mock → MyBatis 서비스 교체, Spring Boot 4.x MyBatisConfig 수동 설정
 - [x] **로그아웃 처리** — Spring Security logout 설정 (세션 무효화, JSESSIONID 쿠키 삭제)
@@ -165,7 +164,7 @@
 - [x] **Favicon 및 메타 태그** 설정
 
 ### 인프라 / 배포
-- [x] **환경 변수 분리** — `application-dev.properties` / `application-prod.properties`, prod는 환경변수 사용
+- [x] **환경 변수 분리** — `application-dev.yml` / `application-prod.yml`, prod는 환경변수 사용
 - [x] **포트 설정** — `17579` 포트 고정
 - [ ] **테스트 코드 작성** — `src/test` 비어 있음
 
@@ -192,13 +191,13 @@
 #### 회원 관리 (`/members`)
 | 목적 | Method | 엔드포인트 |
 |---|---|---|
-| 회원 목록 조회 | GET | `/api/members?page=&size=&status=&grade=&keyword=` |
+| 회원 목록 조회 | GET | `/api/members?page=&size=&status=&tier=&keyword=` |
 | 회원 상세 조회 | GET | `/api/members/{id}` |
 | 회원 등록 | POST | `/api/members` |
 | 회원 수정 | PUT | `/api/members/{id}` |
 | 회원 삭제 | DELETE | `/api/members/{id}` |
 | 회원 상태 변경 | PATCH | `/api/members/{id}/status` |
-| 등급 변경 (관리자) | PATCH | `/api/members/{id}/grade` |
+| 등급 변경 (관리자) | PATCH | `/api/members/{id}/tier` |
 | 유형 변경 (OT/PT) | PATCH | `/api/members/{id}/member-type` |
 | 유증(정지) 처리 | POST | `/api/members/{id}/freeze` |
 | 회원권 목록 조회 | GET | `/api/members/{id}/memberships` |
@@ -302,14 +301,15 @@
 | DB | MariaDB 10.11.14 + MyBatis 3.0.3 |
 | 인증 | Spring Security 7.x (Form Login, CSRF 보호) |
 | 앱 백엔드 | `localhost:17577` |
+| 설정 파일 | `application.yml` / `application-dev.yml` / `application-prod.yml` |
 
-### ⚠️ DB 호환성 주의사항
+### DB 호환성 주의사항
 
 | 항목 | 실제 DB | 어드민 현재 코드 | 상태 |
 |------|---------|----------------|------|
-| `users.user_id` 타입 | `VARCHAR(50)` (loginId) | `BIGINT` 가정 | **불일치 — 수정 필요** |
+| `users.user_id` 타입 | `VARCHAR(50)` (loginId) | `VARCHAR(50)` | ✅ 수정 완료 |
 | `users.id` | `BIGINT` AUTO_INCREMENT (내부용) | 미사용 | — |
-| 등급 컬럼 | `user_profiles.tier` | `users.grade` 가정 | **위치 오류 — 수정 필요** |
+| 등급 컬럼 | `user_profiles.tier` | `user_profiles.tier` | ✅ 수정 완료 |
 | 회원권 유형 | `user_profiles.member_type` | 동일 | ✅ |
 | 메시지 시스템 | `message_conversation` + `chat_message` | `message` + `message_recipient` (레거시) | **재설계 필요** |
 | 티켓 테이블 | `member_tickets`, `ticket_logs`, `ticket_purchases` | 미연동 | 연동 가능 |
