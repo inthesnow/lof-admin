@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/feedback")
 public class FeedbackApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(FeedbackApiController.class);
 
     private final FeedbackService feedbackService;
 
@@ -32,6 +36,7 @@ public class FeedbackApiController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Feedback] GET /api/feedback/tickets - monthYear={}, status={}", monthYear, status);
         Long gymId = principal.getGymId();
         List<FeedbackTicket> list = feedbackService.findTickets(gymId, monthYear, status, page, size);
         long total = feedbackService.countTickets(gymId, monthYear, status);
@@ -42,6 +47,7 @@ public class FeedbackApiController {
     public ApiResponse<FeedbackTicket> issueTicket(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Feedback] POST /api/feedback/tickets/issue");
         return ApiResponse.ok(feedbackService.issueTicket(
                 body.get("memberId"), principal.getGymId(),
                 body.getOrDefault("ticketType", "free"),
@@ -52,6 +58,7 @@ public class FeedbackApiController {
     public ApiResponse<Void> updateTicketStatus(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        log.info("[Feedback] PATCH /api/feedback/tickets/{id}/status - id={}", id);
         feedbackService.updateTicketStatus(id, body.get("status"));
         return ApiResponse.ok();
     }
@@ -60,6 +67,7 @@ public class FeedbackApiController {
     public ApiResponse<Void> assignTicketTrainer(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        log.info("[Feedback] PATCH /api/feedback/tickets/{id}/trainer - id={}", id);
         feedbackService.assignTicketTrainer(id, body.get("trainerId"));
         return ApiResponse.ok();
     }
@@ -68,6 +76,7 @@ public class FeedbackApiController {
     public ApiResponse<Map<String, Integer>> usageSummary(
             @RequestParam(defaultValue = "") String monthYear,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Feedback] GET /api/feedback/tickets/summary - monthYear={}", monthYear);
         return ApiResponse.ok(feedbackService.usageSummary(principal.getGymId(), monthYear));
     }
 
@@ -76,6 +85,7 @@ public class FeedbackApiController {
     @GetMapping("/settings")
     public ApiResponse<TicketSettings> getSettings(
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Feedback] GET /api/feedback/settings");
         return ApiResponse.ok(feedbackService.getSettings(principal.getGymId()).orElse(null));
     }
 
@@ -83,6 +93,7 @@ public class FeedbackApiController {
     public ApiResponse<TicketSettings> updateSettings(
             @RequestBody Map<String, Object> body,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Feedback] PUT /api/feedback/settings");
         int freePerMember   = body.containsKey("freeTicketsPerMember") ? (int) body.get("freeTicketsPerMember") : 2;
         Integer maxPerMonth = body.containsKey("maxTicketsPerMonth") ? (Integer) body.get("maxTicketsPerMonth") : null;
         boolean isBeta      = !Boolean.FALSE.equals(body.get("isBeta"));
@@ -99,6 +110,7 @@ public class FeedbackApiController {
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Feedback] GET /api/feedback/requests - status={}, trainerId={}", status, trainerId);
         Long gymId = principal.getGymId();
         List<FeedbackRequest> list = feedbackService.findRequests(gymId, status, trainerId, page, size);
         long total = feedbackService.countRequests(gymId, status, trainerId);
@@ -107,6 +119,7 @@ public class FeedbackApiController {
 
     @GetMapping("/requests/{id}")
     public ResponseEntity<ApiResponse<FeedbackRequest>> getRequest(@PathVariable String id) {
+        log.info("[Feedback] GET /api/feedback/requests/{id} - id={}", id);
         return feedbackService.findRequestById(id)
                 .map(r -> ResponseEntity.ok(ApiResponse.ok(r)))
                 .orElse(ResponseEntity.notFound().build());
@@ -116,6 +129,7 @@ public class FeedbackApiController {
     public ApiResponse<Void> assignRequestTrainer(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        log.info("[Feedback] PATCH /api/feedback/requests/{id}/assign - id={}", id);
         feedbackService.assignRequestTrainer(id, body.get("trainerId"));
         return ApiResponse.ok();
     }
@@ -124,6 +138,7 @@ public class FeedbackApiController {
     public ApiResponse<Void> respond(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        log.info("[Feedback] POST /api/feedback/requests/{id}/respond - id={}", id);
         feedbackService.respondToRequest(id, body.get("response"));
         return ApiResponse.ok();
     }
@@ -132,6 +147,7 @@ public class FeedbackApiController {
     public ApiResponse<Void> updateRequestStatus(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        log.info("[Feedback] PATCH /api/feedback/requests/{id}/status - id={}", id);
         feedbackService.updateRequestStatus(id, body.get("status"));
         return ApiResponse.ok();
     }

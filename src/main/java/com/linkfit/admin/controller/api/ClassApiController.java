@@ -7,10 +7,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/classes")
 public class ClassApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(ClassApiController.class);
 
     private final ClassService classService;
 
@@ -24,6 +28,7 @@ public class ClassApiController {
             @RequestParam(defaultValue = "") String date,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+        log.info("[Class] GET /api/classes - type={}, date={}", type, date);
         return ApiResponse.ok(Map.of(
             "classes", classService.findAll(type, date, page, size),
             "total", classService.count(type, date)
@@ -32,6 +37,7 @@ public class ClassApiController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ClassSession>> get(@PathVariable Long id) {
+        log.info("[Class] GET /api/classes/{id} - id={}", id);
         return classService.findById(id)
             .map(c -> ResponseEntity.ok(ApiResponse.ok(c)))
             .orElse(ResponseEntity.notFound().build());
@@ -39,28 +45,33 @@ public class ClassApiController {
 
     @PostMapping
     public ApiResponse<ClassSession> create(@RequestBody ClassSession session) {
+        log.info("[Class] POST /api/classes");
         return ApiResponse.ok(classService.save(session));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<ClassSession> update(@PathVariable Long id, @RequestBody ClassSession session) {
+        log.info("[Class] PUT /api/classes/{id} - id={}", id);
         return ApiResponse.ok(classService.update(id, session));
     }
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> cancel(@PathVariable Long id) {
+        log.info("[Class] DELETE /api/classes/{id} - id={}", id);
         classService.cancel(id);
         return ApiResponse.ok();
     }
 
     @PostMapping("/{id}/attendees")
     public ApiResponse<Void> enroll(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+        log.info("[Class] POST /api/classes/{id}/attendees - id={}", id);
         classService.enroll(id, body.get("memberId"));
         return ApiResponse.ok();
     }
 
     @DeleteMapping("/{id}/attendees/{memberId}")
     public ApiResponse<Void> cancelEnrollment(@PathVariable Long id, @PathVariable Long memberId) {
+        log.info("[Class] DELETE /api/classes/{id}/attendees/{memberId} - id={}, memberId={}", id, memberId);
         classService.cancelEnrollment(id, memberId);
         return ApiResponse.ok();
     }

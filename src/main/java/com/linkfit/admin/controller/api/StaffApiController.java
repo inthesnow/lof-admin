@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/staff")
 public class StaffApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(StaffApiController.class);
 
     private final StaffService staffService;
     private final StaffMapper staffMapper;
@@ -30,6 +34,7 @@ public class StaffApiController {
             @RequestParam(defaultValue = "") String role,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+        log.info("[Staff] GET /api/staff - role={}, page={}", role, page);
         List<Staff> staff = staffService.findAll(role, page, size);
         long total = staffService.count(role);
         return ApiResponse.ok(Map.of("staff", staff, "total", total));
@@ -37,6 +42,7 @@ public class StaffApiController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Staff>> get(@PathVariable String id) {
+        log.info("[Staff] GET /api/staff/{id} - id={}", id);
         return staffService.findById(id)
             .map(s -> ResponseEntity.ok(ApiResponse.ok(s)))
             .orElse(ResponseEntity.notFound().build());
@@ -44,22 +50,26 @@ public class StaffApiController {
 
     @PostMapping
     public ApiResponse<Staff> create(@RequestBody Staff staff) {
+        log.info("[Staff] POST /api/staff");
         return ApiResponse.ok(staffService.save(staff));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<Staff> update(@PathVariable String id, @RequestBody Staff staff) {
+        log.info("[Staff] PUT /api/staff/{id} - id={}", id);
         return ApiResponse.ok(staffService.update(id, staff));
     }
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable String id) {
+        log.info("[Staff] DELETE /api/staff/{id} - id={}", id);
         staffService.delete(id);
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/role")
     public ApiResponse<Void> updateRole(@PathVariable String id, @RequestBody Map<String, String> body) {
+        log.info("[Staff] PATCH /api/staff/{id}/role - id={}", id);
         staffService.updateRole(id, body.get("role"));
         return ApiResponse.ok();
     }
@@ -70,6 +80,7 @@ public class StaffApiController {
     public ApiResponse<Map<String, Object>> dashboard(
             @PathVariable String id,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Staff] GET /api/staff/{id}/dashboard - id={}", id);
         Map<String, Object> stats = staffMapper.findDashboard(id, principal.getGymId());
         return ApiResponse.ok(stats != null ? stats : Map.of(
                 "assignedMembers", 0, "pendingFeedback", 0, "pendingReregistration", 0));
@@ -79,6 +90,7 @@ public class StaffApiController {
     public ApiResponse<List<Member>> assignedMembers(
             @PathVariable String id,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Staff] GET /api/staff/{id}/members - id={}", id);
         return ApiResponse.ok(staffMapper.findAssignedMembers(id, principal.getGymId()));
     }
 }

@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthApiController.class);
 
     private final CrmUserService crmUserService;
     private final JwtUtil jwtUtil;
@@ -35,6 +39,7 @@ public class AuthApiController {
     @PostMapping("/login")
     public ApiResponse<?> login(@RequestBody Map<String, String> body,
                                 HttpServletResponse response) {
+        log.info("[Auth] POST /api/auth/login");
         String branchCode = body.get("branchCode");
         String username   = body.get("username");
         String password   = body.get("password");
@@ -81,6 +86,7 @@ public class AuthApiController {
 
     @PostMapping("/logout")
     public ApiResponse<?> logout(HttpServletResponse response) {
+        log.info("[Auth] POST /api/auth/logout");
         Cookie cookie = new Cookie(cookieName, "");
         cookie.setHttpOnly(true);
         cookie.setPath("/");

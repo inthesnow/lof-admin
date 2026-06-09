@@ -11,10 +11,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/dashboard")
 public class DashboardApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(DashboardApiController.class);
 
     private final DashboardService dashboardService;
     private final MemberMapper memberMapper;
@@ -36,6 +40,7 @@ public class DashboardApiController {
             @RequestParam(defaultValue = "") String date,
             @RequestParam(defaultValue = "daily") String period,
             @RequestParam(defaultValue = "") String type) {
+        log.info("[Dashboard] GET /api/dashboard/members - date={}, period={}", date, period);
         return ApiResponse.ok(dashboardService.memberStats(date, period));
     }
 
@@ -43,6 +48,7 @@ public class DashboardApiController {
     public ApiResponse<Map<String, Object>> consultStats(
             @RequestParam(defaultValue = "") String date,
             @RequestParam(defaultValue = "daily") String period) {
+        log.info("[Dashboard] GET /api/dashboard/consults - date={}, period={}", date, period);
         return ApiResponse.ok(dashboardService.consultStats(date, period));
     }
 
@@ -51,6 +57,7 @@ public class DashboardApiController {
             @RequestParam(defaultValue = "") String date,
             @RequestParam(defaultValue = "daily") String period,
             @RequestParam(defaultValue = "") String type) {
+        log.info("[Dashboard] GET /api/dashboard/classes - date={}, period={}", date, period);
         return ApiResponse.ok(dashboardService.classStats(date, period));
     }
 
@@ -58,6 +65,7 @@ public class DashboardApiController {
     public ApiResponse<Map<String, Object>> revenueStats(
             @RequestParam(defaultValue = "") String date,
             @RequestParam(defaultValue = "daily") String period) {
+        log.info("[Dashboard] GET /api/dashboard/revenue - date={}, period={}", date, period);
         return ApiResponse.ok(dashboardService.revenueStats(date, period));
     }
 
@@ -66,6 +74,7 @@ public class DashboardApiController {
             @PathVariable String category,
             @RequestParam(defaultValue = "") String date,
             @RequestParam(defaultValue = "daily") String period) {
+        log.info("[Dashboard] GET /api/dashboard/revenue/{category} - category={}, date={}, period={}", category, date, period);
         return ApiResponse.ok(dashboardService.revenueDetail(category, date, period));
     }
 
@@ -74,12 +83,14 @@ public class DashboardApiController {
             @RequestParam(defaultValue = "") String date,
             @RequestParam(defaultValue = "daily") String period,
             @RequestParam(defaultValue = "") String type) {
+        log.info("[Dashboard] GET /api/dashboard/attendance - date={}, period={}", date, period);
         return ApiResponse.ok(dashboardService.attendanceStats(date, period, type));
     }
 
     @GetMapping("/crm-summary")
     public ApiResponse<Map<String, Object>> crmSummary(
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Dashboard] GET /api/dashboard/crm-summary");
         Long gymId = (principal != null) ? principal.getGymId() : 1L;
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("expiringCount",        memberMapper.countExpiringMemberships(30));

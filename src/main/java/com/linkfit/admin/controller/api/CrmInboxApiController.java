@@ -11,10 +11,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/inbox")
 public class CrmInboxApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(CrmInboxApiController.class);
 
     private final CrmMessageMapper messageMapper;
 
@@ -28,6 +32,7 @@ public class CrmInboxApiController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmInbox] GET /api/inbox/messages - type={}, page={}", type, page);
         Long gymId = (principal != null) ? principal.getGymId() : 1L;
         String userId = (principal != null) ? principal.getId() : "unknown";
         int offset = page * size;
@@ -57,6 +62,7 @@ public class CrmInboxApiController {
 
     @GetMapping("/unread-count")
     public ApiResponse<Long> unreadCount(@AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmInbox] GET /api/inbox/unread-count");
         Long gymId = (principal != null) ? principal.getGymId() : 1L;
         String userId = (principal != null) ? principal.getId() : "unknown";
         return ApiResponse.ok(messageMapper.countUnread(gymId, userId));
@@ -64,6 +70,7 @@ public class CrmInboxApiController {
 
     @GetMapping("/messages/{id}")
     public ApiResponse<CrmMessage> getOne(@PathVariable String id) {
+        log.info("[CrmInbox] GET /api/inbox/messages/{id} - id={}", id);
         CrmMessage msg = messageMapper.findById(id).orElse(null);
         if (msg == null) return ApiResponse.error("메시지를 찾을 수 없습니다.");
         messageMapper.markRead(id);
@@ -73,6 +80,7 @@ public class CrmInboxApiController {
     @PostMapping("/messages")
     public ApiResponse<Void> send(@RequestBody CrmMessage message,
                                    @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmInbox] POST /api/inbox/messages");
         Long gymId = (principal != null) ? principal.getGymId() : 1L;
         String userId = (principal != null) ? principal.getId() : "unknown";
         String userName = (principal != null) ? principal.getUsername() : "관리자";
@@ -88,12 +96,14 @@ public class CrmInboxApiController {
 
     @PatchMapping("/messages/{id}/read")
     public ApiResponse<Void> markRead(@PathVariable String id) {
+        log.info("[CrmInbox] PATCH /api/inbox/messages/{id}/read - id={}", id);
         messageMapper.markRead(id);
         return ApiResponse.ok();
     }
 
     @PatchMapping("/messages/read-all")
     public ApiResponse<Void> markAllRead(@AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmInbox] PATCH /api/inbox/messages/read-all");
         Long gymId = (principal != null) ? principal.getGymId() : 1L;
         String userId = (principal != null) ? principal.getId() : "unknown";
         messageMapper.markAllRead(gymId, userId);
@@ -102,6 +112,7 @@ public class CrmInboxApiController {
 
     @DeleteMapping("/messages/{id}")
     public ApiResponse<Void> delete(@PathVariable String id) {
+        log.info("[CrmInbox] DELETE /api/inbox/messages/{id} - id={}", id);
         messageMapper.delete(id);
         return ApiResponse.ok();
     }

@@ -11,10 +11,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/memberships")
 public class MembershipApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(MembershipApiController.class);
 
     private final MemberMapper memberMapper;
     private final CrmMemberService crmMemberService;
@@ -29,6 +33,7 @@ public class MembershipApiController {
             @RequestParam(defaultValue = "30") int days,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size) {
+        log.info("[Membership] GET /api/memberships/expiring - days={}, page={}", days, page);
         List<Membership> list  = memberMapper.findExpiringMemberships(days, page * size, size);
         long total             = memberMapper.countExpiringMemberships(days);
         return ApiResponse.ok(Map.of("memberships", list, "total", total, "page", page, "size", size, "days", days));
@@ -38,6 +43,7 @@ public class MembershipApiController {
     public ApiResponse<List<CrmMembershipHistory>> getHistory(
             @PathVariable String memberId,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Membership] GET /api/memberships/member/{memberId}/history - memberId={}", memberId);
         return ApiResponse.ok(crmMemberService.findMembershipHistory(memberId, principal.getGymId()));
     }
 
@@ -46,6 +52,7 @@ public class MembershipApiController {
             @PathVariable String memberId,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Membership] POST /api/memberships/member/{memberId}/actions - memberId={}", memberId);
         crmMemberService.recordMembershipAction(
                 memberId, principal.getGymId(),
                 body.get("action"), body.get("reason"),

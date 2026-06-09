@@ -19,10 +19,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/crm-sales")
 public class CrmSalesApiController {
+
+    private static final Logger log = LoggerFactory.getLogger(CrmSalesApiController.class);
 
     private final CrmSalesMapper mapper;
 
@@ -38,6 +42,7 @@ public class CrmSalesApiController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmSales] GET /api/crm-sales - salesType={}, startDate={}", salesType, startDate);
         Long gymId = gymId(principal);
         int offset = page * size;
         List<CrmSale> items = mapper.findAll(gymId, salesType, startDate, endDate, offset, size);
@@ -52,6 +57,7 @@ public class CrmSalesApiController {
     public ApiResponse<Map<String, Object>> summary(
             @RequestParam(required = false) String monthYear,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmSales] GET /api/crm-sales/summary - monthYear={}", monthYear);
         Long gymId = gymId(principal);
         String month = (monthYear != null && !monthYear.isEmpty())
                 ? monthYear
@@ -80,6 +86,7 @@ public class CrmSalesApiController {
     @PostMapping
     public ApiResponse<Void> create(@RequestBody CrmSale sale,
                                      @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmSales] POST /api/crm-sales");
         sale.setId(UUID.randomUUID().toString());
         sale.setGymId(gymId(principal));
         if (sale.getSaleDate() == null || sale.getSaleDate().isEmpty()) {
@@ -91,6 +98,7 @@ public class CrmSalesApiController {
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable String id) {
+        log.info("[CrmSales] DELETE /api/crm-sales/{id} - id={}", id);
         mapper.delete(id);
         return ApiResponse.ok();
     }
@@ -99,6 +107,7 @@ public class CrmSalesApiController {
     public ApiResponse<Map<String, Object>> getTarget(
             @RequestParam(required = false) String monthYear,
             @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmSales] GET /api/crm-sales/target - monthYear={}", monthYear);
         Long gymId = gymId(principal);
         String month = (monthYear != null && !monthYear.isEmpty())
                 ? monthYear
@@ -113,6 +122,7 @@ public class CrmSalesApiController {
     @PutMapping("/target")
     public ApiResponse<Void> setTarget(@RequestBody Map<String, Object> body,
                                         @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmSales] PUT /api/crm-sales/target");
         Long gymId = gymId(principal);
         String month = (String) body.get("monthYear");
         BigDecimal target = new BigDecimal(body.get("target").toString());
@@ -128,6 +138,7 @@ public class CrmSalesApiController {
             @RequestParam(required = false) String monthYear,
             @AuthenticationPrincipal CrmUserDetails principal,
             HttpServletResponse response) throws IOException {
+        log.info("[CrmSales] GET /api/crm-sales/export - salesType={}, startDate={}", salesType, startDate);
         Long gymId = gymId(principal);
         if (monthYear != null && !monthYear.isEmpty()) {
             startDate = monthYear + "-01";
