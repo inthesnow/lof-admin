@@ -194,18 +194,19 @@ ALTER TABLE user_exercise_info
 ### 실행 순서
 
 1. `gym`
-2. `admin_user`
-3. `product`
-4. `gym_setting`
-5. `member_freeze`
-6. `membership`
-7. `class_session`
-8. `class_attendee`
-9. `attendance`
-10. `consult`
-11. `message`
-12. `message_recipient`
-13. `sale`
+2. `user_gym`
+3. `admin_user`
+4. `product`
+5. `gym_setting`
+6. `member_freeze`
+7. `membership`
+8. `class_session`
+9. `class_attendee`
+10. `attendance`
+11. `consult`
+12. `message`
+13. `message_recipient`
+14. `sale`
 
 ### DDL
 
@@ -226,6 +227,34 @@ CREATE TABLE IF NOT EXISTS gym (
 
 -- 기본 지점 (최초 1회)
 INSERT IGNORE INTO gym (branch_code, name) VALUES ('LF01', 'LINK_Fit 본점');
+
+-- ─────────────────────────────────────────────────────────────
+-- user_gym (사용자-헬스장 매핑 — 복수 헬스장 코드 지원)
+-- users.user_id ↔ gym.id 다대다 연결 (FK 없음, 논리 참조)
+-- 한 사용자가 여러 지점 소속 가능. is_active=0 으로 이력 보존.
+-- COLLATE utf8mb4_unicode_ci 명시: users.user_id 와 콜레이션 일치 필수
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_gym (
+    id        BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id   VARCHAR(50)     NOT NULL COLLATE utf8mb4_unicode_ci COMMENT 'users.user_id 논리 참조',
+    gym_id    BIGINT UNSIGNED NOT NULL                            COMMENT 'gym.id 논리 참조',
+    joined_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active TINYINT(1)      NOT NULL DEFAULT 1,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_user_gym   (user_id, gym_id),
+    INDEX      idx_ug_user   (user_id),
+    INDEX      idx_ug_gym    (gym_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 기존 전체 사용자에게 LF01 코드 부여 (최초 1회)
+INSERT IGNORE INTO user_gym (user_id, gym_id)
+SELECT u.user_id, g.id
+FROM users u
+JOIN gym g ON g.branch_code = 'LF01';
+
+-- 추가 지점 코드 부여 예시 (특정 사용자에게 GY02 추가)
+-- INSERT IGNORE INTO user_gym (user_id, gym_id)
+-- SELECT 'target_user_id', id FROM gym WHERE branch_code = 'GY02';
 
 -- ─────────────────────────────────────────────────────────────
 -- admin_user (어드민 로그인 계정 — users 테이블과 별개)
@@ -499,11 +528,13 @@ CREATE TABLE IF NOT EXISTS sale (
 
 ```
 gym (지점)
+├─ user_gym  (gym_id) — 사용자 헬스장 코드 매핑 (다대다, 복수 지점 지원)
 └─ admin_user (gym_id) — 지점별 관리자 계정
 
 gym_setting (단일 행, id=1 고정)
 
 users (role=MEMBER)  ←→  user_profiles
+    └─ user_gym (user_id) — 소속 헬스장 코드 (복수 가능)
     ├─ member_freeze (user_id)
     ├─ membership (user_id)  ──▶ product
     ├─ attendance (user_id)
