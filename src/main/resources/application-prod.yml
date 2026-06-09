@@ -13,9 +13,13 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 
-jwt:
-  secret: ${JWT_SECRET}
-  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration: ${JWT_EXPIRATION_MS:86400000}
+    cookie-name: crm_token
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:https://admin.linkonfit.co.kr}
 
 server:
   forward-headers-strategy: native

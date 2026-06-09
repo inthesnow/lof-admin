@@ -17,6 +17,8 @@ app:
     expiration: 86400000       # 24h (ms)
     refresh-expiration: 604800000  # 7d (ms)
     cookie-name: crm_token
+  cors:
+    allowed-origins: "http://localhost:17579,http://127.0.0.1:17579"
 
 logging:
   level:
