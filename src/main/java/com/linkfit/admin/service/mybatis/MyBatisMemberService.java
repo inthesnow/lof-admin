@@ -74,6 +74,11 @@ public class MyBatisMemberService implements MemberService {
     }
 
     @Override
+    public void updateRole(String id, String role) {
+        memberMapper.updateRole(id, role);
+    }
+
+    @Override
     public void freeze(String id, String startDate, String endDate) {
         memberMapper.insertFreeze(id, startDate, endDate, null);
         memberMapper.updateStatus(id, 0);

@@ -101,6 +101,10 @@
         UPDATE user_profiles SET member_type=#{memberType} WHERE user_id=#{id}
     </update>
 
+    <update id="updateRole">
+        UPDATE users SET role=#{role} WHERE user_id=#{id}
+    </update>
+
     <insert id="insertFreeze">
         INSERT INTO member_freeze (user_id, freeze_start, freeze_end, reason)
         VALUES (#{memberId}, #{freezeStart}, #{freezeEnd}, #{reason})

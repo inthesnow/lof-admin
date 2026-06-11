@@ -24,6 +24,7 @@ public interface MemberMapper {
     void updateStatus(@Param("id") String id, @Param("isActive") int isActive);
     void updateTier(@Param("id") String id, @Param("tier") String tier);
     void updateMemberType(@Param("id") String id, @Param("memberType") String memberType);
+    void updateRole(@Param("id") String id, @Param("role") String role);
     void insertFreeze(@Param("memberId") String memberId, @Param("freezeStart") String freezeStart,
                       @Param("freezeEnd") String freezeEnd, @Param("reason") String reason);
     List<MemberFreeze> findFreezeByMemberId(@Param("memberId") String memberId);

@@ -101,6 +101,11 @@ public class MockMemberService implements MemberService {
     }
 
     @Override
+    public void updateRole(String id, String role) {
+        Optional.ofNullable(store.get(id)).ifPresent(m -> m.setRole(role));
+    }
+
+    @Override
     public void freeze(String id, String startDate, String endDate) {
         Optional.ofNullable(store.get(id)).ifPresent(m -> m.setStatus("SUSPENDED"));
     }

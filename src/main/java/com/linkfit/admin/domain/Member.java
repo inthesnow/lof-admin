@@ -15,6 +15,7 @@ public class Member {
     private String memo;
     private String memberType;   // PT, OT
     private String tier;         // BASIC, LIGHT_FIT, REGULAR_FIT, INTENSIVE_FIT
+    private String role;         // MEMBER, TRAINER
 
     public Member() {}
 
@@ -42,4 +43,6 @@ public class Member {
     public void setMemberType(String memberType) { this.memberType = memberType; }
     public String getTier() { return tier; }
     public void setTier(String tier) { this.tier = tier; }
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }

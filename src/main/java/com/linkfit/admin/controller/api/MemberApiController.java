@@ -98,6 +98,13 @@ public class MemberApiController {
         return ApiResponse.ok();
     }
 
+    @PatchMapping("/{id}/role")
+    public ApiResponse<Void> updateRole(@PathVariable String id, @RequestBody Map<String, String> body) {
+        log.info("[Member] PATCH /api/members/{id}/role - id={}, role={}", id, body.get("role"));
+        memberService.updateRole(id, body.get("role"));
+        return ApiResponse.ok();
+    }
+
     @PostMapping("/{id}/freeze")
     public ApiResponse<Void> freeze(@PathVariable String id, @RequestBody Map<String, String> body) {
         log.info("[Member] POST /api/members/{id}/freeze - id={}", id);

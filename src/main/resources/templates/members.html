@@ -321,6 +321,7 @@ function renderTable(members, total) {
                 <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
                 <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
                 <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--success)" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">메모</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--warning)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}')">트레이너 지정</button>
                 <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteMember('${m.id}', '${m.name}')">삭제</button>
             </td>
         </tr>
@@ -400,6 +401,17 @@ async function deleteMember(id, name) {
     if (!confirm(`${name} 회원을 삭제하시겠습니까?\n삭제된 데이터는 복구되지 않습니다.`)) return;
     const res = await fetch(`/api/members/${id}`, { method: 'DELETE', headers: csrfHeaders() });
     if (!res.ok) { alert('삭제에 실패했습니다.'); return; }
+    loadMembers();
+}
+
+async function assignTrainerRole(id, name) {
+    if (!confirm(`${name} 회원을 트레이너로 지정하시겠습니까?\n트레이너로 변경되면 회원 목록에서 제외됩니다.`)) return;
+    const res = await fetch(`/api/members/${id}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
+        body: JSON.stringify({ role: 'TRAINER' })
+    });
+    if (!res.ok) { alert('트레이너 지정에 실패했습니다.'); return; }
     loadMembers();
 }
 

@@ -15,6 +15,7 @@ public interface MemberService {
     void updateStatus(String id, String status);
     void updateTier(String id, String tier);
     void updateMemberType(String id, String memberType);
+    void updateRole(String id, String role);
     void freeze(String id, String startDate, String endDate);
     List<MemberTicket> findTickets(String id);
     void chargeTicket(String id, String ticketType, int amount, String description);
