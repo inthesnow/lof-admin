@@ -4,6 +4,7 @@ import com.linkfit.admin.common.ApiResponse;
 import com.linkfit.admin.domain.CrmMembershipHistory;
 import com.linkfit.admin.domain.Membership;
 import com.linkfit.admin.mapper.MemberMapper;
+
 import com.linkfit.admin.security.CrmUserDetails;
 import com.linkfit.admin.service.CrmMemberService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,6 +46,20 @@ public class MembershipApiController {
             @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Membership] GET /api/memberships/member/{memberId}/history - memberId={}", memberId);
         return ApiResponse.ok(crmMemberService.findMembershipHistory(memberId, principal.getGymId()));
+    }
+
+    @PatchMapping("/{id}/end-date")
+    public ApiResponse<Void> updateEndDate(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        log.info("[Membership] PATCH /api/memberships/{}/end-date", id);
+        memberMapper.updateMembershipEndDate(id, body.get("endDate"));
+        return ApiResponse.ok();
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        log.info("[Membership] DELETE /api/memberships/{}", id);
+        memberMapper.deleteMembership(id);
+        return ApiResponse.ok();
     }
 
     @PostMapping("/member/{memberId}/actions")

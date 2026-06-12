@@ -112,6 +112,28 @@ public class MemberApiController {
         return ApiResponse.ok();
     }
 
+    @PatchMapping("/{id}/withdraw")
+    public ApiResponse<Void> withdraw(@PathVariable String id) {
+        log.info("[Member] PATCH /api/members/{id}/withdraw - id={}", id);
+        memberService.withdraw(id);
+        return ApiResponse.ok();
+    }
+
+    @GetMapping("/{id}/memberships")
+    public ApiResponse<List<com.linkfit.admin.domain.Membership>> getMemberships(@PathVariable String id) {
+        log.info("[Member] GET /api/members/{id}/memberships - id={}", id);
+        return ApiResponse.ok(memberService.findMemberships(id));
+    }
+
+    @PostMapping("/{id}/memberships")
+    public ApiResponse<Void> addMembership(@PathVariable String id,
+                                           @RequestBody com.linkfit.admin.domain.Membership membership) {
+        log.info("[Member] POST /api/members/{id}/memberships - id={}", id);
+        membership.setMemberId(id);
+        memberService.addMembership(membership);
+        return ApiResponse.ok();
+    }
+
     @GetMapping("/{id}/tickets")
     public ApiResponse<List<MemberTicket>> getTickets(@PathVariable String id) {
         log.info("[Member] GET /api/members/{id}/tickets - id={}", id);

@@ -2,6 +2,7 @@ package com.linkfit.admin.service.mybatis;
 
 import com.linkfit.admin.domain.Member;
 import com.linkfit.admin.domain.MemberTicket;
+import com.linkfit.admin.domain.Membership;
 import com.linkfit.admin.mapper.MemberMapper;
 import com.linkfit.admin.service.MemberService;
 import org.springframework.context.annotation.Profile;
@@ -82,6 +83,21 @@ public class MyBatisMemberService implements MemberService {
     public void freeze(String id, String startDate, String endDate) {
         memberMapper.insertFreeze(id, startDate, endDate, null);
         memberMapper.updateStatus(id, 0);
+    }
+
+    @Override
+    public void withdraw(String id) {
+        memberMapper.withdraw(id);
+    }
+
+    @Override
+    public List<Membership> findMemberships(String id) {
+        return memberMapper.findMembershipsByMemberId(id);
+    }
+
+    @Override
+    public void addMembership(Membership membership) {
+        memberMapper.insertMembership(membership);
     }
 
     @Override

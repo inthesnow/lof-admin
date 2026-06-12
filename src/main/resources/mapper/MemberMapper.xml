@@ -23,7 +23,9 @@
         SELECT u.user_id AS id, u.email, u.role,
                up.name, up.contact AS phone, up.gender, up.birth_date, up.member_type,
                up.tier,
-               CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END AS status,
+               CASE WHEN u.deleted_at IS NOT NULL THEN 'WITHDRAWN'
+                    WHEN u.is_active = 1 THEN 'ACTIVE'
+                    ELSE 'SUSPENDED' END AS status,
                DATE(u.created_at) AS join_date,
                (SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id ORDER BY ms.end_date DESC LIMIT 1) AS membership_end,
                NULL AS memo
@@ -38,7 +40,7 @@
             AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="status != null and status != ''">
-            AND CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
+            AND CASE WHEN u.deleted_at IS NOT NULL THEN 'WITHDRAWN' WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
         </if>
         <if test="tier != null and tier != ''">
             AND up.tier = #{tier}
@@ -56,7 +58,7 @@
             AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="status != null and status != ''">
-            AND CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
+            AND CASE WHEN u.deleted_at IS NOT NULL THEN 'WITHDRAWN' WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
         </if>
         <if test="tier != null and tier != ''">
             AND up.tier = #{tier}
@@ -104,6 +106,10 @@
 
     <update id="updateRole">
         UPDATE users SET role=#{role} WHERE user_id=#{id}
+    </update>
+
+    <update id="withdraw">
+        UPDATE users SET deleted_at=NOW(), is_active=0 WHERE user_id=#{id}
     </update>
 
     <insert id="insertFreeze">
@@ -154,6 +160,14 @@
         INSERT INTO membership (user_id, product_id, type, start_date, end_date, price, memo)
         VALUES (#{memberId}, #{productId}, #{type}, #{startDate}, #{endDate}, #{price}, #{memo})
     </insert>
+
+    <update id="updateMembershipEndDate">
+        UPDATE membership SET end_date=#{endDate} WHERE id=#{id}
+    </update>
+
+    <delete id="deleteMembership">
+        DELETE FROM membership WHERE id=#{id}
+    </delete>
 
 
     <resultMap id="expiringResultMap" type="Membership">

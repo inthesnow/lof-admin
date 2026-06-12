@@ -49,6 +49,7 @@
             <option value="">전체 상태</option>
             <option value="ACTIVE">유효</option>
             <option value="SUSPENDED">정지</option>
+            <option value="WITHDRAWN">탈퇴</option>
         </select>
         <select class="filter-select" id="tierFilter" onchange="loadMembers()">
             <option value="">전체 등급</option>
@@ -244,6 +245,61 @@
     </div>
 </div>
 
+<!-- 회원권 관리 모달 -->
+<div class="modal-overlay" id="membershipModal">
+    <div class="modal" style="max-width:640px">
+        <div class="modal-header">
+            <span class="modal-title" id="membershipModalTitle">이용권 관리</span>
+            <button class="modal-close" onclick="closeMembershipModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" style="padding-bottom:8px">
+            <!-- 현재 이용권 목록 -->
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">등록된 이용권</div>
+            <div id="membershipList" style="margin-bottom:20px;min-height:40px">
+                <div style="color:var(--text-muted);font-size:13px">로딩 중...</div>
+            </div>
+            <!-- 신규 이용권 등록 -->
+            <div style="border-top:1px solid var(--border);padding-top:16px">
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">이용권 등록</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">유형 *</label>
+                        <select class="form-select" id="msType">
+                            <option value="MEMBERSHIP">일반 회원권</option>
+                            <option value="PT">PT</option>
+                            <option value="OT">OT</option>
+                            <option value="GROUP">그룹 수업</option>
+                            <option value="LOCKER">락커</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">금액</label>
+                        <input type="number" class="form-input" id="msPrice" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">시작일 *</label>
+                        <input type="date" class="form-input" id="msStart">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">만료일 *</label>
+                        <input type="date" class="form-input" id="msEnd">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">메모</label>
+                        <input type="text" class="form-input" id="msMemo" placeholder="메모 입력...">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeMembershipModal()">닫기</button>
+            <button class="btn btn-primary" onclick="addMembership()">이용권 등록</button>
+        </div>
+    </div>
+</div>
+
 <style>
 .crm-tab {
     background: none; border: none; padding: 10px 18px; cursor: pointer;
@@ -255,6 +311,17 @@
     margin-bottom: 8px; font-size: 13px;
 }
 .crm-note-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.badge-muted { background: rgba(139,148,158,.12); color: var(--text-muted); }
+.ms-item {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 12px; border-radius: 8px; background: var(--surface-up);
+    margin-bottom: 8px; font-size: 13px;
+}
+.ms-item-info { flex: 1; min-width: 0; }
+.ms-item-type { font-weight: 600; color: var(--text-primary); }
+.ms-item-dates { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.ms-expire-input { width: 130px; padding: 3px 8px; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-primary); }
 </style>
 
 <script>
@@ -264,8 +331,8 @@ let editingId = null;
 let searchTimer = null;
 let memberTypeFilter = '';
 
-const statusLabel = { ACTIVE: '유효', SUSPENDED: '정지' };
-const statusBadge = { ACTIVE: 'badge-active', SUSPENDED: 'badge-suspended' };
+const statusLabel = { ACTIVE: '유효', SUSPENDED: '정지', WITHDRAWN: '탈퇴' };
+const statusBadge = { ACTIVE: 'badge-active', SUSPENDED: 'badge-suspended', WITHDRAWN: 'badge-muted' };
 const genderLabel = { '남자': '남성', '여자': '여성', M: '남성', F: '여성' };
 const memberTypeLabel = { PT: 'PT', OT: 'OT' };
 const tierLabel = { BASIC: '기본', LIGHT_FIT: '라이트', REGULAR_FIT: '레귤러', INTENSIVE_FIT: '인텐시브' };
@@ -318,14 +385,18 @@ function renderTable(members, total) {
             <td><span class="badge ${statusBadge[m.status] || ''}">${statusLabel[m.status] || m.status}</span></td>
             <td>${m.membershipEnd || '-'}</td>
             <td style="display:flex;gap:6px;flex-wrap:wrap">
+                ${m.status !== 'WITHDRAWN' ? `
                 <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--success)" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">메모</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openMembershipModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">이용권</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--success)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:#8B949E" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">메모</button>
                 ${m.role === 'TRAINER'
                     ? `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--error)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}', 'MEMBER')">트레이너 지정해제</button>`
                     : `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--warning)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}', 'TRAINER')">트레이너 지정</button>`
                 }
-                <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteMember('${m.id}', '${m.name}')">삭제</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--error)" onclick="withdrawMember('${m.id}', '${(m.name||'').replace(/'/g,'')}')">탈퇴</button>
+                ` : `<span style="font-size:12px;color:var(--text-muted)">탈퇴 처리됨</span>`}
+                <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteMember('${m.id}', '${(m.name||'').replace(/'/g,'')}')">삭제</button>
             </td>
         </tr>
     `).join('');
@@ -609,6 +680,116 @@ function escHtml(s) {
 function fmtDatetime(s) {
     if (!s) return '';
     return s.replace('T', ' ').substring(0, 16);
+}
+
+// ── 탈퇴 처리 ────────────────────────────────────────────────
+async function withdrawMember(id, name) {
+    if (!confirm(`${name} 회원을 탈퇴 처리하시겠습니까?\n탈퇴 후 앱 로그인이 불가능하며, 관리자 목록에 '탈퇴' 상태로 남습니다.`)) return;
+    const res = await fetch(`/api/members/${id}/withdraw`, { method: 'PATCH', headers: csrfHeaders() });
+    if (!res.ok) { alert('탈퇴 처리에 실패했습니다.'); return; }
+    loadMembers();
+}
+
+// ── 이용권(회원권) 관리 모달 ──────────────────────────────────
+let membershipMemberId = null;
+
+async function openMembershipModal(id, name) {
+    membershipMemberId = id;
+    document.getElementById('membershipModalTitle').textContent = `이용권 관리 — ${name}`;
+    // 오늘 날짜를 기본값으로 설정
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('msStart').value = today;
+    document.getElementById('msEnd').value   = '';
+    document.getElementById('msPrice').value = '';
+    document.getElementById('msMemo').value  = '';
+    document.getElementById('msType').value  = 'MEMBERSHIP';
+    document.getElementById('membershipModal').classList.add('open');
+    await loadMemberships();
+}
+
+function closeMembershipModal() {
+    document.getElementById('membershipModal').classList.remove('open');
+    membershipMemberId = null;
+}
+
+async function loadMemberships() {
+    const res  = await fetch(`/api/members/${membershipMemberId}/memberships`);
+    const json = await res.json();
+    renderMembershipList(json.data || []);
+}
+
+const msTypeLabel = { MEMBERSHIP: '일반 회원권', PT: 'PT', OT: 'OT', GROUP: '그룹 수업', LOCKER: '락커' };
+
+function renderMembershipList(list) {
+    const el = document.getElementById('membershipList');
+    if (!list.length) {
+        el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">등록된 이용권이 없습니다.</div>';
+        return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    el.innerHTML = list.map(ms => {
+        const expired = ms.endDate && ms.endDate < today;
+        const label   = msTypeLabel[ms.type] || ms.type;
+        const price   = ms.price ? ms.price.toLocaleString() + '원' : '-';
+        return `
+        <div class="ms-item">
+            <div class="ms-item-info">
+                <div class="ms-item-type">
+                    ${label}
+                    ${expired ? '<span style="font-size:11px;color:var(--error);font-weight:400;margin-left:4px">만료</span>' : ''}
+                </div>
+                <div class="ms-item-dates">
+                    ${ms.startDate || '-'} ~ <input class="ms-expire-input" type="date" id="msExpire_${ms.id}" value="${ms.endDate || ''}"
+                        style="border-color:${expired ? 'var(--error)' : 'var(--border)'}">
+                    &nbsp;·&nbsp; ${price}
+                    ${ms.memo ? `&nbsp;·&nbsp; ${escHtml(ms.memo)}` : ''}
+                </div>
+            </div>
+            <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;color:var(--accent)"
+                onclick="updateEndDate(${ms.id})">만료일 저장</button>
+            <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;color:var(--error)"
+                onclick="deleteMembership(${ms.id})">회수</button>
+        </div>`;
+    }).join('');
+}
+
+async function updateEndDate(msId) {
+    const endDate = document.getElementById(`msExpire_${msId}`).value;
+    if (!endDate) { alert('만료일을 입력해주세요.'); return; }
+    const res = await fetch(`/api/memberships/${msId}/end-date`, {
+        method: 'PATCH', headers: csrfHeaders(),
+        body: JSON.stringify({ endDate })
+    });
+    if (!res.ok) { alert('만료일 변경에 실패했습니다.'); return; }
+    await loadMemberships();
+    loadMembers();
+}
+
+async function deleteMembership(msId) {
+    if (!confirm('이 이용권을 회수(삭제)하시겠습니까?')) return;
+    const res = await fetch(`/api/memberships/${msId}`, { method: 'DELETE', headers: csrfHeaders() });
+    if (!res.ok) { alert('이용권 회수에 실패했습니다.'); return; }
+    await loadMemberships();
+    loadMembers();
+}
+
+async function addMembership() {
+    const startDate = document.getElementById('msStart').value;
+    const endDate   = document.getElementById('msEnd').value;
+    const type      = document.getElementById('msType').value;
+    if (!startDate || !endDate) { alert('시작일과 만료일을 입력해주세요.'); return; }
+    const price = parseInt(document.getElementById('msPrice').value) || 0;
+    const memo  = document.getElementById('msMemo').value.trim();
+    const res = await fetch(`/api/members/${membershipMemberId}/memberships`, {
+        method: 'POST', headers: csrfHeaders(),
+        body: JSON.stringify({ type, startDate, endDate, price, memo })
+    });
+    if (!res.ok) { alert('이용권 등록에 실패했습니다.'); return; }
+    document.getElementById('msEnd').value   = '';
+    document.getElementById('msPrice').value = '';
+    document.getElementById('msMemo').value  = '';
+    await loadMemberships();
+    loadMembers();
 }
 </script>
 </body>

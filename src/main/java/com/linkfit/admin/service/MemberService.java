@@ -2,6 +2,7 @@ package com.linkfit.admin.service;
 
 import com.linkfit.admin.domain.Member;
 import com.linkfit.admin.domain.MemberTicket;
+import com.linkfit.admin.domain.Membership;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,9 @@ public interface MemberService {
     void updateMemberType(String id, String memberType);
     void updateRole(String id, String role);
     void freeze(String id, String startDate, String endDate);
+    void withdraw(String id);
+    List<Membership> findMemberships(String id);
+    void addMembership(Membership membership);
     List<MemberTicket> findTickets(String id);
     void chargeTicket(String id, String ticketType, int amount, String description);
 }

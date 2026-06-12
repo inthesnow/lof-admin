@@ -35,8 +35,8 @@
 - [x] 회원 검색 및 필터링 — 이름/전화번호 검색, 상태 필터
 - [x] 구독 등급 관리 (BASIC / LIGHT_FIT / REGULAR_FIT / INTENSIVE_FIT) — 목록 배지 + tier 필터 + 수동 조정 UI (`user_profiles.tier` 연동)
 - [x] OT/PT 유형 부여 (관리자 전용) — `memberType` 관리 UI (일반 / OT / PT) + PATCH API
-- [ ] 이용권 부여·회수·만료일 설정
-- [ ] 회원 탈퇴 처리
+- [x] 이용권 부여·회수·만료일 설정 (`membership` 테이블 연동, 이용권 모달 UI)
+- [x] 회원 탈퇴 처리 (소프트 탈퇴: `users.deleted_at` 세팅, WITHDRAWN 상태 배지)
 
 ### 4. 이용권(티켓) 관리 _(신규 — DB 테이블 이미 존재)_
 > `member_tickets` (잔량), `ticket_logs` (이력), `ticket_purchases` (구매 이력) 활용

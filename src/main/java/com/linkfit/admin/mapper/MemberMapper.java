@@ -25,11 +25,14 @@ public interface MemberMapper {
     void updateTier(@Param("id") String id, @Param("tier") String tier);
     void updateMemberType(@Param("id") String id, @Param("memberType") String memberType);
     void updateRole(@Param("id") String id, @Param("role") String role);
+    void withdraw(@Param("id") String id);
     void insertFreeze(@Param("memberId") String memberId, @Param("freezeStart") String freezeStart,
                       @Param("freezeEnd") String freezeEnd, @Param("reason") String reason);
     List<MemberFreeze> findFreezeByMemberId(@Param("memberId") String memberId);
     List<Membership> findMembershipsByMemberId(@Param("memberId") String memberId);
     void insertMembership(Membership membership);
+    void updateMembershipEndDate(@Param("id") Long id, @Param("endDate") String endDate);
+    void deleteMembership(@Param("id") Long id);
 
     List<Membership> findExpiringMemberships(@Param("days") int days,
                                               @Param("offset") int offset, @Param("size") int size);

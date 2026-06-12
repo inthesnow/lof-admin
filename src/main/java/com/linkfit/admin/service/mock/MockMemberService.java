@@ -111,6 +111,17 @@ public class MockMemberService implements MemberService {
     }
 
     @Override
+    public void withdraw(String id) {
+        Optional.ofNullable(store.get(id)).ifPresent(m -> m.setStatus("WITHDRAWN"));
+    }
+
+    @Override
+    public List<com.linkfit.admin.domain.Membership> findMemberships(String id) { return Collections.emptyList(); }
+
+    @Override
+    public void addMembership(com.linkfit.admin.domain.Membership membership) {}
+
+    @Override
     public List<MemberTicket> findTickets(String id) { return Collections.emptyList(); }
 
     @Override
