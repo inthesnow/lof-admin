@@ -221,10 +221,87 @@
         .save-result.ok   { color: var(--success); }
         .save-result.err  { color: var(--error); }
 
+        /* ── Holiday ── */
+        .holiday-toolbar {
+            display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+        }
+        .holiday-toolbar .field-group { flex: 1; min-width: 140px; }
+        .type-tabs {
+            display: flex; gap: 6px;
+        }
+        .type-tab {
+            padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+            border: 1.5px solid var(--border); background: var(--surface-up);
+            color: var(--text-secondary); cursor: pointer; transition: all 0.15s;
+        }
+        .type-tab.active-public  { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+        .type-tab.active-closure { border-color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
+
+        .holiday-year-nav {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+        }
+        .holiday-year-nav button {
+            background: var(--surface-up); border: 1px solid var(--border);
+            border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 14px;
+            color: var(--text-primary);
+        }
+        .holiday-year-nav span { font-size: 15px; font-weight: 700; min-width: 60px; text-align: center; }
+
+        .holiday-list { display: flex; flex-direction: column; gap: 6px; }
+        .holiday-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 12px; border-radius: 8px;
+            background: var(--surface-up); border: 1px solid var(--border);
+        }
+        .holiday-item .h-date { font-size: 13px; font-weight: 700; color: var(--text-primary); min-width: 100px; }
+        .holiday-item .h-name { font-size: 13px; color: var(--text-secondary); flex: 1; }
+        .holiday-item .h-type {
+            font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 5px;
+        }
+        .h-type.PUBLIC  { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+        .h-type.CLOSURE { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
+
+        /* ── Banner ── */
+        .banner-upload-zone {
+            border: 2px dashed var(--border); border-radius: 10px;
+            padding: 28px; text-align: center; cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .banner-upload-zone:hover, .banner-upload-zone.drag-over {
+            border-color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 5%, transparent);
+        }
+        .banner-upload-zone svg { color: var(--text-muted); margin-bottom: 8px; }
+        .banner-upload-zone p { font-size: 13px; color: var(--text-muted); margin: 4px 0; }
+        .banner-upload-zone .upload-hint { font-size: 11px; color: var(--text-muted); }
+
+        .banner-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px;
+        }
+        .banner-card {
+            border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+            background: var(--surface-up); position: relative;
+        }
+        .banner-card img {
+            width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
+        }
+        .banner-card-body {
+            padding: 10px 12px;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        }
+        .banner-card-title { font-size: 12px; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .banner-inactive { opacity: 0.45; }
+        .banner-inactive-badge {
+            position: absolute; top: 6px; left: 6px;
+            background: rgba(0,0,0,0.55); color: #fff;
+            font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+        }
+
         @media (max-width: 640px) {
             .field-row { grid-template-columns: 1fr; }
             .open-card { flex-direction: column; align-items: flex-start; }
             .settings-body { padding: 16px; }
+            .banner-grid { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
@@ -339,6 +416,80 @@
                     <label class="field-label" for="notice">앱 또는 안내판에 표시할 공지 내용</label>
                     <textarea class="field-input" id="notice" placeholder="예) 설날 연휴 휴무: 1월 28일 ~ 1월 30일&#10;회원권 이벤트 진행 중!" maxlength="1000" rows="4"></textarea>
                 </div>
+            </div>
+        </div>
+
+        <!-- Holiday settings -->
+        <div class="setting-card">
+            <div class="setting-card-header">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zm-7-9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                <span class="setting-card-title">휴일 설정</span>
+            </div>
+            <div class="setting-card-body">
+                <!-- year nav -->
+                <div class="holiday-year-nav">
+                    <button onclick="changeHolidayYear(-1)">&#8249;</button>
+                    <span id="holidayYearLabel"></span>
+                    <button onclick="changeHolidayYear(1)">&#8250;</button>
+                </div>
+                <!-- add form -->
+                <div class="holiday-toolbar">
+                    <div class="field-group">
+                        <label class="field-label">날짜</label>
+                        <input type="date" class="field-input" id="hDate">
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label">이름</label>
+                        <input type="text" class="field-input" id="hName" placeholder="예) 설날, 임시 점검" maxlength="100">
+                    </div>
+                    <div class="field-group" style="flex:0">
+                        <label class="field-label">유형</label>
+                        <div class="type-tabs">
+                            <button class="type-tab active-public" id="tabPublic" onclick="selectHolidayType('PUBLIC')">공휴일</button>
+                            <button class="type-tab" id="tabClosure" onclick="selectHolidayType('CLOSURE')">임시휴관</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" style="height:37px;align-self:flex-end" onclick="addHoliday()">+ 추가</button>
+                </div>
+                <!-- list -->
+                <div class="holiday-list" id="holidayList" style="margin-top:8px">
+                    <p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">로딩 중...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Banner management -->
+        <div class="setting-card">
+            <div class="setting-card-header">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-5-7l-4 5-3-4-4 5h14l-3-6z"/></svg>
+                <span class="setting-card-title">공지사항 배너 이미지</span>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:auto">앱 화면에 표시됩니다. 앱 개발팀이 연동 처리합니다.</span>
+            </div>
+            <div class="setting-card-body">
+                <!-- upload zone -->
+                <div class="banner-upload-zone" id="bannerUploadZone"
+                     onclick="document.getElementById('bannerFileInput').click()"
+                     ondragover="onBannerDragOver(event)"
+                     ondragleave="onBannerDragLeave(event)"
+                     ondrop="onBannerDrop(event)">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                    <p>클릭하거나 이미지를 드래그하여 업로드</p>
+                    <p class="upload-hint">JPG, PNG, GIF, WEBP · 최대 10MB</p>
+                </div>
+                <input type="file" id="bannerFileInput" accept="image/*" style="display:none" onchange="onBannerFileSelect(event)">
+                <!-- title input (shown before upload) -->
+                <div id="bannerTitleWrap" style="display:none;margin-top:10px">
+                    <div class="field-group">
+                        <label class="field-label">배너 제목 (선택)</label>
+                        <div style="display:flex;gap:8px">
+                            <input type="text" class="field-input" id="bannerTitleInput" placeholder="예) 6월 이벤트" maxlength="100">
+                            <button class="btn btn-primary" onclick="confirmBannerUpload()">업로드</button>
+                            <button class="btn btn-secondary" onclick="cancelBannerUpload()">취소</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- banner grid -->
+                <div class="banner-grid" id="bannerGrid" style="margin-top:4px"></div>
             </div>
         </div>
 
@@ -513,7 +664,166 @@ function showResult(ok, msg) {
 function openSidebar()  { document.querySelector('.sidebar').classList.add('open');    document.getElementById('sidebarOverlay').classList.add('open'); }
 function closeSidebar() { document.querySelector('.sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
+// ═══════════════════════════════════════════
+// 휴일 설정
+// ═══════════════════════════════════════════
+let holidayYear = new Date().getFullYear();
+let selectedHolidayType = 'PUBLIC';
+
+function changeHolidayYear(delta) {
+    holidayYear += delta;
+    document.getElementById('holidayYearLabel').textContent = holidayYear + '년';
+    loadHolidays();
+}
+
+function selectHolidayType(type) {
+    selectedHolidayType = type;
+    document.getElementById('tabPublic').className  = 'type-tab' + (type === 'PUBLIC'  ? ' active-public'  : '');
+    document.getElementById('tabClosure').className = 'type-tab' + (type === 'CLOSURE' ? ' active-closure' : '');
+}
+
+async function loadHolidays() {
+    const res  = await fetch(`/api/settings/holidays?year=${holidayYear}`);
+    const json = await res.json();
+    renderHolidayList(json.data || []);
+}
+
+function renderHolidayList(list) {
+    const el = document.getElementById('holidayList');
+    if (!list.length) {
+        el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">${holidayYear}년 등록된 휴일이 없습니다.</p>`;
+        return;
+    }
+    const typeLabel = { PUBLIC: '공휴일', CLOSURE: '임시휴관' };
+    el.innerHTML = list.map(h => `
+        <div class="holiday-item">
+            <span class="h-date">${h.holidayDate}</span>
+            <span class="h-name">${h.name}</span>
+            <span class="h-type ${h.type}">${typeLabel[h.type] || h.type}</span>
+            <button class="btn btn-secondary" style="padding:3px 9px;font-size:11px;color:var(--error)"
+                onclick="deleteHoliday(${h.id}, '${h.name}')">삭제</button>
+        </div>`).join('');
+}
+
+async function addHoliday() {
+    const date = document.getElementById('hDate').value;
+    const name = document.getElementById('hName').value.trim();
+    if (!date) { alert('날짜를 선택해주세요.'); return; }
+    if (!name) { alert('휴일 이름을 입력해주세요.'); return; }
+
+    const res = await fetch('/api/settings/holidays', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ holidayDate: date, type: selectedHolidayType, name })
+    });
+    const json = await res.json();
+    if (!json.success) { alert('추가 실패: ' + (json.message || '')); return; }
+    document.getElementById('hDate').value = '';
+    document.getElementById('hName').value = '';
+    loadHolidays();
+}
+
+async function deleteHoliday(id, name) {
+    if (!confirm(`"${name}" 휴일을 삭제하시겠습니까?`)) return;
+    await fetch(`/api/settings/holidays/${id}`, { method: 'DELETE' });
+    loadHolidays();
+}
+
+// ═══════════════════════════════════════════
+// 배너 관리
+// ═══════════════════════════════════════════
+let pendingBannerFile = null;
+
+async function loadBanners() {
+    const res  = await fetch('/api/settings/banners');
+    const json = await res.json();
+    renderBannerGrid(json.data || []);
+}
+
+function renderBannerGrid(list) {
+    const grid = document.getElementById('bannerGrid');
+    if (!list.length) { grid.innerHTML = ''; return; }
+    grid.innerHTML = list.map(b => `
+        <div class="banner-card ${b.active ? '' : 'banner-inactive'}">
+            ${!b.active ? '<span class="banner-inactive-badge">비활성</span>' : ''}
+            <img src="${b.imageUrl}" alt="${b.title || '배너'}" loading="lazy"
+                 onerror="this.style.background='var(--surface-up)';this.removeAttribute('src')">
+            <div class="banner-card-body">
+                <span class="banner-card-title">${b.title || '제목 없음'}</span>
+                <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px"
+                    onclick="toggleBannerActive(${b.id}, ${b.active})">${b.active ? '비활성화' : '활성화'}</button>
+                <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;color:var(--error)"
+                    onclick="deleteBanner(${b.id})">삭제</button>
+            </div>
+        </div>`).join('');
+}
+
+function onBannerDragOver(e) {
+    e.preventDefault();
+    document.getElementById('bannerUploadZone').classList.add('drag-over');
+}
+function onBannerDragLeave(e) {
+    document.getElementById('bannerUploadZone').classList.remove('drag-over');
+}
+function onBannerDrop(e) {
+    e.preventDefault();
+    document.getElementById('bannerUploadZone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) prepareBannerUpload(file);
+}
+function onBannerFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) prepareBannerUpload(file);
+    e.target.value = '';
+}
+
+function prepareBannerUpload(file) {
+    pendingBannerFile = file;
+    document.getElementById('bannerTitleInput').value = file.name.replace(/\.[^.]+$/, '');
+    document.getElementById('bannerTitleWrap').style.display = '';
+}
+
+function cancelBannerUpload() {
+    pendingBannerFile = null;
+    document.getElementById('bannerTitleWrap').style.display = 'none';
+    document.getElementById('bannerTitleInput').value = '';
+}
+
+async function confirmBannerUpload() {
+    if (!pendingBannerFile) return;
+    const title = document.getElementById('bannerTitleInput').value.trim();
+    const fd = new FormData();
+    fd.append('file', pendingBannerFile);
+    fd.append('title', title);
+    const res  = await fetch('/api/settings/banners', { method: 'POST', body: fd });
+    const json = await res.json();
+    if (!json.success) { alert('업로드 실패: ' + (json.message || '')); return; }
+    cancelBannerUpload();
+    loadBanners();
+}
+
+async function toggleBannerActive(id, currentActive) {
+    await fetch(`/api/settings/banners/${id}/active`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentActive })
+    });
+    loadBanners();
+}
+
+async function deleteBanner(id) {
+    if (!confirm('배너를 삭제하시겠습니까?')) return;
+    await fetch(`/api/settings/banners/${id}`, { method: 'DELETE' });
+    loadBanners();
+}
+
+// ═══════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════
+document.getElementById('holidayYearLabel').textContent = holidayYear + '년';
 init();
+loadHolidays();
+loadBanners();
 </script>
 </body>
 </html>
