@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.StaffAttendanceMapper">
+
+    <resultMap id="saResultMap" type="StaffAttendance">
+        <id     property="id"          column="id"/>
+        <result property="userId"      column="user_id"/>
+        <result property="staffName"   column="staff_name"/>
+        <result property="attendDate"  column="attend_date"/>
+        <result property="checkIn"     column="check_in"/>
+        <result property="checkOut"    column="check_out"/>
+        <result property="memo"        column="memo"/>
+        <result property="createdAt"   column="created_at"/>
+    </resultMap>
+
+    <!--
+        오늘 출근 현황: 전체 TRAINER LEFT JOIN 오늘 출근 기록
+        출근 기록이 없으면 id=NULL → 미출근으로 구분
+    -->
+    <select id="findTodayStatus" resultMap="saResultMap">
+        SELECT
+            sa.id,
+            u.user_id,
+            up.name AS staff_name,
+            sa.attend_date,
+            sa.check_in,
+            sa.check_out,
+            sa.memo,
+            sa.created_at
+        FROM users u
+        LEFT JOIN user_profiles up ON up.user_id = u.user_id
+        LEFT JOIN staff_attendance sa
+               ON sa.user_id = u.user_id
+              AND sa.attend_date = #{today}
+        WHERE u.role = 'TRAINER'
+          AND u.is_active = 1
+        ORDER BY up.name ASC
+    </select>
+
+    <!-- 기간별 출근 기록 -->
+    <select id="findHistory" resultMap="saResultMap">
+        SELECT
+            sa.id,
+            sa.user_id,
+            up.name AS staff_name,
+            sa.attend_date,
+            sa.check_in,
+            sa.check_out,
+            sa.memo,
+            sa.created_at
+        FROM staff_attendance sa
+        LEFT JOIN user_profiles up ON up.user_id = sa.user_id
+        WHERE sa.attend_date BETWEEN #{startDate} AND #{endDate}
+        <if test="userId != null and userId != ''">
+            AND sa.user_id = #{userId}
+        </if>
+        ORDER BY sa.attend_date DESC, sa.check_in ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO staff_attendance (user_id, attend_date, check_in, memo)
+        VALUES (#{userId}, #{attendDate}, #{checkIn}, #{memo})
+        ON DUPLICATE KEY UPDATE
+            check_in = COALESCE(#{checkIn}, check_in),
+            memo     = COALESCE(#{memo}, memo)
+    </insert>
+
+    <update id="updateCheckOut">
+        UPDATE staff_attendance SET check_out = #{checkOut} WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM staff_attendance WHERE id = #{id}
+    </delete>
+
+</mapper>

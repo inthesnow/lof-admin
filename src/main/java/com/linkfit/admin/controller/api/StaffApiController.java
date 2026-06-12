@@ -3,6 +3,8 @@ package com.linkfit.admin.controller.api;
 import com.linkfit.admin.common.ApiResponse;
 import com.linkfit.admin.domain.Member;
 import com.linkfit.admin.domain.Staff;
+import com.linkfit.admin.domain.StaffAttendance;
+import com.linkfit.admin.mapper.StaffAttendanceMapper;
 import com.linkfit.admin.mapper.StaffMapper;
 import com.linkfit.admin.security.CrmUserDetails;
 import com.linkfit.admin.service.StaffService;
@@ -10,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -23,10 +27,13 @@ public class StaffApiController {
 
     private final StaffService staffService;
     private final StaffMapper staffMapper;
+    private final StaffAttendanceMapper staffAttendanceMapper;
 
-    public StaffApiController(StaffService staffService, StaffMapper staffMapper) {
-        this.staffService = staffService;
-        this.staffMapper  = staffMapper;
+    public StaffApiController(StaffService staffService, StaffMapper staffMapper,
+                              StaffAttendanceMapper staffAttendanceMapper) {
+        this.staffService            = staffService;
+        this.staffMapper             = staffMapper;
+        this.staffAttendanceMapper   = staffAttendanceMapper;
     }
 
     @GetMapping
@@ -92,5 +99,53 @@ public class StaffApiController {
             @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Staff] GET /api/staff/{id}/members - id={}", id);
         return ApiResponse.ok(staffMapper.findAssignedMembers(id, principal.getGymId()));
+    }
+
+    // ── 출근 관리 ──────────────────────────────────────────────
+
+    @GetMapping("/attendance/today")
+    public ApiResponse<List<StaffAttendance>> todayStatus() {
+        log.info("[Staff] GET /api/staff/attendance/today");
+        return ApiResponse.ok(staffAttendanceMapper.findTodayStatus(LocalDate.now()));
+    }
+
+    @GetMapping("/attendance")
+    public ApiResponse<List<StaffAttendance>> history(
+            @RequestParam(defaultValue = "") String startDate,
+            @RequestParam(defaultValue = "") String endDate,
+            @RequestParam(defaultValue = "") String staffId) {
+        LocalDate start = startDate.isEmpty() ? LocalDate.now().withDayOfMonth(1) : LocalDate.parse(startDate);
+        LocalDate end   = endDate.isEmpty()   ? LocalDate.now()                   : LocalDate.parse(endDate);
+        log.info("[Staff] GET /api/staff/attendance - start={}, end={}, staffId={}", start, end, staffId);
+        return ApiResponse.ok(staffAttendanceMapper.findHistory(start, end, staffId.isEmpty() ? null : staffId));
+    }
+
+    @PostMapping("/attendance/checkin")
+    public ApiResponse<StaffAttendance> checkIn(@RequestBody Map<String, String> body) {
+        log.info("[Staff] POST /api/staff/attendance/checkin - userId={}", body.get("userId"));
+        StaffAttendance sa = new StaffAttendance();
+        sa.setUserId(body.get("userId"));
+        sa.setAttendDate(body.get("date") != null ? LocalDate.parse(body.get("date")) : LocalDate.now());
+        sa.setCheckIn(body.get("time") != null ? LocalTime.parse(body.get("time")) : LocalTime.now().withSecond(0).withNano(0));
+        sa.setMemo(body.get("memo"));
+        staffAttendanceMapper.insert(sa);
+        return ApiResponse.ok(sa);
+    }
+
+    @PatchMapping("/attendance/{id}/checkout")
+    public ApiResponse<Void> checkOut(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+        log.info("[Staff] PATCH /api/staff/attendance/{}/checkout", id);
+        LocalTime time = (body != null && body.get("time") != null)
+                ? LocalTime.parse(body.get("time"))
+                : LocalTime.now().withSecond(0).withNano(0);
+        staffAttendanceMapper.updateCheckOut(id, time);
+        return ApiResponse.ok();
+    }
+
+    @DeleteMapping("/attendance/{id}")
+    public ApiResponse<Void> deleteAttendance(@PathVariable Long id) {
+        log.info("[Staff] DELETE /api/staff/attendance/{}", id);
+        staffAttendanceMapper.delete(id);
+        return ApiResponse.ok();
     }
 }
