@@ -321,7 +321,10 @@ function renderTable(members, total) {
                 <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
                 <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
                 <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--success)" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">메모</button>
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--warning)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}')">트레이너 지정</button>
+                ${m.role === 'TRAINER'
+                    ? `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--error)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}', 'MEMBER')">트레이너 지정해제</button>`
+                    : `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--warning)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}', 'TRAINER')">트레이너 지정</button>`
+                }
                 <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteMember('${m.id}', '${m.name}')">삭제</button>
             </td>
         </tr>
@@ -404,14 +407,20 @@ async function deleteMember(id, name) {
     loadMembers();
 }
 
-async function assignTrainerRole(id, name) {
-    if (!confirm(`${name} 회원을 트레이너로 지정하시겠습니까?\n트레이너로 변경되면 회원 목록에서 제외됩니다.`)) return;
+async function assignTrainerRole(id, name, targetRole) {
+    const msg = targetRole === 'TRAINER'
+        ? `${name} 회원을 트레이너로 지정하시겠습니까?`
+        : `${name} 트레이너 지정을 해제하시겠습니까?`;
+    if (!confirm(msg)) return;
     const res = await fetch(`/api/members/${id}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ role: 'TRAINER' })
+        body: JSON.stringify({ role: targetRole })
     });
-    if (!res.ok) { alert('트레이너 지정에 실패했습니다.'); return; }
+    if (!res.ok) {
+        alert(targetRole === 'TRAINER' ? '트레이너 지정에 실패했습니다.' : '트레이너 지정 해제에 실패했습니다.');
+        return;
+    }
     loadMembers();
 }
 

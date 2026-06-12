@@ -16,10 +16,11 @@
         <result property="memberType"    column="member_type"/>
         <result property="tier"          column="tier"/>
         <result property="memo"          column="memo"/>
+        <result property="role"          column="role"/>
     </resultMap>
 
     <sql id="memberSelect">
-        SELECT u.user_id AS id, u.email,
+        SELECT u.user_id AS id, u.email, u.role,
                up.name, up.contact AS phone, up.gender, up.birth_date, up.member_type,
                up.tier,
                CASE WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END AS status,
@@ -28,7 +29,7 @@
                NULL AS memo
         FROM users u
         LEFT JOIN user_profiles up ON u.user_id = up.user_id
-        WHERE u.role = 'MEMBER'
+        WHERE u.role IN ('MEMBER', 'TRAINER')
     </sql>
 
     <select id="findAll" resultMap="memberResultMap">
@@ -50,7 +51,7 @@
         SELECT COUNT(*)
         FROM users u
         LEFT JOIN user_profiles up ON u.user_id = up.user_id
-        WHERE u.role = 'MEMBER'
+        WHERE u.role IN ('MEMBER', 'TRAINER')
         <if test="keyword != null and keyword != ''">
             AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
         </if>
