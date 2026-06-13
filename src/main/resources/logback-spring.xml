@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ──────────────────────────────────────────────────────────────────
+         LINK_Fit Admin  ·  Logback 설정
+         - 활성 로그  : ./logs/lof-admin.log
+         - 일별 로테이트 : ./logs/lof-admin.log-YYYYMMDD.gz  (매일 00:00)
+         - 보관 기간  : 30일 / 총 용량 상한 1 GB
+    ─────────────────────────────────────────────────────────────────── -->
+
+    <property name="LOG_DIR"  value="./logs"/>
+    <property name="LOG_FILE" value="${LOG_DIR}/lof-admin.log"/>
+
+    <!-- 콘솔 패턴 (ANSI 색상 포함) -->
+    <property name="CONSOLE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%15.15thread] %cyan(%-40.40logger{39}) : %msg%n"/>
+
+    <!-- 파일 패턴 (ANSI 제거 — grep 용이) -->
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%15.15thread] %-40.40logger{39} : %msg%n"/>
+
+
+    <!-- ── 1. Console Appender ──────────────────────────────────────── -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+
+    <!-- ── 2. Rolling File Appender ────────────────────────────────── -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 당일 로그가 쌓이는 파일 -->
+        <file>${LOG_FILE}</file>
+
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+
+        <!--
+            TimeBasedRollingPolicy:
+              - 매일 00:00 기준으로 롤오버 트리거
+              - 전날 파일을 lof-admin.log-YYYYMMDD.gz 로 압축 보관
+              - 30일 이상 / 1 GB 초과분은 자동 삭제
+        -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/lof-admin.log-%d{yyyyMMdd}.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+
+    <!-- ── 3. 비동기 파일 Appender (I/O 블로킹 최소화) ──────────────── -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- 큐가 꽉 찼을 때 WARN 이하 메시지 자동 드롭 방지 -->
+        <discardingThreshold>0</discardingThreshold>
+        <!-- 내부 큐 크기 (기본값 256 → 512로 확장) -->
+        <queueSize>512</queueSize>
+        <!-- 종료 시 남은 로그 최대 대기 시간 (ms) -->
+        <maxFlushTime>3000</maxFlushTime>
+        <includeCallerData>false</includeCallerData>
+        <appender-ref ref="FILE"/>
+    </appender>
+
+
+    <!-- ── 4. 프로필별 Logger 설정 ──────────────────────────────────── -->
+
+    <!-- dev: 콘솔 + 파일, DEBUG 수준 -->
+    <springProfile name="dev">
+        <logger name="com.linkfit.admin" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <!-- MyBatis SQL 출력 (쿼리 디버깅용) -->
+        <logger name="com.linkfit.admin.mapper" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+        <logger name="org.mybatis"          level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
+        <!-- Spring Security 인증 흐름 (로그인 디버깅용) -->
+        <logger name="org.springframework.security" level="INFO" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
+        <!-- Hibernate/JPA 쿼리 (사용 시) -->
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </root>
+    </springProfile>
+
+
+    <!-- prod: 파일만, INFO 수준 -->
+    <springProfile name="prod">
+        <logger name="com.linkfit.admin" level="INFO" additivity="false">
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <!-- prod 에서 외부 라이브러리 WARN 이상만 -->
+        <logger name="org.springframework"        level="WARN" additivity="false">
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+        <logger name="org.springframework.security" level="WARN" additivity="false">
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+        <logger name="org.mybatis"    level="WARN" additivity="false">
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+        <logger name="org.apache"     level="WARN" additivity="false">
+            <appender-ref ref="ASYNC_FILE"/>
+        </logger>
+
+        <root level="WARN">
+            <appender-ref ref="ASYNC_FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

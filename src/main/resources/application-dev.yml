@@ -26,7 +26,4 @@ app:
   upload:
     banner-dir: src/main/resources/static/uploads/banners
 
-logging:
-  level:
-    com.linkfit.admin: DEBUG
-    org.springframework.security: DEBUG
+# 로그 레벨은 logback-spring.xml springProfile(dev) 블록에서 관리
