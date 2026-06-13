@@ -51,11 +51,11 @@
 > 트레이너 수업 일정은 `trainer_schedules` 테이블이 실사용 중
 - [x] 그룹 수업 / 개인 레슨 / OT 일정 관리 (`/classes`) — 유형 탭 필터
 - [x] 수업 등록 / 취소 (모달 UI + API)
-- [ ] 수업 일정 캘린더 뷰 — `trainer_schedules` 기반 전체 PT·OT·원포인트 일정
-- [ ] 수업 신청자 목록 조회 — `GET /api/classes/{id}/attendees` UI 미구현
-- [ ] 원포인트 레슨 신청서 조회 및 승인·거절 — `onepoint_requests` 테이블 사용
+- [x] 수업 수정 UI — 수정 버튼 + PUT `/api/classes/{id}` 연동
+- [x] 수업 신청자 목록 조회 — 신청자 모달 + `GET /api/classes/{id}/attendees` 연동
+- [x] 수업 일정 캘린더 뷰 — `trainer_schedules` 기반 월별 PT·원포인트 일정 (`TrainerScheduleMapper` + 캘린더 UI)
+- [x] 원포인트 레슨 신청서 조회 및 승인·거절 — `onepoint_requests` 연동 + 처리 모달 (`OnepointRequestMapper`)
 - [ ] OT 배정 — 신규 회원 → 트레이너 매칭 (`trainer_members` + `user_profiles.trainer_id`)
-- [ ] 수업 수정 UI (등록/취소만 구현, 수정 미구현)
 
 ### 6. 출석 관리
 - [x] 출석 체크 기능 (`/attendance`) — 페이지 + 체크인 모달 + POST API

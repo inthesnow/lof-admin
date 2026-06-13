@@ -11,6 +11,6 @@ public interface ClassService {
     ClassSession save(ClassSession session);
     ClassSession update(Long id, ClassSession session);
     void cancel(Long id);
-    void enroll(Long classId, Long memberId);
-    void cancelEnrollment(Long classId, Long memberId);
+    void enroll(Long classId, String memberId);
+    void cancelEnrollment(Long classId, String memberId);
 }

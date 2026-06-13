@@ -53,13 +53,13 @@ public class MyBatisClassService implements ClassService {
     }
 
     @Override
-    public void enroll(Long classId, Long memberId) {
+    public void enroll(Long classId, String memberId) {
         classMapper.enroll(classId, memberId);
         classMapper.incrementEnrolled(classId);
     }
 
     @Override
-    public void cancelEnrollment(Long classId, Long memberId) {
+    public void cancelEnrollment(Long classId, String memberId) {
         classMapper.cancelEnrollment(classId, memberId);
         classMapper.decrementEnrolled(classId);
     }

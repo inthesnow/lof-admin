@@ -83,8 +83,8 @@ public class MockClassService implements ClassService {
     }
 
     @Override
-    public void enroll(Long classId, Long memberId) {}
+    public void enroll(Long classId, String memberId) {}
 
     @Override
-    public void cancelEnrollment(Long classId, Long memberId) {}
+    public void cancelEnrollment(Long classId, String memberId) {}
 }

@@ -1,11 +1,19 @@
 package com.linkfit.admin.controller.api;
 
 import com.linkfit.admin.common.ApiResponse;
+import com.linkfit.admin.domain.ClassAttendee;
 import com.linkfit.admin.domain.ClassSession;
+import com.linkfit.admin.domain.OnepointRequest;
+import com.linkfit.admin.domain.TrainerSchedule;
+import com.linkfit.admin.mapper.ClassMapper;
+import com.linkfit.admin.mapper.OnepointRequestMapper;
+import com.linkfit.admin.mapper.TrainerScheduleMapper;
 import com.linkfit.admin.service.ClassService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,9 +25,17 @@ public class ClassApiController {
     private static final Logger log = LoggerFactory.getLogger(ClassApiController.class);
 
     private final ClassService classService;
+    private final ClassMapper classMapper;
+    private final TrainerScheduleMapper trainerScheduleMapper;
+    private final OnepointRequestMapper onepointRequestMapper;
 
-    public ClassApiController(ClassService classService) {
-        this.classService = classService;
+    public ClassApiController(ClassService classService, ClassMapper classMapper,
+                              TrainerScheduleMapper trainerScheduleMapper,
+                              OnepointRequestMapper onepointRequestMapper) {
+        this.classService            = classService;
+        this.classMapper             = classMapper;
+        this.trainerScheduleMapper   = trainerScheduleMapper;
+        this.onepointRequestMapper   = onepointRequestMapper;
     }
 
     @GetMapping
@@ -62,17 +78,64 @@ public class ClassApiController {
         return ApiResponse.ok();
     }
 
+    @GetMapping("/{id}/attendees")
+    public ApiResponse<List<ClassAttendee>> getAttendees(@PathVariable Long id) {
+        log.info("[Class] GET /api/classes/{id}/attendees - id={}", id);
+        return ApiResponse.ok(classMapper.findAttendees(id));
+    }
+
     @PostMapping("/{id}/attendees")
-    public ApiResponse<Void> enroll(@PathVariable Long id, @RequestBody Map<String, Long> body) {
+    public ApiResponse<Void> enroll(@PathVariable Long id, @RequestBody Map<String, String> body) {
         log.info("[Class] POST /api/classes/{id}/attendees - id={}", id);
         classService.enroll(id, body.get("memberId"));
         return ApiResponse.ok();
     }
 
     @DeleteMapping("/{id}/attendees/{memberId}")
-    public ApiResponse<Void> cancelEnrollment(@PathVariable Long id, @PathVariable Long memberId) {
+    public ApiResponse<Void> cancelEnrollment(@PathVariable Long id, @PathVariable String memberId) {
         log.info("[Class] DELETE /api/classes/{id}/attendees/{memberId} - id={}, memberId={}", id, memberId);
         classService.cancelEnrollment(id, memberId);
+        return ApiResponse.ok();
+    }
+
+    // ── 트레이너 일정 (trainer_schedules) ──────────────────────
+
+    @GetMapping("/schedules")
+    public ApiResponse<List<TrainerSchedule>> schedules(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        LocalDate ref = LocalDate.now();
+        int y = (year  != null) ? year  : ref.getYear();
+        int m = (month != null) ? month : ref.getMonthValue();
+        log.info("[Class] GET /api/classes/schedules - year={}, month={}", y, m);
+        return ApiResponse.ok(trainerScheduleMapper.findByMonth(y, m));
+    }
+
+    @GetMapping("/schedules/date")
+    public ApiResponse<List<TrainerSchedule>> schedulesByDate(@RequestParam String date) {
+        log.info("[Class] GET /api/classes/schedules/date - date={}", date);
+        return ApiResponse.ok(trainerScheduleMapper.findByDate(date));
+    }
+
+    // ── 원포인트 신청 (onepoint_requests) ─────────────────────
+
+    @GetMapping("/onepoint/requests")
+    public ApiResponse<Map<String, Object>> onepointRequests(
+            @RequestParam(defaultValue = "")  String status,
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "20") int size) {
+        log.info("[Class] GET /api/classes/onepoint/requests - status={}", status);
+        List<OnepointRequest> list = onepointRequestMapper.findAll(status, page * size, size);
+        long total                 = onepointRequestMapper.count(status);
+        return ApiResponse.ok(Map.of("requests", list, "total", total, "page", page));
+    }
+
+    @PatchMapping("/onepoint/requests/{id}/status")
+    public ApiResponse<Void> updateOnepointStatus(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        log.info("[Class] PATCH /api/classes/onepoint/requests/{}/status - status={}", id, body.get("status"));
+        onepointRequestMapper.updateStatus(id, body.get("status"), body.get("note"));
         return ApiResponse.ok();
     }
 }

@@ -17,9 +17,9 @@ public interface ClassMapper {
     void insert(ClassSession session);
     void update(ClassSession session);
     void cancel(@Param("id") Long id);
-    void enroll(@Param("classId") Long classId, @Param("memberId") Long memberId);
+    void enroll(@Param("classId") Long classId, @Param("memberId") String memberId);
     void incrementEnrolled(@Param("id") Long id);
-    void cancelEnrollment(@Param("classId") Long classId, @Param("memberId") Long memberId);
+    void cancelEnrollment(@Param("classId") Long classId, @Param("memberId") String memberId);
     void decrementEnrolled(@Param("id") Long id);
     List<ClassAttendee> findAttendees(@Param("classId") Long classId);
 }
