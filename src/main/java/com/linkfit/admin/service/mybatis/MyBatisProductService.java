@@ -3,14 +3,12 @@ package com.linkfit.admin.service.mybatis;
 import com.linkfit.admin.domain.Product;
 import com.linkfit.admin.mapper.ProductMapper;
 import com.linkfit.admin.service.ProductService;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-@Profile("dev")
 public class MyBatisProductService implements ProductService {
 
     private final ProductMapper productMapper;

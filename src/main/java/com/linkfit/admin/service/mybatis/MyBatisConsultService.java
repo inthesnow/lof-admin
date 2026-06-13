@@ -3,14 +3,12 @@ package com.linkfit.admin.service.mybatis;
 import com.linkfit.admin.domain.Consult;
 import com.linkfit.admin.mapper.ConsultMapper;
 import com.linkfit.admin.service.ConsultService;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
 @Service
-@Profile("dev")
 public class MyBatisConsultService implements ConsultService {
 
     private final ConsultMapper consultMapper;
