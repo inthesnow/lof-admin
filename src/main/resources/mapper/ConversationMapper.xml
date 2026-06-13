@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.ConversationMapper">
+
+    <!--
+        발송 이력: 동일 minute+category+content 묶음을 하나의 "발송 배치"로 그룹핑
+    -->
+    <select id="findBroadcasts" resultType="map">
+        SELECT mc.category                                      AS category,
+               cm.content                                       AS content,
+               up_t.name                                        AS senderName,
+               COUNT(DISTINCT mc.id)                            AS recipientCount,
+               DATE_FORMAT(mc.created_at, '%Y-%m-%d %H:%i')    AS sentAt,
+               MIN(mc.id)                                       AS id
+        FROM message_conversation mc
+        JOIN chat_message cm ON cm.conversation_id = mc.id
+        LEFT JOIN user_profiles up_t ON up_t.user_id = cm.sender_id
+        <where>
+            <if test="category != null and category != ''">
+                mc.category = #{category}
+            </if>
+            <if test="category == null or category == ''">
+                mc.category IN ('공지', '이벤트')
+            </if>
+        </where>
+        GROUP BY mc.category,
+                 cm.content,
+                 cm.sender_id,
+                 DATE_FORMAT(mc.created_at, '%Y-%m-%d %H:%i')
+        ORDER BY sentAt DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countBroadcasts" resultType="long">
+        SELECT COUNT(*) FROM (
+            SELECT 1
+            FROM message_conversation mc
+            JOIN chat_message cm ON cm.conversation_id = mc.id
+            <where>
+                <if test="category != null and category != ''">
+                    mc.category = #{category}
+                </if>
+                <if test="category == null or category == ''">
+                    mc.category IN ('공지', '이벤트')
+                </if>
+            </where>
+            GROUP BY mc.category,
+                     cm.content,
+                     cm.sender_id,
+                     DATE_FORMAT(mc.created_at, '%Y-%m-%d %H:%i')
+        ) t
+    </select>
+
+    <!-- 회원 대상 목록 -->
+    <select id="findMemberTargets" resultType="string">
+        SELECT u.user_id
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        WHERE u.role = 'MEMBER'
+          AND u.is_active = 1
+          AND u.deleted_at IS NULL
+        <if test="tier != null and tier != ''">
+            AND up.tier = #{tier}
+        </if>
+        <if test="trainerUserId != null and trainerUserId != ''">
+            AND up.trainer_id = #{trainerUserId}
+        </if>
+    </select>
+
+    <!-- 트레이너 대상 목록 -->
+    <select id="findTrainerTargets" resultType="string">
+        SELECT user_id FROM users
+        WHERE role = 'TRAINER' AND is_active = 1 AND deleted_at IS NULL
+    </select>
+
+    <!-- 발신자 목록 (트레이너) -->
+    <select id="findSenders" resultType="map">
+        SELECT u.user_id AS userId, up.name AS name
+        FROM users u
+        JOIN user_profiles up ON u.user_id = up.user_id
+        WHERE u.role = 'TRAINER' AND u.is_active = 1 AND u.deleted_at IS NULL
+        ORDER BY up.name
+    </select>
+
+    <!-- 대상 인원 수 미리보기 -->
+    <select id="countTarget" resultType="long">
+        SELECT COUNT(u.user_id)
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        <choose>
+            <when test="targetType == 'all_trainers'">
+                WHERE u.role = 'TRAINER' AND u.is_active = 1 AND u.deleted_at IS NULL
+            </when>
+            <otherwise>
+                WHERE u.role = 'MEMBER' AND u.is_active = 1 AND u.deleted_at IS NULL
+                <if test="tier != null and tier != ''">AND up.tier = #{tier}</if>
+                <if test="trainerUserId != null and trainerUserId != ''">AND up.trainer_id = #{trainerUserId}</if>
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 대화방 INSERT (useGeneratedKeys → id가 params map에 저장됨) -->
+    <insert id="insertConversation" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO message_conversation (member_id, trainer_id, category, created_at)
+        VALUES (#{memberId}, #{trainerId}, #{category}, NOW())
+    </insert>
+
+    <!-- 메시지 INSERT -->
+    <insert id="insertChatMessage">
+        INSERT INTO chat_message (conversation_id, sender_id, content, is_read, created_at)
+        VALUES (#{conversationId}, #{senderId}, #{content}, 0, NOW())
+    </insert>
+
+</mapper>

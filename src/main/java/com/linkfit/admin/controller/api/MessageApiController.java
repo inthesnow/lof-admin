@@ -1,14 +1,15 @@
 package com.linkfit.admin.controller.api;
 
 import com.linkfit.admin.common.ApiResponse;
-import com.linkfit.admin.domain.Message;
-import com.linkfit.admin.service.MessageService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
+import com.linkfit.admin.mapper.ConversationMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -16,41 +17,113 @@ public class MessageApiController {
 
     private static final Logger log = LoggerFactory.getLogger(MessageApiController.class);
 
-    private final MessageService messageService;
+    private final ConversationMapper conversationMapper;
 
-    public MessageApiController(MessageService messageService) {
-        this.messageService = messageService;
+    public MessageApiController(ConversationMapper conversationMapper) {
+        this.conversationMapper = conversationMapper;
     }
+
+    // ── 발신자(트레이너) 목록 ──────────────────────────────────────────
+
+    @GetMapping("/senders")
+    public ApiResponse<List<Map<String, Object>>> senders() {
+        log.info("[Message] GET /api/messages/senders");
+        return ApiResponse.ok(conversationMapper.findSenders());
+    }
+
+    // ── 발송 대상 인원 수 미리보기 ────────────────────────────────────
+
+    @GetMapping("/preview-count")
+    public ApiResponse<Map<String, Object>> previewCount(
+            @RequestParam(defaultValue = "all_members") String targetType,
+            @RequestParam(defaultValue = "") String tier,
+            @RequestParam(defaultValue = "") String trainerUserId) {
+        log.info("[Message] GET /api/messages/preview-count - targetType={}, tier={}", targetType, tier);
+        long count = conversationMapper.countTarget(targetType,
+                tier.isEmpty() ? null : tier,
+                trainerUserId.isEmpty() ? null : trainerUserId);
+        return ApiResponse.ok(Map.of("count", count, "targetType", targetType));
+    }
+
+    // ── 발송 이력 ─────────────────────────────────────────────────────
 
     @GetMapping
     public ApiResponse<Map<String, Object>> list(
+            @RequestParam(defaultValue = "") String category,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("[Message] GET /api/messages - page={}, size={}", page, size);
-        return ApiResponse.ok(Map.of(
-            "messages", messageService.findAll(page, size),
-            "total", messageService.count()
-        ));
+            @RequestParam(defaultValue = "20") int size) {
+        log.info("[Message] GET /api/messages - category={}, page={}", category, page);
+        String cat = category.isEmpty() ? null : category;
+        List<Map<String, Object>> list = conversationMapper.findBroadcasts(cat, page * size, size);
+        long total = conversationMapper.countBroadcasts(cat);
+        return ApiResponse.ok(Map.of("messages", list, "total", total, "page", page));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Message>> get(@PathVariable Long id) {
-        log.info("[Message] GET /api/messages/{id} - id={}", id);
-        return messageService.findById(id)
-            .map(m -> ResponseEntity.ok(ApiResponse.ok(m)))
-            .orElse(ResponseEntity.notFound().build());
-    }
+    // ── 메시지 발송 ───────────────────────────────────────────────────
 
-    @PostMapping
-    public ApiResponse<Message> send(@RequestBody Message message) {
-        log.info("[Message] POST /api/messages");
-        return ApiResponse.ok(messageService.send(message));
-    }
+    /**
+     * 공지·이벤트 일괄 발송
+     * body: { category, targetType, tier, trainerUserId, senderUserId, content }
+     * - targetType: all_members | all_trainers | tier | trainer
+     * - category: 공지 | 이벤트
+     */
+    @PostMapping("/broadcast")
+    public ApiResponse<Map<String, Object>> broadcast(@RequestBody Map<String, Object> body) {
+        String category    = (String) body.getOrDefault("category",    "공지");
+        String targetType  = (String) body.getOrDefault("targetType",  "all_members");
+        String tier        = (String) body.getOrDefault("tier",        "");
+        String trainerUserId = (String) body.getOrDefault("trainerUserId", "");
+        String senderUserId = (String) body.getOrDefault("senderUserId", "");
+        String content     = (String) body.getOrDefault("content",     "");
 
-    @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        log.info("[Message] DELETE /api/messages/{id} - id={}", id);
-        messageService.delete(id);
-        return ApiResponse.ok();
+        log.info("[Message] POST /api/messages/broadcast - category={}, targetType={}, tier={}", category, targetType, tier);
+
+        if (senderUserId.isEmpty()) {
+            return ApiResponse.error("발신 트레이너를 선택해주세요.");
+        }
+        if (content.isBlank()) {
+            return ApiResponse.error("메시지 내용을 입력해주세요.");
+        }
+
+        List<String> targetIds;
+        boolean toTrainers = "all_trainers".equals(targetType);
+
+        if (toTrainers) {
+            targetIds = conversationMapper.findTrainerTargets();
+        } else {
+            String tierFilter   = (tier == null || tier.isEmpty())         ? null : tier;
+            String trainerFilter = (trainerUserId == null || trainerUserId.isEmpty()) ? null : trainerUserId;
+            targetIds = conversationMapper.findMemberTargets(tierFilter, trainerFilter);
+        }
+
+        int sent  = 0;
+        List<String> failures = new ArrayList<>();
+
+        for (String recipientId : targetIds) {
+            try {
+                Map<String, Object> conv = new HashMap<>();
+                if (toTrainers) {
+                    // 트레이너 수신: trainer_id=recipient, member_id=sender(트레이너)
+                    conv.put("memberId",  senderUserId);
+                    conv.put("trainerId", recipientId);
+                } else {
+                    // 회원 수신: member_id=recipient, trainer_id=sender(트레이너)
+                    conv.put("memberId",  recipientId);
+                    conv.put("trainerId", senderUserId);
+                }
+                conv.put("category", category);
+                conversationMapper.insertConversation(conv);
+
+                long convId = ((Number) conv.get("id")).longValue();
+                conversationMapper.insertChatMessage(convId, senderUserId, content);
+                sent++;
+            } catch (Exception e) {
+                log.warn("[Message] broadcast insert failed for recipient={}: {}", recipientId, e.getMessage());
+                failures.add(recipientId);
+            }
+        }
+
+        log.info("[Message] broadcast complete - sent={}, failed={}", sent, failures.size());
+        return ApiResponse.ok(Map.of("sent", sent, "failed", failures.size(), "total", targetIds.size()));
     }
 }

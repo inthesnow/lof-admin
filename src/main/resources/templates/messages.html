@@ -6,6 +6,198 @@
     <title>LINK_Fit Admin — 메시지</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
+    <style>
+        /* ── 메시지 페이지 전용 ─────────────────────────────── */
+        .msg-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+        @media (max-width: 960px) { .msg-layout { grid-template-columns: 1fr; } }
+
+        .compose-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .compose-header {
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .compose-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        .compose-body { padding: 20px; }
+
+        .target-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .target-btn {
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: var(--surface);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color .15s, background .15s;
+        }
+        .target-btn:hover { border-color: var(--accent); background: #EBF3FF; }
+        .target-btn.active { border-color: var(--accent); background: #EBF3FF; }
+        .target-btn .target-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .target-btn .target-desc {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .preview-bar {
+            background: var(--surface-up);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .preview-bar strong { color: var(--accent); font-size: 15px; }
+
+        .char-count {
+            text-align: right;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .send-btn-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        /* ── 이력 패널 ────────────────────────────────────── */
+        .history-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .history-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .history-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+        .history-filters { display: flex; gap: 8px; }
+
+        .msg-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px;
+            align-items: start;
+        }
+        .msg-item:last-child { border-bottom: none; }
+        .msg-item-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .msg-item-icon.notice { background: #EBF3FF; color: var(--accent); }
+        .msg-item-icon.event  { background: #FFF3E0; color: #E65100; }
+        .msg-item-body {}
+        .msg-item-content {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .msg-item-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .msg-item-right { text-align: right; flex-shrink: 0; }
+        .msg-item-count { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+        .msg-item-count-label { font-size: 10px; color: var(--text-muted); }
+
+        .history-empty {
+            padding: 60px 20px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .history-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+        }
+
+        /* ── 확인 모달 ────────────────────────────────────── */
+        .confirm-modal .modal { max-width: 440px; }
+        .confirm-info {
+            background: var(--surface-up);
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+        .confirm-info .ci-row {
+            display: flex;
+            gap: 8px;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        .confirm-info .ci-label { color: var(--text-secondary); min-width: 68px; }
+        .confirm-info .ci-value { color: var(--text-primary); font-weight: 500; word-break: break-all; }
+        .confirm-warning {
+            background: #FFF8E1;
+            border: 1px solid #FFE082;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #7A5800;
+        }
+    </style>
 </head>
 <body>
 
@@ -18,147 +210,438 @@
             <button class="mobile-menu-btn" onclick="openSidebar()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
-            <h1 class="page-title">메시지</h1>
-        </div>
-        <div class="header-right">
-            <button class="btn btn-primary" onclick="openModal()">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                메시지 발송
-            </button>
+            <h1 class="page-title">메시지 관리</h1>
         </div>
     </header>
 
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>제목</th>
-                    <th>대상</th>
-                    <th>수신자 수</th>
-                    <th>상태</th>
-                    <th>발송 시간</th>
-                    <th>발송자</th>
-                    <th>관리</th>
-                </tr>
-            </thead>
-            <tbody id="messageTableBody">
-                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
-            </tbody>
-        </table>
-    </div>
+    <div class="content-area">
+        <div class="msg-layout">
 
-    <div class="pagination" id="pagination"></div>
+            <!-- ── 왼쪽: 메시지 작성 ──────────────────────── -->
+            <div class="compose-card">
+                <div class="compose-header">
+                    <svg viewBox="0 0 24 24" fill="var(--accent)" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    <h3>앱 메시지 발송</h3>
+                </div>
+                <div class="compose-body">
+
+                    <!-- 카테고리 -->
+                    <div class="form-group" style="margin-bottom:14px">
+                        <label class="form-label">메시지 유형</label>
+                        <div style="display:flex;gap:8px">
+                            <button class="tab-btn active" id="catNotice" onclick="setCategory('공지')">공지</button>
+                            <button class="tab-btn" id="catEvent" onclick="setCategory('이벤트')">이벤트</button>
+                        </div>
+                    </div>
+
+                    <!-- 발송 대상 -->
+                    <div class="form-group" style="margin-bottom:14px">
+                        <label class="form-label">발송 대상</label>
+                        <div class="target-grid">
+                            <button class="target-btn active" id="tAll" onclick="setTarget('all_members')">
+                                <span class="target-label">전체 회원</span>
+                                <span class="target-desc">활성 회원 전체</span>
+                            </button>
+                            <button class="target-btn" id="tTrainers" onclick="setTarget('all_trainers')">
+                                <span class="target-label">전체 트레이너</span>
+                                <span class="target-desc">재직 중인 트레이너</span>
+                            </button>
+                            <button class="target-btn" id="tTier" onclick="setTarget('tier')">
+                                <span class="target-label">등급별 회원</span>
+                                <span class="target-desc">특정 회원권 등급</span>
+                            </button>
+                            <button class="target-btn" id="tTrainer" onclick="setTarget('trainer')">
+                                <span class="target-label">담당 트레이너별</span>
+                                <span class="target-desc">특정 트레이너 담당 회원</span>
+                            </button>
+                        </div>
+
+                        <!-- 등급 선택 (tier 선택 시 표시) -->
+                        <div id="tierFilter" style="display:none;margin-top:8px">
+                            <select class="form-select" id="tierSelect" onchange="updatePreview()">
+                                <option value="">등급 선택...</option>
+                                <option value="INTENSIVE_FIT">INTENSIVE FIT</option>
+                                <option value="REGULAR_FIT">REGULAR FIT</option>
+                                <option value="LIGHT_FIT">LIGHT FIT</option>
+                                <option value="BASIC">BASIC</option>
+                            </select>
+                        </div>
+
+                        <!-- 트레이너 선택 (trainer 대상 시 표시) -->
+                        <div id="trainerFilter" style="display:none;margin-top:8px">
+                            <select class="form-select" id="trainerTargetSelect" onchange="updatePreview()">
+                                <option value="">담당 트레이너 선택...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 발신자(트레이너) -->
+                    <div class="form-group" style="margin-bottom:14px" id="senderRow">
+                        <label class="form-label">발신 트레이너 <span style="color:var(--error)">*</span></label>
+                        <select class="form-select" id="senderSelect">
+                            <option value="">트레이너 선택...</option>
+                        </select>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">앱에서 이 트레이너가 보낸 메시지로 표시됩니다.</div>
+                    </div>
+
+                    <!-- 대상 인원 미리보기 -->
+                    <div class="preview-bar" id="previewBar">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                        발송 예상 인원: <strong id="previewCount">-</strong>명
+                    </div>
+
+                    <!-- 내용 -->
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">메시지 내용 <span style="color:var(--error)">*</span></label>
+                        <textarea class="form-textarea" id="msgContent" placeholder="앱에서 회원에게 표시될 메시지 내용을 입력하세요..." style="min-height:140px" oninput="onContentInput()"></textarea>
+                        <div class="char-count"><span id="charCount">0</span> / 500자</div>
+                    </div>
+
+                    <div class="send-btn-row">
+                        <button class="btn btn-secondary" onclick="clearForm()">초기화</button>
+                        <button class="btn btn-primary" onclick="openConfirm()">
+                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                            발송하기
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── 오른쪽: 발송 이력 ──────────────────────── -->
+            <div class="history-card">
+                <div class="history-header">
+                    <h3>발송 이력</h3>
+                    <div class="history-filters">
+                        <select class="form-select" id="histCategory" onchange="loadHistory()" style="font-size:12px;padding:5px 10px">
+                            <option value="">전체</option>
+                            <option value="공지">공지</option>
+                            <option value="이벤트">이벤트</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="loadHistory()" style="padding:5px 10px;font-size:12px">새로고침</button>
+                    </div>
+                </div>
+                <div id="historyList">
+                    <div class="history-empty">로딩 중...</div>
+                </div>
+                <div class="history-footer" id="histPagination" style="display:none">
+                    <div class="pagination" id="histPaginationInner"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </main>
 
-<!-- 메시지 발송 모달 -->
-<div class="modal-overlay" id="messageModal">
+<!-- ── 발송 확인 모달 ──────────────────────────────────────── -->
+<div class="modal-overlay confirm-modal" id="confirmModal">
     <div class="modal">
         <div class="modal-header">
-            <span class="modal-title">메시지 발송</span>
-            <button class="modal-close" onclick="closeModal()">
+            <span class="modal-title">발송 확인</span>
+            <button class="modal-close" onclick="closeConfirm()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
         </div>
         <div class="modal-body">
-            <div class="form-grid">
-                <div class="form-group full">
-                    <label class="form-label">제목 *</label>
-                    <input type="text" class="form-input" id="mTitle" placeholder="메시지 제목">
+            <div class="confirm-info">
+                <div class="ci-row">
+                    <span class="ci-label">유형</span>
+                    <span class="ci-value" id="cfCategory">-</span>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">발송 대상</label>
-                    <select class="form-select" id="mTargetType">
-                        <option value="ALL">전체 회원</option>
-                        <option value="MEMBER">유효 회원만</option>
-                        <option value="INDIVIDUAL">개별 지정</option>
-                    </select>
+                <div class="ci-row">
+                    <span class="ci-label">발송 대상</span>
+                    <span class="ci-value" id="cfTarget">-</span>
                 </div>
-                <div class="form-group full">
-                    <label class="form-label">내용 *</label>
-                    <textarea class="form-textarea" id="mContent" placeholder="메시지 내용..." style="min-height:120px"></textarea>
+                <div class="ci-row">
+                    <span class="ci-label">수신자 수</span>
+                    <span class="ci-value" id="cfCount">-</span>
                 </div>
+                <div class="ci-row">
+                    <span class="ci-label">발신 트레이너</span>
+                    <span class="ci-value" id="cfSender">-</span>
+                </div>
+                <div class="ci-row">
+                    <span class="ci-label">내용 미리보기</span>
+                    <span class="ci-value" id="cfContent" style="white-space:pre-wrap">-</span>
+                </div>
+            </div>
+            <div class="confirm-warning">
+                발송 후에는 취소할 수 없습니다. 내용을 다시 한번 확인해주세요.
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-            <button class="btn btn-primary" onclick="sendMessage()">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-                발송
+            <button class="btn btn-secondary" onclick="closeConfirm()">취소</button>
+            <button class="btn btn-primary" id="confirmSendBtn" onclick="doSend()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                발송 확인
             </button>
         </div>
     </div>
 </div>
 
 <script>
-let currentPage = 0;
-const pageSize = 10;
+// ── State ────────────────────────────────────────────────────
+let currentCategory = '공지';
+let currentTarget   = 'all_members';
+let senders         = [];
+let trainersList    = [];
+let histPage        = 0;
+const HIST_SIZE     = 10;
 
-function csrfHeaders(extra) {
-    return Object.assign({ 'Content-Type': 'application/json' }, extra);
+// ── Init ─────────────────────────────────────────────────────
+(async function init() {
+    await loadSenders();
+    updatePreview();
+    loadHistory();
+})();
+
+// ── 발신자(트레이너) 목록 로드 ───────────────────────────────
+async function loadSenders() {
+    try {
+        const res  = await fetch('/api/messages/senders', { credentials: 'include' });
+        const json = await res.json();
+        senders = json.data || [];
+        const sel = document.getElementById('senderSelect');
+        senders.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.userId;
+            opt.textContent = s.name;
+            sel.appendChild(opt);
+        });
+
+        // 트레이너 담당별 필터용 드롭다운도 채우기
+        const tSel = document.getElementById('trainerTargetSelect');
+        senders.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.userId;
+            opt.textContent = s.name + ' 담당 회원';
+            tSel.appendChild(opt);
+        });
+    } catch(e) { console.error('Failed to load senders', e); }
 }
 
-const targetLabel = { ALL: '전체 회원', MEMBER: '유효 회원', INDIVIDUAL: '개별 지정' };
-const statusBadge = { SENT: 'badge-sent', SCHEDULED: 'badge-pending', FAILED: 'badge-expired' };
-const statusLabel = { SENT: '발송 완료', SCHEDULED: '예약', FAILED: '실패' };
-
-async function loadMessages() {
-    const res = await fetch(`/api/messages?page=${currentPage}&size=${pageSize}`);
-    const json = await res.json();
-    renderTable(json.data.messages, json.data.total);
+// ── 카테고리 선택 ────────────────────────────────────────────
+function setCategory(cat) {
+    currentCategory = cat;
+    document.getElementById('catNotice').classList.toggle('active', cat === '공지');
+    document.getElementById('catEvent').classList.toggle('active', cat === '이벤트');
 }
 
-function renderTable(messages, total) {
-    const tbody = document.getElementById('messageTableBody');
-    if (!messages.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">메시지 내역이 없습니다.</td></tr>`;
+// ── 발송 대상 선택 ───────────────────────────────────────────
+function setTarget(t) {
+    currentTarget = t;
+    ['All','Trainers','Tier','Trainer'].forEach(x => document.getElementById('t'+x).classList.remove('active'));
+    const map = { all_members:'All', all_trainers:'Trainers', tier:'Tier', trainer:'Trainer' };
+    document.getElementById('t' + map[t]).classList.add('active');
+
+    document.getElementById('tierFilter').style.display    = t === 'tier'    ? '' : 'none';
+    document.getElementById('trainerFilter').style.display = t === 'trainer' ? '' : 'none';
+
+    // 트레이너 대상 시 발신자 행 숨기기 (트레이너에게 보낼 때 발신자 개념 다름)
+    document.getElementById('senderRow').style.display = t === 'all_trainers' ? 'none' : '';
+
+    updatePreview();
+}
+
+// ── 대상 인원 미리보기 ───────────────────────────────────────
+let previewTimer = null;
+function updatePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(fetchPreview, 300);
+}
+
+async function fetchPreview() {
+    const params = new URLSearchParams({ targetType: currentTarget });
+    if (currentTarget === 'tier') {
+        const t = document.getElementById('tierSelect').value;
+        if (t) params.set('tier', t);
+    }
+    if (currentTarget === 'trainer') {
+        const tr = document.getElementById('trainerTargetSelect').value;
+        if (tr) params.set('trainerUserId', tr);
+    }
+    try {
+        const res  = await fetch('/api/messages/preview-count?' + params, { credentials: 'include' });
+        const json = await res.json();
+        document.getElementById('previewCount').textContent = json.data?.count ?? '-';
+    } catch(e) {}
+}
+
+// ── 내용 글자수 ──────────────────────────────────────────────
+function onContentInput() {
+    const v = document.getElementById('msgContent').value;
+    document.getElementById('charCount').textContent = v.length;
+}
+
+// ── 폼 초기화 ────────────────────────────────────────────────
+function clearForm() {
+    document.getElementById('msgContent').value = '';
+    document.getElementById('charCount').textContent = '0';
+    document.getElementById('senderSelect').value = '';
+    setCategory('공지');
+    setTarget('all_members');
+    updatePreview();
+}
+
+// ── 발송 확인 모달 ───────────────────────────────────────────
+const targetLabels = {
+    all_members:  '전체 회원',
+    all_trainers: '전체 트레이너',
+    tier:         '등급별 회원',
+    trainer:      '담당 트레이너별 회원',
+};
+
+function openConfirm() {
+    const content    = document.getElementById('msgContent').value.trim();
+    const senderSel  = document.getElementById('senderSelect');
+    const senderName = senderSel.options[senderSel.selectedIndex]?.text || '';
+    const senderVal  = senderSel.value;
+    const count      = document.getElementById('previewCount').textContent;
+
+    if (!content) { alert('메시지 내용을 입력해주세요.'); return; }
+    if (currentTarget !== 'all_trainers' && !senderVal) {
+        alert('발신 트레이너를 선택해주세요.'); return;
+    }
+
+    let targetDesc = targetLabels[currentTarget] || currentTarget;
+    if (currentTarget === 'tier') {
+        const t = document.getElementById('tierSelect').value;
+        targetDesc += t ? ` (${t.replace('_', ' ')})` : '';
+    }
+    if (currentTarget === 'trainer') {
+        const tSel = document.getElementById('trainerTargetSelect');
+        targetDesc += tSel.value ? ` (${tSel.options[tSel.selectedIndex].text})` : '';
+    }
+
+    document.getElementById('cfCategory').textContent = currentCategory;
+    document.getElementById('cfTarget').textContent   = targetDesc;
+    document.getElementById('cfCount').textContent    = count + '명';
+    document.getElementById('cfSender').textContent   = currentTarget === 'all_trainers' ? '(자기 자신)' : senderName;
+    document.getElementById('cfContent').textContent  = content.length > 200 ? content.slice(0, 200) + '…' : content;
+
+    document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm() { document.getElementById('confirmModal').classList.remove('open'); }
+
+// ── 실제 발송 ────────────────────────────────────────────────
+async function doSend() {
+    const btn = document.getElementById('confirmSendBtn');
+    btn.disabled = true;
+    btn.textContent = '발송 중...';
+
+    const senderVal = document.getElementById('senderSelect').value;
+    const body = {
+        category:      currentCategory,
+        targetType:    currentTarget,
+        senderUserId:  currentTarget === 'all_trainers' ? null : senderVal,
+        content:       document.getElementById('msgContent').value.trim(),
+    };
+    if (currentTarget === 'tier') {
+        body.tier = document.getElementById('tierSelect').value;
+    }
+    if (currentTarget === 'trainer') {
+        body.trainerUserId = document.getElementById('trainerTargetSelect').value;
+    }
+
+    try {
+        const res  = await fetch('/api/messages/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (json.success) {
+            const d = json.data;
+            alert(`발송 완료!\n성공: ${d.sent}명 / 실패: ${d.failed}명`);
+            closeConfirm();
+            clearForm();
+            loadHistory();
+        } else {
+            alert('오류: ' + json.message);
+        }
+    } catch(e) {
+        alert('발송 중 오류가 발생했습니다.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> 발송 확인';
+    }
+}
+
+// ── 발송 이력 ────────────────────────────────────────────────
+async function loadHistory(page) {
+    if (page !== undefined) histPage = page;
+    const category = document.getElementById('histCategory').value;
+    const params   = new URLSearchParams({
+        category, page: histPage, size: HIST_SIZE
+    });
+    try {
+        const res  = await fetch('/api/messages?' + params, { credentials: 'include' });
+        const json = await res.json();
+        renderHistory(json.data?.messages || [], json.data?.total || 0);
+    } catch(e) {
+        document.getElementById('historyList').innerHTML =
+            '<div class="history-empty">이력을 불러오지 못했습니다.</div>';
+    }
+}
+
+function renderHistory(list, total) {
+    const el = document.getElementById('historyList');
+    if (!list.length) {
+        el.innerHTML = '<div class="history-empty">발송된 메시지가 없습니다.</div>';
+        document.getElementById('histPagination').style.display = 'none';
         return;
     }
-    tbody.innerHTML = messages.map(m => `
-        <tr>
-            <td>${m.title}</td>
-            <td>${targetLabel[m.targetType] || m.targetType}</td>
-            <td>${m.recipientCount}명</td>
-            <td><span class="badge ${statusBadge[m.status]}">${statusLabel[m.status]}</span></td>
-            <td>${m.sentAt ? m.sentAt.replace('T', ' ').substring(0,16) : '-'}</td>
-            <td>${m.senderName || '-'}</td>
-            <td>
-                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px" onclick="deleteMessage(${m.id})">삭제</button>
-            </td>
-        </tr>
-    `).join('');
 
-    const totalPages = Math.ceil(total / pageSize);
-    const pag = document.getElementById('pagination');
-    if (totalPages <= 1) { pag.innerHTML = ''; return; }
-    let html = `<button class="page-btn" onclick="goPage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>&#8249;</button>`;
+    el.innerHTML = list.map(m => {
+        const isEvent  = m.category === '이벤트';
+        const iconCls  = isEvent ? 'event' : 'notice';
+        const iconPath = isEvent
+            ? 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z'
+            : 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z';
+        const badgeCls = isEvent ? 'badge-pending' : 'badge-success';
+        const cnt      = m.recipientCount ?? 0;
+        const preview  = (m.content || '').slice(0, 120);
+        const from     = m.senderName || '시스템';
+        const at       = (m.sentAt || '').replace('T', ' ').substring(0, 16);
+
+        return `
+        <div class="msg-item">
+            <div class="msg-item-icon ${iconCls}">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="${iconPath}"/></svg>
+            </div>
+            <div class="msg-item-body">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                    <span class="badge ${badgeCls}" style="font-size:10px">${m.category}</span>
+                    <span style="font-size:11px;color:var(--text-muted)">${at}</span>
+                    <span style="font-size:11px;color:var(--text-muted)">· ${from}</span>
+                </div>
+                <div class="msg-item-content">${escHtml(preview)}</div>
+            </div>
+            <div class="msg-item-right">
+                <div class="msg-item-count">${cnt}</div>
+                <div class="msg-item-count-label">수신자</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // 페이지네이션
+    const totalPages = Math.ceil(total / HIST_SIZE);
+    const pagEl = document.getElementById('histPagination');
+    if (totalPages <= 1) { pagEl.style.display = 'none'; return; }
+
+    pagEl.style.display = '';
+    const inner = document.getElementById('histPaginationInner');
+    let html = `<button class="page-btn" onclick="loadHistory(${histPage-1})" ${histPage===0?'disabled':''}>&#8249;</button>`;
     for (let i = 0; i < totalPages; i++) {
-        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i + 1}</button>`;
+        html += `<button class="page-btn ${i===histPage?'active':''}" onclick="loadHistory(${i})">${i+1}</button>`;
     }
-    html += `<button class="page-btn" onclick="goPage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>&#8250;</button>`;
-    pag.innerHTML = html;
+    html += `<button class="page-btn" onclick="loadHistory(${histPage+1})" ${histPage>=totalPages-1?'disabled':''}>&#8250;</button>`;
+    inner.innerHTML = html;
 }
 
-function goPage(p) { currentPage = p; loadMessages(); }
-
-function openModal() { document.getElementById('messageModal').classList.add('open'); }
-function closeModal() { document.getElementById('messageModal').classList.remove('open'); }
-
-async function sendMessage() {
-    const body = {
-        title: document.getElementById('mTitle').value,
-        content: document.getElementById('mContent').value,
-        targetType: document.getElementById('mTargetType').value,
-        senderName: '관리자',
-    };
-    await fetch('/api/messages', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
-    closeModal();
-    loadMessages();
-}
-
-async function deleteMessage(id) {
-    if (!confirm('메시지를 삭제하시겠습니까?')) return;
-    await fetch(`/api/messages/${id}`, { method: 'DELETE', headers: csrfHeaders() });
-    loadMessages();
+// ── utils ────────────────────────────────────────────────────
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function openSidebar() {
@@ -169,8 +652,6 @@ function closeSidebar() {
     document.querySelector('.sidebar').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('open');
 }
-
-loadMessages();
 </script>
 </body>
 </html>

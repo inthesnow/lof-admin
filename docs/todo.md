@@ -82,12 +82,13 @@
 ### 9. 메시지(공지·이벤트)
 > ⚠️ `message` / `message_recipient` 테이블은 DB에서 **미사용(레거시)**  
 > 실제 앱 쪽지는 `message_conversation` + `chat_message` 사용 (category: '공지'/'이벤트')
-- [ ] 메시지 페이지 리팩토링 — `message_conversation`(category='공지'/'이벤트') 기반으로 전환
-- [ ] 전체 회원 공지 발송 — `message_conversation` + `chat_message` INSERT (모든 회원 대상)
-- [ ] 트레이너 전용 공지 발송
-- [ ] 특정 회원 그룹 발송 (tier별, 담당 트레이너별)
-- [ ] 이벤트 공지 등록 (category='이벤트')
-- [ ] 발송 이력 조회 — `message_conversation` + `chat_message` 기반
+- [x] 메시지 페이지 리팩토링 — `ConversationMapper` + `message_conversation`(category='공지'/'이벤트') 기반으로 전환
+- [x] 전체 회원 공지 발송 — `message_conversation` + `chat_message` 일괄 INSERT
+- [x] 트레이너 전용 공지 발송 — `all_trainers` 대상, trainer_id=recipient 기반
+- [x] 특정 회원 그룹 발송 (tier별, 담당 트레이너별)
+- [x] 발송 이력 조회 — `message_conversation` + `chat_message` 그룹핑 (minute+content+sender)
+- [ ] 사진 발송 기능 (chat_message.record_id 활용) — 추후 대응
+- [ ] 일방통행 (회신 불가) 플래그 — DB 컬럼 추가 필요
 
 ---
 
@@ -268,10 +269,10 @@
 #### 메시지 (`/messages`)
 | 목적 | Method | 엔드포인트 |
 |---|---|---|
-| 메시지 목록 조회 | GET | `/api/messages?page=&size=` |
-| 메시지 발송 | POST | `/api/messages` |
-| 메시지 상세 조회 | GET | `/api/messages/{id}` |
-| 메시지 삭제 | DELETE | `/api/messages/{id}` |
+| 발송 이력 조회 | GET | `/api/messages?category=&page=&size=` |
+| 일괄 발송 | POST | `/api/messages/broadcast` |
+| 발신자(트레이너) 목록 | GET | `/api/messages/senders` |
+| 발송 대상 인원 미리보기 | GET | `/api/messages/preview-count?targetType=&tier=&trainerUserId=` |
 
 #### 설정 (`/settings`)
 | 목적 | Method | 엔드포인트 |
@@ -311,6 +312,6 @@
 | `users.id` | `BIGINT` AUTO_INCREMENT (내부용) | 미사용 | — |
 | 등급 컬럼 | `user_profiles.tier` | `user_profiles.tier` | ✅ 수정 완료 |
 | 회원권 유형 | `user_profiles.member_type` | 동일 | ✅ |
-| 메시지 시스템 | `message_conversation` + `chat_message` | `message` + `message_recipient` (레거시) | **재설계 필요** |
+| 메시지 시스템 | `message_conversation` + `chat_message` | `ConversationMapper` (신규) | ✅ 재설계 완료 |
 | 티켓 테이블 | `member_tickets`, `ticket_logs`, `ticket_purchases` | 미연동 | 연동 가능 |
 | `class_session` | 레거시(미사용) | 어드민 전용 유지 | 어드민 독립 사용 허용 |
