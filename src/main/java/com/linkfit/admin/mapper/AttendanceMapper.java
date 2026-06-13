@@ -22,4 +22,14 @@ public interface AttendanceMapper {
 
     List<Map<String, Object>> dailyTrend(@Param("startDate") String startDate,
                                           @Param("endDate") String endDate);
+
+    // 회원별 출석 통계 (이번 달)
+    List<Map<String, Object>> memberMonthlyStats(@Param("yearMonth") String yearMonth);
+
+    // 장기 미출석 회원
+    List<Map<String, Object>> inactiveMembers(@Param("days") int days);
+
+    // 유증 등록/삭제
+    void addFreeze(MemberFreeze freeze);
+    void deleteFreeze(@Param("id") Long id);
 }

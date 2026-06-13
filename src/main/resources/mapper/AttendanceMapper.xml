@@ -121,4 +121,52 @@
          ORDER BY attend_date ASC
     </select>
 
+    <!-- 회원별 이번 달 출석 통계 -->
+    <select id="memberMonthlyStats" resultType="map">
+        SELECT
+            u.user_id                       AS memberId,
+            up.name                         AS memberName,
+            up.gender                       AS gender,
+            up.tier                         AS tier,
+            COUNT(a.id)                     AS attendCount,
+            MAX(a.attend_date)              AS lastAttend
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        LEFT JOIN attendance a
+            ON a.user_id = u.user_id
+            AND DATE_FORMAT(a.attend_date, '%Y-%m') = #{yearMonth}
+        WHERE u.role = 'MEMBER' AND u.is_active = 1 AND u.deleted_at IS NULL
+        GROUP BY u.user_id, up.name, up.gender, up.tier
+        ORDER BY attendCount DESC, up.name ASC
+    </select>
+
+    <!-- 장기 미출석 회원 -->
+    <select id="inactiveMembers" resultType="map">
+        SELECT
+            u.user_id                       AS memberId,
+            up.name                         AS memberName,
+            up.gender                       AS gender,
+            up.tier                         AS tier,
+            MAX(a.attend_date)              AS lastAttend,
+            DATEDIFF(CURDATE(), MAX(a.attend_date)) AS daysSince
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        LEFT JOIN attendance a ON a.user_id = u.user_id
+        WHERE u.role = 'MEMBER' AND u.is_active = 1 AND u.deleted_at IS NULL
+        GROUP BY u.user_id, up.name, up.gender, up.tier
+        HAVING daysSince >= #{days} OR lastAttend IS NULL
+        ORDER BY daysSince DESC
+    </select>
+
+    <!-- 유증 등록 -->
+    <insert id="addFreeze" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO member_freeze (user_id, freeze_start, freeze_end, reason)
+        VALUES (#{memberId}, #{freezeStart}, #{freezeEnd}, #{reason})
+    </insert>
+
+    <!-- 유증 삭제 -->
+    <delete id="deleteFreeze">
+        DELETE FROM member_freeze WHERE id = #{id}
+    </delete>
+
 </mapper>

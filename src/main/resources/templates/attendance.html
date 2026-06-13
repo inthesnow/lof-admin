@@ -3,54 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>링크온핏 CRM — 루틴 출석</title>
+    <title>링크온핏 CRM — 출석 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
+        /* ── 메인 탭 ── */
+        .at-tab-nav {
+            display: flex; gap: 0;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface); padding: 0 24px;
+            flex-shrink: 0;
+        }
+        .at-tab {
+            padding: 12px 20px; background: none;
+            border: none; border-bottom: 2px solid transparent;
+            color: var(--text-secondary); font-size: 14px; font-weight: 500;
+            cursor: pointer; transition: color .15s, border-color .15s; margin-bottom: -1px;
+        }
+        .at-tab:hover  { color: var(--text-primary); }
+        .at-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* ── 요약 카드 ── */
         .attend-summary {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
-            padding: 20px 24px; border-bottom: 1px solid var(--border);
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+            padding: 16px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
         }
         .attend-card {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 12px; padding: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px 16px;
         }
-        .attend-card-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-        .attend-card-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+        .attend-card-label { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+        .attend-card-value { font-size: 26px; font-weight: 700; color: var(--text-primary); line-height: 1; }
         .attend-card-sub   { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
 
-        /* 주간 달력 */
-        .week-nav {
-            display: flex; align-items: center; gap: 12px;
-            padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface);
-        }
-        .week-grid {
-            display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
-            padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface);
-        }
+        /* ── 기간 탭 ── */
+        .period-tabs { display:flex; gap:4px; padding:12px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+        .period-tab  { padding:5px 14px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-muted); font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
+        .period-tab.active { background:var(--surface-up); border-color:var(--accent); color:var(--accent); font-weight:600; }
+
+        /* ── 주간 달력 ── */
+        .week-nav { display:flex; align-items:center; gap:12px; padding:12px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+        .week-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; padding:12px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
         .week-cell {
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            padding: 8px 4px; border-radius: 8px; cursor: pointer;
-            border: 1px solid var(--border); background: var(--surface-up);
-            transition: all 0.15s; min-width: 0;
+            display:flex; flex-direction:column; align-items:center; gap:3px;
+            padding:7px 4px; border-radius:8px; cursor:pointer;
+            border:1px solid var(--border); background:var(--surface-up); transition:all .15s;
         }
-        .week-cell:hover  { border-color: var(--accent); }
-        .week-cell.today  { border-color: var(--accent); background: rgba(59,130,246,0.07); }
-        .week-cell.selected { background: var(--accent); border-color: var(--accent); }
+        .week-cell:hover   { border-color:var(--accent); }
+        .week-cell.today   { border-color:var(--accent); background:rgba(9,105,218,.06); }
+        .week-cell.selected { background:var(--accent); border-color:var(--accent); }
         .week-cell.selected .wc-day,
         .week-cell.selected .wc-date,
-        .week-cell.selected .wc-cnt { color: #fff; }
-        .wc-day   { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
-        .wc-date  { font-size: 16px; font-weight: 700; color: var(--text-primary); }
-        .wc-cnt   { font-size: 11px; color: var(--accent); font-weight: 600; }
-        .week-cell.selected .wc-cnt { color: rgba(255,255,255,0.8); }
+        .week-cell.selected .wc-cnt { color:#fff; }
+        .wc-day  { font-size:10px; font-weight:600; color:var(--text-muted); }
+        .wc-date { font-size:15px; font-weight:700; color:var(--text-primary); }
+        .wc-cnt  { font-size:11px; color:var(--accent); font-weight:600; }
 
-        .trend-section { padding: 20px 24px; border-bottom: 1px solid var(--border); }
-        .trend-title   { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
-        .trend-canvas-wrap { position: relative; height: 160px; }
+        /* ── 트렌드 ── */
+        .trend-section { padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+        .trend-title   { font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:10px; }
+        .trend-canvas-wrap { position:relative; height:130px; }
+
+        /* ── 회원별 현황 ── */
+        .ms-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .rate-bar { width: 80px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
+        .rate-fill { height: 100%; border-radius: 3px; }
+
+        /* ── 미출석 ── */
+        .inactive-filter { display:flex; gap:8px; padding:14px 24px; border-bottom:1px solid var(--border); align-items:center; flex-shrink:0; }
+        .inactive-filter label { font-size:13px; color:var(--text-secondary); }
+        .inactive-day-select { padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+
+        /* ── 유증 관리 ── */
+        .freeze-banner {
+            display: flex; align-items: center; gap: 10px; padding: 14px 24px;
+            border-bottom: 1px solid var(--border); flex-shrink: 0;
+            font-size: 13px; color: var(--text-secondary);
+        }
+        .freeze-date-input { padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+
+        @media(max-width:768px){
+            .attend-summary { grid-template-columns:repeat(2,1fr); }
+        }
     </style>
 </head>
 <body>
@@ -58,16 +96,16 @@
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside th:replace="~{fragments/sidebar :: sidebar('attendance')}"></aside>
 
-<main class="main">
+<main class="main" style="display:flex;flex-direction:column;overflow:hidden">
     <header class="main-header">
         <div class="header-left">
             <button class="mobile-menu-btn" onclick="openSidebar()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
-            <h1 class="page-title">루틴 출석</h1>
+            <h1 class="page-title">출석 관리</h1>
         </div>
         <div class="header-right">
-            <button class="btn btn-primary" onclick="openModal()">
+            <button class="btn btn-primary" onclick="openCheckInModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                 출석 체크
             </button>
@@ -79,7 +117,7 @@
         <div class="attend-card">
             <div class="attend-card-label">전체 출석</div>
             <div class="attend-card-value" id="sumTotal">-</div>
-            <div class="attend-card-sub" id="sumGender">-</div>
+            <div class="attend-card-sub" id="sumGender"></div>
         </div>
         <div class="attend-card">
             <div class="attend-card-label">회원권 출석</div>
@@ -89,57 +127,161 @@
             <div class="attend-card-label">루틴 수업 출석</div>
             <div class="attend-card-value" id="sumClass">-</div>
         </div>
+        <div class="attend-card">
+            <div class="attend-card-label">유증 회원</div>
+            <div class="attend-card-value" id="sumFrozen">-</div>
+            <div class="attend-card-sub" style="color:var(--warning)">오늘 기준</div>
+        </div>
     </div>
 
-    <!-- 주간 네비게이션 -->
-    <div class="week-nav">
-        <button class="date-btn" onclick="moveWeek(-1)">&#8249;</button>
-        <span style="font-size:13px;font-weight:600;color:var(--text-secondary)" id="weekLabel"></span>
-        <button class="date-btn" onclick="moveWeek(1)">&#8250;</button>
-    </div>
-    <div class="week-grid" id="weekGrid"></div>
-
-    <!-- 30일 출석 트렌드 -->
-    <div class="trend-section">
-        <div class="trend-title">최근 30일 출석 추이</div>
-        <div class="trend-canvas-wrap"><canvas id="trendChart"></canvas></div>
+    <!-- 메인 탭 -->
+    <div class="at-tab-nav">
+        <button class="at-tab active" id="atTab-daily"    onclick="setAtTab('daily',this)">출석 현황</button>
+        <button class="at-tab"        id="atTab-member"   onclick="setAtTab('member',this)">회원별 현황</button>
+        <button class="at-tab"        id="atTab-inactive" onclick="setAtTab('inactive',this)">장기 미출석</button>
+        <button class="at-tab"        id="atTab-freeze"   onclick="setAtTab('freeze',this)">유증 관리</button>
     </div>
 
-    <!-- 테이블 -->
-    <div class="search-bar">
-        <select class="filter-select" id="typeFilter" onchange="loadAttendance()">
-            <option value="">전체</option>
-            <option value="MEMBERSHIP">회원권</option>
-            <option value="GROUP">그룹 루틴</option>
-            <option value="PT">PT 루틴</option>
-        </select>
+    <!-- ─── 패널: 출석 현황 ─── -->
+    <div id="panel-daily" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+
+        <!-- 기간 탭 -->
+        <div class="period-tabs">
+            <button class="period-tab active" onclick="setPeriod('daily',this)">일별</button>
+            <button class="period-tab"        onclick="setPeriod('weekly',this)">주간</button>
+            <button class="period-tab"        onclick="setPeriod('monthly',this)">월별</button>
+        </div>
+
+        <!-- 주간 달력 (일별/주간 모드) -->
+        <div id="weekCalSection">
+            <div class="week-nav">
+                <button class="date-btn" onclick="moveWeek(-1)">&#8249;</button>
+                <span style="font-size:13px;font-weight:600;color:var(--text-secondary)" id="weekLabel"></span>
+                <button class="date-btn" onclick="moveWeek(1)">&#8250;</button>
+            </div>
+            <div class="week-grid" id="weekGrid"></div>
+        </div>
+
+        <!-- 월 네비게이션 (월별 모드) -->
+        <div id="monthNavSection" style="display:none">
+            <div class="week-nav">
+                <button class="date-btn" onclick="moveMonth(-1)">&#8249;</button>
+                <span style="font-size:13px;font-weight:600;color:var(--text-secondary)" id="monthLabel"></span>
+                <button class="date-btn" onclick="moveMonth(1)">&#8250;</button>
+            </div>
+        </div>
+
+        <!-- 30일 트렌드 (일별 모드) -->
+        <div id="trendSection" class="trend-section">
+            <div class="trend-title">최근 30일 출석 추이</div>
+            <div class="trend-canvas-wrap"><canvas id="trendChart"></canvas></div>
+        </div>
+
+        <!-- 테이블 -->
+        <div class="search-bar" style="flex-shrink:0">
+            <select class="filter-select" id="typeFilter" onchange="loadAttendance()">
+                <option value="">전체</option>
+                <option value="MEMBERSHIP">회원권</option>
+                <option value="GROUP">그룹 루틴</option>
+                <option value="PT">PT 루틴</option>
+            </select>
+        </div>
+        <div style="overflow:auto;flex:1">
+            <div class="table-wrap" style="margin:0">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>이름</th><th>성별</th><th>유형</th>
+                            <th>날짜</th><th>체크인 시간</th><th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendTableBody">
+                        <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>이름</th>
-                    <th>성별</th>
-                    <th>유형</th>
-                    <th>날짜</th>
-                    <th>체크인 시간</th>
-                    <th>관리</th>
-                </tr>
-            </thead>
-            <tbody id="attendTableBody">
-                <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
-            </tbody>
-        </table>
+    <!-- ─── 패널: 회원별 현황 ─── -->
+    <div id="panel-member" style="display:none;overflow:auto;flex:1">
+        <div class="ms-header">
+            <input type="month" class="form-input" id="memberStatsMonth" style="width:160px" onchange="loadMemberStats()">
+            <span style="font-size:12px;color:var(--text-muted)">해당 월 회원별 출석 횟수</span>
+        </div>
+        <div class="table-wrap" style="margin:16px 24px 32px">
+            <table>
+                <thead>
+                    <tr>
+                        <th>이름</th><th>성별</th><th>등급</th>
+                        <th>출석 횟수</th><th>이행률 (30회 기준)</th><th>마지막 출석</th>
+                    </tr>
+                </thead>
+                <tbody id="memberStatsBody">
+                    <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">월을 선택해주세요.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── 패널: 장기 미출석 ─── -->
+    <div id="panel-inactive" style="display:none;overflow:auto;flex:1">
+        <div class="inactive-filter">
+            <label>기준:</label>
+            <select class="inactive-day-select" id="inactiveDays" onchange="loadInactive()">
+                <option value="7">7일 이상</option>
+                <option value="14">14일 이상</option>
+                <option value="30" selected>30일 이상</option>
+                <option value="60">60일 이상</option>
+                <option value="90">90일 이상</option>
+            </select>
+            <span style="font-size:12px;color:var(--text-muted)" id="inactiveCount"></span>
+        </div>
+        <div class="table-wrap" style="margin:0 24px 32px">
+            <table>
+                <thead>
+                    <tr>
+                        <th>이름</th><th>성별</th><th>등급</th>
+                        <th>마지막 출석</th><th>미출석 일수</th><th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="inactiveBody">
+                    <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ─── 패널: 유증 관리 ─── -->
+    <div id="panel-freeze" style="display:none;overflow:auto;flex:1">
+        <div class="freeze-banner">
+            <span>조회 날짜:</span>
+            <input type="date" class="freeze-date-input" id="freezeDate" onchange="loadFreeze()">
+            <span style="font-size:12px;color:var(--text-muted)" id="freezeCount"></span>
+            <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="openFreezeModal()">+ 유증 등록</button>
+        </div>
+        <div class="table-wrap" style="margin:16px 24px 32px">
+            <table>
+                <thead>
+                    <tr>
+                        <th>회원명</th><th>유증 시작</th><th>유증 종료</th>
+                        <th>남은 일수</th><th>사유</th><th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="freezeBody">
+                    <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </main>
 
 <!-- 출석 체크 모달 -->
-<div class="modal-overlay" id="attendModal">
+<div class="modal-overlay" id="checkInModal">
     <div class="modal" style="max-width:380px">
         <div class="modal-header">
             <span class="modal-title">출석 체크</span>
-            <button class="modal-close" onclick="closeModal()">
+            <button class="modal-close" onclick="closeCheckInModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
         </div>
@@ -147,7 +289,7 @@
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">회원 ID</label>
-                    <input type="text" class="form-input" id="aMemberId" placeholder="회원 ID">
+                    <input type="text" class="form-input" id="aMemberId" placeholder="회원 로그인 ID">
                 </div>
                 <div class="form-group">
                     <label class="form-label">이름</label>
@@ -164,65 +306,130 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal()">취소</button>
+            <button class="btn btn-secondary" onclick="closeCheckInModal()">취소</button>
             <button class="btn btn-primary" onclick="checkIn()">체크인</button>
         </div>
     </div>
 </div>
 
+<!-- 유증 등록 모달 -->
+<div class="modal-overlay" id="freezeModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">유증(정지) 등록</span>
+            <button class="modal-close" onclick="closeFreezeModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">회원 ID</label>
+                    <input type="text" class="form-input" id="fMemberId" placeholder="회원 로그인 ID">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">유증 시작일</label>
+                    <input type="date" class="form-input" id="fStart">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">유증 종료일</label>
+                    <input type="date" class="form-input" id="fEnd">
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">사유</label>
+                    <input type="text" class="form-input" id="fReason" placeholder="부상, 여행 등">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFreezeModal()">취소</button>
+            <button class="btn btn-primary" onclick="addFreeze()">등록</button>
+        </div>
+    </div>
+</div>
+
 <script>
-function csrfHeaders(extra) { return Object.assign({ 'Content-Type': 'application/json' }, extra); }
+/* ═══════════════════════════════════════════════════════════
+   공통
+═══════════════════════════════════════════════════════════ */
+function csrfHeaders() { return { 'Content-Type': 'application/json' }; }
+function fmt(d) { return d.toISOString().slice(0, 10); }
 
-const typeLabel  = { MEMBERSHIP: '회원권', GROUP: '그룹 루틴', PT: 'PT 루틴' };
-const typeBadge  = { MEMBERSHIP: 'badge-active', GROUP: 'badge-admin', PT: 'badge-super' };
-const genderLabel = { M: '남성', F: '여성' };
+const typeLabel   = { MEMBERSHIP: '회원권', GROUP: '그룹 루틴', PT: 'PT 루틴' };
+const typeBadge   = { MEMBERSHIP: 'badge-active', GROUP: 'badge-admin', PT: 'badge-super' };
+const genderLabel = { M: '남성', F: '여성', 남자: '남성', 여자: '여성' };
+const tierLabel   = { BASIC: 'BASIC', LIGHT_FIT: 'LIGHT', REGULAR_FIT: 'REGULAR', INTENSIVE_FIT: 'INTENSIVE' };
+const tierBadge   = { BASIC: 'badge-pending', LIGHT_FIT: 'badge-active', REGULAR_FIT: 'badge-admin', INTENSIVE_FIT: 'badge-super' };
 
-let selectedDate  = new Date().toISOString().slice(0, 10);
+let currentPeriod = 'daily';
+let selectedDate  = fmt(new Date());
 let weekOffset    = 0;
+let monthOffset   = 0;
 let weekCountMap  = {};
 let trendChart    = null;
 
-// ── 주간 달력 ───────────────────────────────────────────────────
+/* ── 탭 전환 ──────────────────────────────────────────────── */
+function setAtTab(tab, btn) {
+    ['daily','member','inactive','freeze'].forEach(t => {
+        document.getElementById('panel-' + t).style.display = t === tab ? (t === 'daily' ? 'flex' : 'block') : 'none';
+        document.getElementById('atTab-' + t).classList.toggle('active', t === tab);
+    });
+    if (tab === 'member'   && !document.getElementById('memberStatsBody').dataset.loaded) loadMemberStats();
+    if (tab === 'inactive' && !document.getElementById('inactiveBody').dataset.loaded)    loadInactive();
+    if (tab === 'freeze'   && !document.getElementById('freezeBody').dataset.loaded)      loadFreeze();
+}
+
+/* ─────────────────────────────────────────────────────────
+   패널 1: 출석 현황
+─────────────────────────────────────────────────────────── */
+
+/* 기간 탭 */
+function setPeriod(period, btn) {
+    currentPeriod = period;
+    document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const isMonthly = period === 'monthly';
+    document.getElementById('weekCalSection').style.display  = isMonthly ? 'none' : '';
+    document.getElementById('monthNavSection').style.display = isMonthly ? ''     : 'none';
+    document.getElementById('trendSection').style.display    = period === 'daily' ? '' : 'none';
+    if (isMonthly) renderMonthLabel();
+    loadAttendance();
+}
+
+/* 주간 달력 */
+const DAY_KO = ['일','월','화','수','목','금','토'];
 
 function getWeekStart(offset) {
     const d = new Date();
-    const day = d.getDay(); // 0=Sun
-    d.setDate(d.getDate() - day + offset * 7);
+    d.setDate(d.getDate() - d.getDay() + offset * 7);
     d.setHours(0,0,0,0);
     return d;
 }
-
-function fmt(d) { return d.toISOString().slice(0,10); }
-
-const DAY_KO = ['일','월','화','수','목','금','토'];
 
 function renderWeekGrid() {
     const start = getWeekStart(weekOffset);
     const end   = new Date(start); end.setDate(end.getDate() + 6);
     document.getElementById('weekLabel').textContent =
         `${fmt(start).slice(5).replace('-','/')} ~ ${fmt(end).slice(5).replace('-','/')}`;
-
-    const todayStr = new Date().toISOString().slice(0,10);
-    const cells = [];
+    const todayStr = fmt(new Date());
+    let cells = '';
     for (let i = 0; i < 7; i++) {
-        const d = new Date(start); d.setDate(d.getDate() + i);
+        const d  = new Date(start); d.setDate(d.getDate() + i);
         const ds = fmt(d);
         const cnt = weekCountMap[ds] ?? '';
-        const isToday    = ds === todayStr;
-        const isSelected = ds === selectedDate;
-        const cls = ['week-cell', isToday ? 'today' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ');
-        cells.push(`<div class="${cls}" onclick="selectDate('${ds}')">
+        const cls = ['week-cell', ds === todayStr ? 'today' : '', ds === selectedDate ? 'selected' : ''].filter(Boolean).join(' ');
+        cells += `<div class="${cls}" onclick="selectDate('${ds}')">
             <span class="wc-day">${DAY_KO[d.getDay()]}</span>
             <span class="wc-date">${d.getDate()}</span>
-            <span class="wc-cnt">${cnt !== '' ? cnt+'명' : ''}</span>
-        </div>`);
+            <span class="wc-cnt">${cnt !== '' ? cnt + '명' : ''}</span>
+        </div>`;
     }
-    document.getElementById('weekGrid').innerHTML = cells.join('');
+    document.getElementById('weekGrid').innerHTML = cells;
 }
 
 async function loadWeekCounts() {
     const start = fmt(getWeekStart(weekOffset));
-    const endD  = new Date(getWeekStart(weekOffset)); endD.setDate(endD.getDate()+6);
+    const endD  = new Date(getWeekStart(weekOffset)); endD.setDate(endD.getDate() + 6);
     const end   = fmt(endD);
     try {
         const res  = await fetch(`/api/attendance/trend?startDate=${start}&endDate=${end}`);
@@ -246,75 +453,88 @@ function moveWeek(dir) {
     loadWeekCounts();
 }
 
-// ── 출석 데이터 ─────────────────────────────────────────────────
+/* 월별 네비 */
+function getMonthDate(offset) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + offset);
+    return d;
+}
 
+function renderMonthLabel() {
+    const d = getMonthDate(monthOffset);
+    document.getElementById('monthLabel').textContent =
+        `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+}
+
+function moveMonth(dir) {
+    monthOffset += dir;
+    renderMonthLabel();
+    loadAttendance();
+}
+
+/* 출석 데이터 로드 */
 async function loadAttendance() {
+    let dateParam = selectedDate;
+    let periodParam = currentPeriod;
+
+    if (currentPeriod === 'monthly') {
+        const d = getMonthDate(monthOffset);
+        dateParam = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    }
+
     try {
-        const res  = await fetch(`/api/attendance?date=${selectedDate}`);
+        const res  = await fetch(`/api/attendance?date=${dateParam}&period=${periodParam}`);
         const json = await res.json();
         const data = json.data || [];
 
-        const males      = data.filter(a => a.memberGender === 'M').length;
-        const females    = data.filter(a => a.memberGender === 'F').length;
+        // 요약 카드
+        const males      = data.filter(a => a.memberGender === 'M' || a.memberGender === '남자').length;
+        const females    = data.filter(a => a.memberGender === 'F' || a.memberGender === '여자').length;
         const membership = data.filter(a => a.type === 'MEMBERSHIP').length;
         const cls        = data.filter(a => a.type !== 'MEMBERSHIP').length;
-
-        document.getElementById('sumTotal').textContent = data.length + '명';
-        document.getElementById('sumGender').innerHTML =
-            `<span style="color:#3B82F6">남성 ${males}명</span> / <span style="color:#EC4899">여성 ${females}명</span>`;
+        document.getElementById('sumTotal').textContent      = data.length + '명';
+        document.getElementById('sumGender').innerHTML       =
+            `<span style="color:#3B82F6">남 ${males}</span> / <span style="color:#EC4899">여 ${females}</span>`;
         document.getElementById('sumMembership').textContent = membership + '명';
-        document.getElementById('sumClass').textContent = cls + '명';
+        document.getElementById('sumClass').textContent      = cls + '명';
 
+        // 테이블
         const tf = document.getElementById('typeFilter').value;
-        renderTable(tf ? data.filter(a => a.type === tf) : data);
-    } catch(e) {}
+        renderAttendTable(tf ? data.filter(a => a.type === tf) : data);
+
+    } catch(e) {
+        document.getElementById('attendTableBody').innerHTML =
+            `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</td></tr>`;
+    }
 }
 
-function renderTable(data) {
+function renderAttendTable(data) {
     const tbody = document.getElementById('attendTableBody');
     if (!data.length) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">출석 데이터가 없습니다.</td></tr>`;
         return;
     }
-    tbody.innerHTML = data.map(a => `
-        <tr>
-            <td>${a.memberName}</td>
-            <td>${genderLabel[a.memberGender] || a.memberGender || '-'}</td>
-            <td><span class="badge ${typeBadge[a.type] || 'badge-pending'}">${typeLabel[a.type] || a.type}</span></td>
-            <td>${a.attendDate || '-'}</td>
-            <td>${a.checkInTime || '-'}</td>
-            <td>
-                <button class="btn btn-danger" style="padding:5px 10px;font-size:12px"
-                        onclick="cancelAttend(${a.id})">취소</button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = data.map(a => `<tr>
+        <td>${a.memberName || '-'}</td>
+        <td>${genderLabel[a.memberGender] || a.memberGender || '-'}</td>
+        <td><span class="badge ${typeBadge[a.type] || 'badge-pending'}">${typeLabel[a.type] || a.type}</span></td>
+        <td>${a.attendDate || '-'}</td>
+        <td>${a.checkInTime ? String(a.checkInTime).substring(0,5) : '-'}</td>
+        <td><button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="cancelAttend(${a.id})">취소</button></td>
+    </tr>`).join('');
 }
 
-function openModal()  { document.getElementById('attendModal').classList.add('open'); }
-function closeModal() { document.getElementById('attendModal').classList.remove('open'); }
-
-async function checkIn() {
-    const body = {
-        memberId: document.getElementById('aMemberId').value,
-        memberName: document.getElementById('aMemberName').value,
-        type: document.getElementById('aType').value,
-    };
-    await fetch('/api/attendance', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
-    closeModal();
-    loadAttendance();
-    loadWeekCounts();
+/* 유증 카운트 요약 */
+async function loadFrozenCount() {
+    try {
+        const res  = await fetch(`/api/attendance/freeze?date=${fmt(new Date())}`);
+        const json = await res.json();
+        document.getElementById('sumFrozen').textContent = (json.data || []).length + '명';
+    } catch(e) { document.getElementById('sumFrozen').textContent = '-'; }
 }
 
-async function cancelAttend(id) {
-    if (!confirm('출석을 취소하시겠습니까?')) return;
-    await fetch(`/api/attendance/${id}`, { method: 'DELETE', headers: csrfHeaders() });
-    loadAttendance();
-    loadWeekCounts();
-}
-
-// ── 30일 트렌드 ─────────────────────────────────────────────────
-
+/* 30일 트렌드 */
 async function loadTrend() {
     const end   = new Date();
     const start = new Date(); start.setDate(start.getDate() - 29);
@@ -323,7 +543,6 @@ async function loadTrend() {
         const json = await res.json();
         const dateMap = {};
         (json.data || []).forEach(r => { dateMap[r.date] = Number(r.cnt); });
-
         const labels = [], values = [];
         for (let i = 29; i >= 0; i--) {
             const d = new Date(); d.setDate(d.getDate() - i);
@@ -331,24 +550,13 @@ async function loadTrend() {
             labels.push(key.slice(5));
             values.push(dateMap[key] || 0);
         }
-
         const ctx = document.getElementById('trendChart').getContext('2d');
         if (trendChart) trendChart.destroy();
         trendChart = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: '출석 수',
-                    data: values,
-                    borderColor: '#3B82F6',
-                    backgroundColor: 'rgba(59,130,246,0.08)',
-                    borderWidth: 2,
-                    pointRadius: 2,
-                    tension: 0.3,
-                    fill: true
-                }]
-            },
+            data: { labels, datasets: [{ label: '출석', data: values,
+                borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.08)',
+                borderWidth: 2, pointRadius: 2, tension: 0.3, fill: true }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
@@ -361,6 +569,187 @@ async function loadTrend() {
     } catch(e) {}
 }
 
+/* 출석 체크 모달 */
+function openCheckInModal()  { document.getElementById('checkInModal').classList.add('open'); }
+function closeCheckInModal() { document.getElementById('checkInModal').classList.remove('open'); }
+
+async function checkIn() {
+    const body = {
+        memberId:   document.getElementById('aMemberId').value.trim(),
+        memberName: document.getElementById('aMemberName').value.trim(),
+        type:       document.getElementById('aType').value,
+    };
+    if (!body.memberId) { alert('회원 ID를 입력해주세요.'); return; }
+    await fetch('/api/attendance', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
+    closeCheckInModal();
+    loadAttendance();
+    loadWeekCounts();
+    loadFrozenCount();
+}
+
+async function cancelAttend(id) {
+    if (!confirm('출석을 취소하시겠습니까?')) return;
+    await fetch(`/api/attendance/${id}`, { method: 'DELETE', headers: csrfHeaders() });
+    loadAttendance();
+    loadWeekCounts();
+}
+
+/* ─────────────────────────────────────────────────────────
+   패널 2: 회원별 현황
+─────────────────────────────────────────────────────────── */
+async function loadMemberStats() {
+    const month = document.getElementById('memberStatsMonth').value;
+    const body  = document.getElementById('memberStatsBody');
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">로딩 중...</td></tr>`;
+    body.dataset.loaded = '1';
+    try {
+        const res  = await fetch(`/api/attendance/member-stats?yearMonth=${month}`);
+        const json = await res.json();
+        const data = json.data || [];
+        if (!data.length) {
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">데이터가 없습니다.</td></tr>`;
+            return;
+        }
+        body.innerHTML = data.map(m => {
+            const cnt  = Number(m.attendCount || 0);
+            const pct  = Math.min(100, Math.round(cnt / 30 * 100));
+            const color = pct >= 70 ? 'var(--success)' : pct >= 40 ? 'var(--warning)' : 'var(--error)';
+            const last  = m.lastAttend ? String(m.lastAttend).substring(0,10) : '미출석';
+            return `<tr>
+                <td>${m.memberName || m.memberId}</td>
+                <td>${genderLabel[m.gender] || m.gender || '-'}</td>
+                <td>${m.tier ? `<span class="badge ${tierBadge[m.tier]||''}">${tierLabel[m.tier]||m.tier}</span>` : '-'}</td>
+                <td style="font-weight:600">${cnt}회</td>
+                <td>
+                    <div class="rate-bar"><div class="rate-fill" style="width:${pct}%;background:${color}"></div></div>
+                    <span style="font-size:12px;color:${color}">${pct}%</span>
+                </td>
+                <td style="font-size:12px;color:var(--text-secondary)">${last}</td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</td></tr>`;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────
+   패널 3: 장기 미출석
+─────────────────────────────────────────────────────────── */
+async function loadInactive() {
+    const days = document.getElementById('inactiveDays').value;
+    const body = document.getElementById('inactiveBody');
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">로딩 중...</td></tr>`;
+    body.dataset.loaded = '1';
+    try {
+        const res  = await fetch(`/api/attendance/inactive?days=${days}`);
+        const json = await res.json();
+        const data = json.data || [];
+        document.getElementById('inactiveCount').textContent = `총 ${data.length}명`;
+        if (!data.length) {
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">${days}일 이상 미출석 회원이 없습니다.</td></tr>`;
+            return;
+        }
+        body.innerHTML = data.map(m => {
+            const since = m.daysSince != null ? m.daysSince + '일' : '출석 기록 없음';
+            const last  = m.lastAttend ? String(m.lastAttend).substring(0,10) : '-';
+            const urgent = (m.daysSince == null || Number(m.daysSince) >= 30);
+            return `<tr>
+                <td style="font-weight:500">${m.memberName || m.memberId}</td>
+                <td>${genderLabel[m.gender] || m.gender || '-'}</td>
+                <td>${m.tier ? `<span class="badge ${tierBadge[m.tier]||''}">${tierLabel[m.tier]||m.tier}</span>` : '-'}</td>
+                <td style="font-size:12px;color:var(--text-secondary)">${last}</td>
+                <td><span style="color:${urgent ? 'var(--error)' : 'var(--warning)'};font-weight:600">${since}</span></td>
+                <td>
+                    <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px"
+                            onclick="openFreezeModalFor('${m.memberId}')">유증 등록</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</td></tr>`;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────
+   패널 4: 유증 관리
+─────────────────────────────────────────────────────────── */
+async function loadFreeze() {
+    const date = document.getElementById('freezeDate').value;
+    const body = document.getElementById('freezeBody');
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">로딩 중...</td></tr>`;
+    body.dataset.loaded = '1';
+    try {
+        const res  = await fetch(`/api/attendance/freeze?date=${date}`);
+        const json = await res.json();
+        const data = json.data || [];
+        document.getElementById('freezeCount').textContent = `총 ${data.length}명 유증 중`;
+        if (!data.length) {
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">유증 중인 회원이 없습니다.</td></tr>`;
+            return;
+        }
+        const today = fmt(new Date());
+        body.innerHTML = data.map(f => {
+            const end      = f.freezeEnd ? String(f.freezeEnd).substring(0,10) : '';
+            const remain   = end ? Math.max(0, Math.ceil((new Date(end) - new Date(today)) / 86400000)) : '-';
+            return `<tr>
+                <td style="font-weight:500">${f.memberName || f.memberId}</td>
+                <td>${f.freezeStart ? String(f.freezeStart).substring(0,10) : '-'}</td>
+                <td>${end || '-'}</td>
+                <td><span style="color:var(--warning);font-weight:600">${remain !== '-' ? remain + '일' : '-'}</span></td>
+                <td style="font-size:12px">${f.reason || '-'}</td>
+                <td>
+                    <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteFreeze(${f.id})">해제</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch(e) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</td></tr>`;
+    }
+}
+
+function openFreezeModal() {
+    document.getElementById('fMemberId').value = '';
+    document.getElementById('fStart').value = fmt(new Date());
+    document.getElementById('fEnd').value   = '';
+    document.getElementById('fReason').value = '';
+    document.getElementById('freezeModal').classList.add('open');
+}
+
+function openFreezeModalFor(memberId) {
+    document.getElementById('fMemberId').value = memberId;
+    document.getElementById('fStart').value = fmt(new Date());
+    document.getElementById('fEnd').value   = '';
+    document.getElementById('fReason').value = '';
+    document.getElementById('freezeModal').classList.add('open');
+    // 탭도 유증 관리로 전환
+    setAtTab('freeze', document.getElementById('atTab-freeze'));
+}
+
+function closeFreezeModal() { document.getElementById('freezeModal').classList.remove('open'); }
+
+async function addFreeze() {
+    const memberId = document.getElementById('fMemberId').value.trim();
+    const start    = document.getElementById('fStart').value;
+    const end      = document.getElementById('fEnd').value;
+    if (!memberId || !start || !end) { alert('회원 ID, 시작일, 종료일을 모두 입력해주세요.'); return; }
+    const body = { memberId, freezeStart: start, freezeEnd: end, reason: document.getElementById('fReason').value };
+    await fetch('/api/attendance/freeze', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
+    closeFreezeModal();
+    loadFreeze();
+    loadFrozenCount();
+    document.getElementById('freezeBody').removeAttribute('data-loaded');
+}
+
+async function deleteFreeze(id) {
+    if (!confirm('유증(정지)을 해제하시겠습니까?')) return;
+    await fetch(`/api/attendance/freeze/${id}`, { method: 'DELETE', headers: csrfHeaders() });
+    loadFreeze();
+    loadFrozenCount();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   사이드바
+═══════════════════════════════════════════════════════════ */
 function openSidebar() {
     document.querySelector('.sidebar').classList.add('open');
     document.getElementById('sidebarOverlay').classList.add('open');
@@ -370,9 +759,15 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
+/* ── 초기화 ── */
+// 월 인풋 기본값
+document.getElementById('memberStatsMonth').value = fmt(new Date()).slice(0, 7);
+document.getElementById('freezeDate').valueAsDate = new Date();
+
 loadWeekCounts();
 loadAttendance();
 loadTrend();
+loadFrozenCount();
 </script>
 </body>
 </html>
