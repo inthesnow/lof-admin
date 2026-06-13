@@ -100,10 +100,16 @@
         </choose>
     </select>
 
-    <!-- 대화방 INSERT (useGeneratedKeys → id가 params map에 저장됨) -->
+    <!--
+        대화방 INSERT (useGeneratedKeys → id가 params map에 저장됨)
+        message_conversation 에 UNIQUE KEY(member_id, trainer_id, category) 가 걸려있으므로
+        동일 조합이 이미 존재하면 ON DUPLICATE KEY UPDATE 로 기존 id를 LAST_INSERT_ID 에 세팅.
+        → 기존 대화방에 새 메시지를 추가하는 방식으로 동작 (공지 이력 누적)
+    -->
     <insert id="insertConversation" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
         INSERT INTO message_conversation (member_id, trainer_id, category, created_at)
         VALUES (#{memberId}, #{trainerId}, #{category}, NOW())
+        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)
     </insert>
 
     <!-- 메시지 INSERT -->
