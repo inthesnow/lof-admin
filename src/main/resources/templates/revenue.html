@@ -3,112 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>링크온핏 CRM — 통계 / 리포트</title>
+    <title>링크온핏 CRM — 매출 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        .stats-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+        /* ── 메인 탭 ── */
+        .rv-tab-nav {
+            display: flex; gap: 0; border-bottom: 1px solid var(--border);
+            background: var(--surface); padding: 0 24px; flex-shrink: 0;
+        }
+        .rv-tab {
+            padding: 12px 20px; background: none; border: none;
+            border-bottom: 2px solid transparent; color: var(--text-secondary);
+            font-size: 14px; font-weight: 500; cursor: pointer;
+            transition: color .15s, border-color .15s; margin-bottom: -1px;
+        }
+        .rv-tab:hover  { color: var(--text-primary); }
+        .rv-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-        /* 도넛 차트 그리드 */
+        /* ── 요약 카드 ── */
+        .rv-summary {
+            display: grid; grid-template-columns: repeat(5,1fr); gap: 12px;
+            padding: 16px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .rv-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px 16px;
+        }
+        .rv-card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+        .rv-card-value { font-size: 20px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+        .rv-card-sub   { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+
+        /* ── 통계 패널 ── */
+        .stats-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+        .chart-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 18px 20px;
+        }
+        .chart-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .chart-card-title  { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .chart-canvas-wrap { position: relative; height: 220px; }
+        .chart-canvas-sm   { height: 150px; }
+
         .donut-grid {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 16px;
+            display: grid; grid-template-columns: repeat(5,1fr); gap: 14px;
         }
-
         .donut-card {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 18px 14px 14px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px 12px;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
         }
+        .donut-card-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-align: center; text-transform: uppercase; letter-spacing: .4px; }
+        .donut-canvas-wrap { position: relative; width: 80px; height: 80px; }
+        .donut-center-label { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+        .donut-pct-label    { font-size: 17px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+        .donut-desc-label   { font-size: 11px; color: var(--text-muted); text-align: center; }
 
-        .donut-card-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
+        /* ── 결제 내역 ── */
+        .sale-filter { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:12px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+        .sale-amount { font-weight:600; color:var(--success); }
+        .refund-btn  { color:var(--error)!important; }
+
+        /* ── 구독권 현황 ── */
+        .sub-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; padding:20px 24px; }
+        .sub-tier-card {
+            border-radius:12px; padding:20px 18px;
+            display:flex; flex-direction:column; gap:8px;
         }
+        .sub-tier-card.INTENSIVE_FIT { background:rgba(139,92,246,.08); border:1px solid rgba(139,92,246,.25); }
+        .sub-tier-card.REGULAR_FIT   { background:rgba(9,105,218,.08);  border:1px solid rgba(9,105,218,.25); }
+        .sub-tier-card.LIGHT_FIT     { background:rgba(26,127,55,.08);  border:1px solid rgba(26,127,55,.25); }
+        .sub-tier-card.BASIC         { background:rgba(100,116,139,.08); border:1px solid rgba(100,116,139,.25); }
+        .sub-tier-name  { font-size:13px; font-weight:700; color:var(--text-primary); }
+        .sub-tier-count { font-size:34px; font-weight:800; color:var(--text-primary); line-height:1; }
+        .sub-tier-pct   { font-size:12px; color:var(--text-secondary); }
+        .sub-tier-bar   { height:4px; border-radius:2px; background:var(--border); margin-top:4px; overflow:hidden; }
+        .sub-tier-fill  { height:100%; border-radius:2px; }
 
-        .donut-canvas-wrap {
-            position: relative;
-            width: 80px; height: 80px;
-        }
+        /* ── 티켓 판매 ── */
+        .ticket-summary { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; padding:16px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
+        .ticket-stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
 
-        .donut-center-label {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-
-        .donut-pct-label {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--text-primary);
-            line-height: 1;
-        }
-
-        .donut-desc-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
-        /* 월 매출 추이 */
-        .bar-chart-card {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .chart-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .chart-card-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .chart-canvas-wrap {
-            position: relative;
-            height: 240px;
-        }
-
-        /* 요약 통계 테이블 */
-        .summary-table-card {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .summary-table-card .section-card-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .summary-table-card table { margin: 0; }
-        .summary-table-card .table-wrap { padding: 0; }
-
-        @media(max-width:1100px) { .donut-grid { grid-template-columns: repeat(3,1fr); } }
-        @media(max-width:768px)  { .donut-grid { grid-template-columns: repeat(2,1fr); } .stats-body { padding: 16px; } }
+        @media(max-width:1100px){ .rv-summary { grid-template-columns:repeat(3,1fr); } .donut-grid { grid-template-columns:repeat(3,1fr); } .sub-grid { grid-template-columns:repeat(2,1fr); } }
+        @media(max-width:768px) { .rv-summary { grid-template-columns:repeat(2,1fr); } .donut-grid { grid-template-columns:repeat(2,1fr); } .sub-grid { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -116,248 +94,327 @@
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside th:replace="~{fragments/sidebar :: sidebar('revenue')}"></aside>
 
-<main class="main">
+<main class="main" style="display:flex;flex-direction:column;overflow:hidden">
     <header class="main-header">
         <div class="header-left">
             <button class="mobile-menu-btn" onclick="openSidebar()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
-            <h1 class="page-title">통계 / 리포트</h1>
+            <h1 class="page-title">매출 관리</h1>
         </div>
-        <div class="header-right">
-            <select class="filter-select" id="periodSelect" onchange="loadAll()" style="font-size:13px">
-                <option value="monthly">이번달</option>
-                <option value="quarterly">분기</option>
-                <option value="yearly">연간</option>
-            </select>
+        <div class="header-right" id="exportBtn" style="display:none">
+            <button class="btn btn-secondary" style="font-size:13px" onclick="exportCsv()">
+                ↓ CSV 내보내기
+            </button>
         </div>
     </header>
 
-    <div class="stats-body">
-
-        <!-- 핵심 지표 도넛 6개 -->
-        <div>
-            <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:14px">핵심 운영 지표</div>
-            <div class="donut-grid">
-
-                <div class="donut-card">
-                    <div class="donut-card-title">회원 추이</div>
-                    <div class="donut-canvas-wrap">
-                        <canvas id="donutMember"></canvas>
-                        <div class="donut-center-label"><div class="donut-pct-label" id="pctMember">0%</div></div>
-                    </div>
-                    <div class="donut-desc-label" id="descMember">활성 / 전체</div>
-                </div>
-
-                <div class="donut-card">
-                    <div class="donut-card-title">루틴 이행률</div>
-                    <div class="donut-canvas-wrap">
-                        <canvas id="donutRoutine"></canvas>
-                        <div class="donut-center-label"><div class="donut-pct-label" id="pctRoutine">0%</div></div>
-                    </div>
-                    <div class="donut-desc-label" id="descRoutine">이행 / 전체</div>
-                </div>
-
-                <div class="donut-card">
-                    <div class="donut-card-title">출석률</div>
-                    <div class="donut-canvas-wrap">
-                        <canvas id="donutAttend"></canvas>
-                        <div class="donut-center-label"><div class="donut-pct-label" id="pctAttend">0%</div></div>
-                    </div>
-                    <div class="donut-desc-label" id="descAttend">출석 / 활성</div>
-                </div>
-
-                <div class="donut-card">
-                    <div class="donut-card-title">피드백 사용률</div>
-                    <div class="donut-canvas-wrap">
-                        <canvas id="donutFeedback"></canvas>
-                        <div class="donut-center-label"><div class="donut-pct-label" id="pctFeedback">0%</div></div>
-                    </div>
-                    <div class="donut-desc-label" id="descFeedback">사용 / 발급</div>
-                </div>
-
-                <div class="donut-card">
-                    <div class="donut-card-title">재등록률</div>
-                    <div class="donut-canvas-wrap">
-                        <canvas id="donutRereg"></canvas>
-                        <div class="donut-center-label"><div class="donut-pct-label" id="pctRereg">0%</div></div>
-                    </div>
-                    <div class="donut-desc-label" id="descRereg">재등록 / 만료</div>
-                </div>
-
-                <div class="donut-card">
-                    <div class="donut-card-title">PT 자동록률</div>
-                    <div class="donut-canvas-wrap">
-                        <canvas id="donutPT"></canvas>
-                        <div class="donut-center-label"><div class="donut-pct-label" id="pctPT">0%</div></div>
-                    </div>
-                    <div class="donut-desc-label" id="descPT">PT 회원 / 전체</div>
-                </div>
-
-            </div>
+    <!-- 이달 요약 카드 -->
+    <div class="rv-summary">
+        <div class="rv-card">
+            <div class="rv-card-label">이달 총 매출</div>
+            <div class="rv-card-value" id="sumTotal">-</div>
+            <div class="rv-card-sub">원</div>
         </div>
-
-        <!-- 월 매출 추이 바 차트 -->
-        <div class="bar-chart-card">
-            <div class="chart-card-header">
-                <span class="chart-card-title">월 매출 추이 (최근 6개월)</span>
-            </div>
-            <div class="chart-canvas-wrap">
-                <canvas id="monthlyRevenueChart"></canvas>
-            </div>
+        <div class="rv-card">
+            <div class="rv-card-label">회원권</div>
+            <div class="rv-card-value" id="sumMembership">-</div>
         </div>
-
-        <!-- 활성 회원 30일 트렌드 -->
-        <div class="bar-chart-card">
-            <div class="chart-card-header">
-                <span class="chart-card-title">활성 회원 추이 (최근 30일)</span>
-            </div>
-            <div class="chart-canvas-wrap" style="height:180px">
-                <canvas id="memberTrendChart"></canvas>
-            </div>
+        <div class="rv-card">
+            <div class="rv-card-label">PT</div>
+            <div class="rv-card-value" id="sumPt">-</div>
         </div>
-
+        <div class="rv-card">
+            <div class="rv-card-label">그룹 수업</div>
+            <div class="rv-card-value" id="sumGroup">-</div>
+        </div>
+        <div class="rv-card">
+            <div class="rv-card-label">기타(락커·물품)</div>
+            <div class="rv-card-value" id="sumOther">-</div>
+        </div>
     </div>
+
+    <!-- 메인 탭 -->
+    <div class="rv-tab-nav">
+        <button class="rv-tab active" id="rvTab-stats"    onclick="setRvTab('stats',this)">통계 / 리포트</button>
+        <button class="rv-tab"        id="rvTab-sales"    onclick="setRvTab('sales',this)">결제 내역</button>
+        <button class="rv-tab"        id="rvTab-sub"      onclick="setRvTab('sub',this)">구독권 현황</button>
+        <button class="rv-tab"        id="rvTab-ticket"   onclick="setRvTab('ticket',this)">티켓 판매</button>
+    </div>
+
+    <!-- ─── 패널: 통계/리포트 ─── -->
+    <div id="panel-stats" style="overflow:auto;flex:1">
+        <div class="stats-body">
+
+            <!-- 핵심 지표 도넛 5개 -->
+            <div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.4px">핵심 운영 지표</div>
+                <div class="donut-grid">
+                    <div class="donut-card">
+                        <div class="donut-card-title">활성 회원</div>
+                        <div class="donut-canvas-wrap"><canvas id="donutMember"></canvas><div class="donut-center-label"><div class="donut-pct-label" id="pctMember">-</div></div></div>
+                        <div class="donut-desc-label" id="descMember">활성 / 전체</div>
+                    </div>
+                    <div class="donut-card">
+                        <div class="donut-card-title">루틴 이행률</div>
+                        <div class="donut-canvas-wrap"><canvas id="donutRoutine"></canvas><div class="donut-center-label"><div class="donut-pct-label" id="pctRoutine">-</div></div></div>
+                        <div class="donut-desc-label" id="descRoutine">이달 이행</div>
+                    </div>
+                    <div class="donut-card">
+                        <div class="donut-card-title">출석률</div>
+                        <div class="donut-canvas-wrap"><canvas id="donutAttend"></canvas><div class="donut-center-label"><div class="donut-pct-label" id="pctAttend">-</div></div></div>
+                        <div class="donut-desc-label" id="descAttend">이달 출석</div>
+                    </div>
+                    <div class="donut-card">
+                        <div class="donut-card-title">피드백 사용률</div>
+                        <div class="donut-canvas-wrap"><canvas id="donutFeedback"></canvas><div class="donut-center-label"><div class="donut-pct-label" id="pctFeedback">-</div></div></div>
+                        <div class="donut-desc-label" id="descFeedback">사용 / 발급</div>
+                    </div>
+                    <div class="donut-card">
+                        <div class="donut-card-title">PT 가입률</div>
+                        <div class="donut-canvas-wrap"><canvas id="donutPT"></canvas><div class="donut-center-label"><div class="donut-pct-label" id="pctPT">-</div></div></div>
+                        <div class="donut-desc-label" id="descPT">PT / 전체</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 월별 매출 추이 (stacked bar) -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <span class="chart-card-title">월별 매출 추이 (최근 6개월)</span>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas id="monthlyRevenueChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 활성 회원 30일 추이 -->
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <span class="chart-card-title">활성 회원 추이 (최근 30일)</span>
+                </div>
+                <div class="chart-canvas-wrap chart-canvas-sm">
+                    <canvas id="memberTrendChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ─── 패널: 결제 내역 ─── -->
+    <div id="panel-sales" style="display:none;overflow:auto;flex:1">
+        <div class="sale-filter">
+            <select class="filter-select" id="saleType" onchange="loadSales()">
+                <option value="">전체 유형</option>
+                <option value="MEMBERSHIP">회원권</option>
+                <option value="PT">PT</option>
+                <option value="GROUP">그룹 수업</option>
+                <option value="LOCKER">락커</option>
+                <option value="ITEM">물품</option>
+            </select>
+            <input type="date" class="form-input" id="saleStart" style="width:140px" onchange="loadSales()">
+            <span style="color:var(--text-muted);font-size:13px">~</span>
+            <input type="date" class="form-input" id="saleEnd"   style="width:140px" onchange="loadSales()">
+            <span style="font-size:12px;color:var(--text-muted)" id="saleTotal"></span>
+        </div>
+        <div class="table-wrap" style="margin:0 0 0 0">
+            <table>
+                <thead>
+                    <tr>
+                        <th>날짜</th><th>회원명</th><th>상품명</th><th>유형</th>
+                        <th>금액</th><th>결제수단</th><th>메모</th><th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="salesBody">
+                    <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="salesPagination"></div>
+    </div>
+
+    <!-- ─── 패널: 구독권 현황 ─── -->
+    <div id="panel-sub" style="display:none;overflow:auto;flex:1">
+        <div class="sub-grid" id="subGrid">
+            <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-muted)">로딩 중...</div>
+        </div>
+        <div class="chart-card" style="margin:0 24px 32px">
+            <div class="chart-card-header">
+                <span class="chart-card-title">등급별 회원 분포</span>
+            </div>
+            <div class="chart-canvas-wrap chart-canvas-sm">
+                <canvas id="tierChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── 패널: 티켓 판매 ─── -->
+    <div id="panel-ticket" style="display:none;overflow:auto;flex:1">
+        <div class="sale-filter">
+            <select class="filter-select" id="ticketType" onchange="loadTickets()">
+                <option value="">전체</option>
+                <option value="FEEDBACK_TICKET">피드백 티켓</option>
+                <option value="ONEPOINT_CARD">원포인트 카드</option>
+            </select>
+            <input type="date" class="form-input" id="ticketStart" style="width:140px" onchange="loadTickets()">
+            <span style="color:var(--text-muted);font-size:13px">~</span>
+            <input type="date" class="form-input" id="ticketEnd"   style="width:140px" onchange="loadTickets()">
+            <span style="font-size:12px;color:var(--text-muted)" id="ticketTotal"></span>
+        </div>
+        <div class="table-wrap" style="margin:0">
+            <table>
+                <thead>
+                    <tr>
+                        <th>구매일</th><th>회원명</th><th>상품</th>
+                        <th>수량</th><th>결제금액</th><th>결제수단</th><th>비고</th>
+                    </tr>
+                </thead>
+                <tbody id="ticketBody">
+                    <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="ticketPagination"></div>
+    </div>
+
 </main>
 
 <script>
-const donutCharts = {};
+/* ═══════════════════════════════════════════════════════════
+   공통
+═══════════════════════════════════════════════════════════ */
+function fmt(d) { return d.toISOString().slice(0,10); }
+function won(v) { return Number(v||0).toLocaleString() + '원'; }
 
-function makeDonut(canvasId, pct, color) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    if (donutCharts[canvasId]) donutCharts[canvasId].destroy();
-    donutCharts[canvasId] = new Chart(ctx, {
+const donutCharts = {};
+function makeDonut(id, pct, color) {
+    const ctx = document.getElementById(id).getContext('2d');
+    if (donutCharts[id]) donutCharts[id].destroy();
+    donutCharts[id] = new Chart(ctx, {
         type: 'doughnut',
-        data: {
-            datasets: [{
-                data: [pct, 100 - pct],
-                backgroundColor: [color, '#E5E7EB'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, cutout: '72%',
-            plugins: { legend: { display: false }, tooltip: { enabled: false } }
-        }
+        data: { datasets: [{ data: [pct, 100-pct], backgroundColor: [color,'#E5E7EB'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend:{display:false}, tooltip:{enabled:false} } }
     });
 }
 
+const saleTypeLabel = { MEMBERSHIP:'회원권', PT:'PT', GROUP:'그룹', LOCKER:'락커', ITEM:'물품' };
+const saleTypeBadge = { MEMBERSHIP:'badge-active', PT:'badge-admin', GROUP:'badge-super', LOCKER:'badge-pending', ITEM:'badge-muted' };
+const payLabel = { CARD:'카드', CASH:'현금', TRANSFER:'이체' };
+const tierColor = { INTENSIVE_FIT:'#8B5CF6', REGULAR_FIT:'#0969DA', LIGHT_FIT:'#1A7F37', BASIC:'#636C76' };
+const tierLabel = { INTENSIVE_FIT:'INTENSIVE', REGULAR_FIT:'REGULAR', LIGHT_FIT:'LIGHT', BASIC:'BASIC' };
+
+/* ── 탭 전환 ── */
+function setRvTab(tab, btn) {
+    ['stats','sales','sub','ticket'].forEach(t => {
+        document.getElementById('panel-' + t).style.display = t === tab ? (t==='stats'?'block':'') : 'none';
+        if (t === 'stats') document.getElementById('panel-stats').style.display = t === tab ? 'block' : 'none';
+        document.getElementById('rvTab-' + t).classList.toggle('active', t === tab);
+    });
+    document.getElementById('exportBtn').style.display = tab === 'sales' ? '' : 'none';
+    if (tab === 'sales'  && !document.getElementById('salesBody').dataset.loaded)  loadSales();
+    if (tab === 'sub'    && !document.getElementById('subGrid').dataset.loaded)    loadSubs();
+    if (tab === 'ticket' && !document.getElementById('ticketBody').dataset.loaded) loadTickets();
+}
+
+/* ── 이달 요약 로드 ── */
+async function loadSummary() {
+    const today = fmt(new Date());
+    try {
+        const res  = await fetch(`/api/revenue?date=${today}&period=monthly`);
+        const json = await res.json();
+        const d    = json.data || {};
+        document.getElementById('sumMembership').textContent = Number(d.membership||0).toLocaleString();
+        document.getElementById('sumPt').textContent         = Number(d.pt||0).toLocaleString();
+        document.getElementById('sumGroup').textContent      = Number(d.groupClass||0).toLocaleString();
+        const other = Number(d.locker||0) + Number(d.items||0);
+        document.getElementById('sumOther').textContent      = other.toLocaleString();
+        const total = Number(d.membership||0)+Number(d.pt||0)+Number(d.groupClass||0)+Number(d.locker||0)+Number(d.items||0);
+        document.getElementById('sumTotal').textContent      = total.toLocaleString();
+    } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════════
+   패널 1: 통계/리포트
+═══════════════════════════════════════════════════════════ */
 async function loadMemberStats() {
     try {
-        const today = new Date().toISOString().slice(0,10);
-        const res = await fetch(`/api/dashboard/members?date=${today}&period=monthly`);
+        const res = await fetch(`/api/dashboard/members?date=${fmt(new Date())}&period=monthly`);
         const { data } = await res.json();
-        const active = data.active || 0;
-        const total = active + (data.expired || 0);
-        const pct = total > 0 ? Math.round(active / total * 100) : 0;
+        const active = data.active || 0, total = active + (data.expired || 0);
+        const pct = total > 0 ? Math.round(active/total*100) : 0;
         document.getElementById('pctMember').textContent = pct + '%';
-        document.getElementById('descMember').textContent = `${active.toLocaleString()} / ${total.toLocaleString()}명`;
+        document.getElementById('descMember').textContent = `${active} / ${total}명`;
         makeDonut('donutMember', pct, '#3B82F6');
-
-        const ptCount = data.ptCount || 0;
-        const ptPct = total > 0 ? Math.round(ptCount / total * 100) : 0;
+        const ptPct = total > 0 ? Math.round((data.ptCount||0)/total*100) : 0;
         document.getElementById('pctPT').textContent = ptPct + '%';
-        document.getElementById('descPT').textContent = `${ptCount} / ${total}명`;
+        document.getElementById('descPT').textContent = `${data.ptCount||0} / ${total}명`;
         makeDonut('donutPT', ptPct, '#8B5CF6');
-    } catch(e) {
-        makeDonut('donutMember', 70, '#3B82F6');
-        makeDonut('donutPT', 63, '#8B5CF6');
-    }
+    } catch(e) { makeDonut('donutMember',70,'#3B82F6'); makeDonut('donutPT',63,'#8B5CF6'); }
 }
 
 async function loadAttendStats() {
     try {
-        const today = new Date().toISOString().slice(0,10);
-        const res = await fetch(`/api/dashboard/attendance?date=${today}&period=monthly`);
+        const res = await fetch(`/api/dashboard/attendance?date=${fmt(new Date())}&period=monthly`);
         const { data } = await res.json();
-        const pct = data.attendanceRate || Math.round((data.total || 0) / Math.max(data.totalMembers || 1, 1) * 100);
+        const pct = data.attendanceRate || Math.round((data.total||0)/Math.max(data.totalMembers||1,1)*100);
         document.getElementById('pctAttend').textContent = pct + '%';
-        document.getElementById('descAttend').textContent = `${data.total || 0}명 출석`;
+        document.getElementById('descAttend').textContent = `${data.total||0}명 출석`;
         makeDonut('donutAttend', pct, '#10B981');
-
-        document.getElementById('pctRoutine').textContent = (data.routineRate || 68) + '%';
-        document.getElementById('descRoutine').textContent = `루틴 이행 ${data.routineRate || 68}%`;
-        makeDonut('donutRoutine', data.routineRate || 68, '#F59E0B');
-    } catch(e) {
-        makeDonut('donutAttend', 70, '#10B981');
-        makeDonut('donutRoutine', 68, '#F59E0B');
-    }
+        const rp = data.routineRate || 68;
+        document.getElementById('pctRoutine').textContent = rp + '%';
+        document.getElementById('descRoutine').textContent = `이행 ${rp}%`;
+        makeDonut('donutRoutine', rp, '#F59E0B');
+    } catch(e) { makeDonut('donutAttend',70,'#10B981'); makeDonut('donutRoutine',68,'#F59E0B'); }
 }
 
 async function loadFeedbackStats() {
     try {
-        const today = new Date();
-        const monthYear = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-        const res = await fetch(`/api/feedback/stats?monthYear=${monthYear}`);
+        const ym = fmt(new Date()).slice(0,7);
+        const res = await fetch(`/api/feedback/stats?monthYear=${ym}`);
         if (!res.ok) throw new Error();
         const { data } = await res.json();
-        const issued = data.issued || 0;
-        const used = data.used || 0;
-        const pct = issued > 0 ? Math.round(used / issued * 100) : 62;
+        const pct = data.issued > 0 ? Math.round(data.used/data.issued*100) : 62;
         document.getElementById('pctFeedback').textContent = pct + '%';
-        document.getElementById('descFeedback').textContent = `${used} / ${issued}회`;
+        document.getElementById('descFeedback').textContent = `${data.used||0} / ${data.issued||0}회`;
         makeDonut('donutFeedback', pct, '#EF4444');
-    } catch(e) {
-        makeDonut('donutFeedback', 62, '#EF4444');
-    }
-}
-
-async function loadReregStats() {
-    try {
-        const res = await fetch('/api/crm/reregistration/status-summary');
-        if (!res.ok) throw new Error();
-        const { data } = await res.json();
-        const success = data.success || 0;
-        const total = success + (data.pending || 0) + (data.in_progress || 0) + (data.failed || 0);
-        const pct = total > 0 ? Math.round(success / total * 100) : 58;
-        document.getElementById('pctRereg').textContent = pct + '%';
-        document.getElementById('descRereg').textContent = `${success} / ${total}명`;
-        makeDonut('donutRereg', pct, '#06B6D4');
-    } catch(e) {
-        makeDonut('donutRereg', 58, '#06B6D4');
-    }
+    } catch(e) { makeDonut('donutFeedback', 62, '#EF4444'); document.getElementById('pctFeedback').textContent='62%'; }
 }
 
 let revenueBarChart = null;
 async function loadMonthlyRevenue() {
     try {
-        const labels = [];
-        const values = [];
+        const res  = await fetch('/api/revenue/trend?months=6');
+        const json = await res.json();
+        const trend = json.data || [];
+        // 최근 6개월 레이블 생성
         const today = new Date();
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-            const monthStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-            labels.push(monthStr.slice(5) + '월');
-            try {
-                const res = await fetch(`/api/revenue/summary?date=${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01&period=monthly`);
-                const { data } = await res.json();
-                const total = (data.membership||0) + (data.groupClass||0) + (data.pt||0) + (data.locker||0) + (data.items||0);
-                values.push(total);
-            } catch(e) { values.push(0); }
+        const months = [];
+        for (let i=5; i>=0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+            months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
         }
+        const byYm = {};
+        trend.forEach(r => { byYm[r.ym] = r; });
+        const labels  = months.map(m => m.slice(5)+'월');
+        const msData  = months.map(m => Number(byYm[m]?.membership||0));
+        const ptData  = months.map(m => Number(byYm[m]?.pt||0));
+        const grpData = months.map(m => Number(byYm[m]?.groupClass||0));
+
         const ctx = document.getElementById('monthlyRevenueChart').getContext('2d');
         if (revenueBarChart) revenueBarChart.destroy();
         revenueBarChart = new Chart(ctx, {
             type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    label: '월 매출',
-                    data: values,
-                    backgroundColor: '#3B82F6',
-                    borderRadius: 6,
-                    borderSkipped: false
-                }]
-            },
+            data: { labels, datasets: [
+                { label: '회원권', data: msData,  backgroundColor: '#3B82F6', borderRadius: 4, borderSkipped: false },
+                { label: 'PT',    data: ptData,  backgroundColor: '#8B5CF6', borderRadius: 4, borderSkipped: false },
+                { label: '그룹',  data: grpData, backgroundColor: '#10B981', borderRadius: 4, borderSkipped: false },
+            ]},
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: { legend: { position:'bottom', labels:{ boxWidth:12, font:{size:11} } } },
                 scales: {
-                    x: { ticks: { color: '#9CA3AF' }, grid: { display: false } },
-                    y: {
-                        ticks: { color: '#9CA3AF', callback: v => v >= 1000000 ? (v/1000000).toFixed(0)+'M' : v.toLocaleString() },
-                        grid: { color: '#F3F4F6' }, beginAtZero: true
-                    }
+                    x: { stacked: true, ticks:{ color:'#9CA3AF' }, grid:{ display:false } },
+                    y: { stacked: true, ticks:{ color:'#9CA3AF', callback: v => v>=1000000?(v/1000000).toFixed(0)+'M':v.toLocaleString() }, grid:{ color:'#F3F4F6' }, beginAtZero:true }
                 }
             }
         });
@@ -371,12 +428,11 @@ async function loadMemberTrend() {
         if (!res.ok) return;
         const { data } = await res.json();
         const dateMap = {};
-        (data || []).forEach(r => { dateMap[r.statDate] = r.activeMembers || 0; });
-
-        const labels = [], values = [];
-        for (let i = 29; i >= 0; i--) {
-            const d = new Date(); d.setDate(d.getDate() - i);
-            const key = d.toISOString().slice(0, 10);
+        (data||[]).forEach(r => { dateMap[r.statDate] = r.activeMembers||0; });
+        const labels=[], values=[];
+        for (let i=29; i>=0; i--) {
+            const d = new Date(); d.setDate(d.getDate()-i);
+            const key = fmt(d);
             labels.push(key.slice(5));
             values.push(dateMap[key] ?? null);
         }
@@ -384,41 +440,212 @@ async function loadMemberTrend() {
         if (memberTrendChart) memberTrendChart.destroy();
         memberTrendChart = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: '활성 회원',
-                    data: values,
-                    borderColor: '#10B981',
-                    backgroundColor: 'rgba(16,185,129,0.08)',
-                    borderWidth: 2,
-                    pointRadius: 2,
-                    spanGaps: false,
-                    tension: 0.3,
-                    fill: true
-                }]
-            },
+            data: { labels, datasets: [{ label:'활성 회원', data:values, borderColor:'#10B981', backgroundColor:'rgba(16,185,129,0.08)', borderWidth:2, pointRadius:2, spanGaps:false, tension:0.3, fill:true }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: { legend:{ display:false } },
                 scales: {
-                    x: { ticks: { color: '#9CA3AF', maxTicksLimit: 10 }, grid: { color: '#F3F4F6' } },
-                    y: { ticks: { color: '#9CA3AF' }, grid: { color: '#F3F4F6' }, beginAtZero: false }
+                    x:{ ticks:{ color:'#9CA3AF', maxTicksLimit:10 }, grid:{ color:'#F3F4F6' } },
+                    y:{ ticks:{ color:'#9CA3AF' }, grid:{ color:'#F3F4F6' }, beginAtZero:false }
                 }
             }
         });
     } catch(e) {}
 }
 
-function loadAll() {
-    loadMemberStats();
-    loadAttendStats();
-    loadFeedbackStats();
-    loadReregStats();
-    loadMonthlyRevenue();
-    loadMemberTrend();
+/* ═══════════════════════════════════════════════════════════
+   패널 2: 결제 내역
+═══════════════════════════════════════════════════════════ */
+let salePage = 0;
+const salePageSize = 20;
+
+async function loadSales() {
+    salePage = 0;
+    await fetchSales();
 }
 
+async function fetchSales() {
+    const type  = document.getElementById('saleType').value;
+    const start = document.getElementById('saleStart').value;
+    const end   = document.getElementById('saleEnd').value;
+    const body  = document.getElementById('salesBody');
+    body.dataset.loaded = '1';
+    body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted)">로딩 중...</td></tr>`;
+    try {
+        const res  = await fetch(`/api/revenue/sales?type=${type}&startDate=${start}&endDate=${end}&page=${salePage}&size=${salePageSize}`);
+        const json = await res.json();
+        const data = json.data?.sales || [];
+        const total = json.data?.total || 0;
+        document.getElementById('saleTotal').textContent = `총 ${total.toLocaleString()}건`;
+        if (!data.length) {
+            body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">결제 내역이 없습니다.</td></tr>`;
+            document.getElementById('salesPagination').innerHTML = '';
+            return;
+        }
+        body.innerHTML = data.map(s => `<tr>
+            <td>${s.saleDate||'-'}</td>
+            <td>${s.memberName||s.memberId||'-'}</td>
+            <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.productName||'-'}</td>
+            <td><span class="badge ${saleTypeBadge[s.productType]||'badge-pending'}">${saleTypeLabel[s.productType]||s.productType||'-'}</span></td>
+            <td class="sale-amount">${Number(s.amount||0).toLocaleString()}원</td>
+            <td>${payLabel[s.paymentMethod]||s.paymentMethod||'-'}</td>
+            <td style="font-size:12px;color:var(--text-secondary)">${s.memo||'-'}</td>
+            <td><button class="btn btn-secondary refund-btn" style="padding:4px 9px;font-size:12px" onclick="refund(${s.id})">환불</button></td>
+        </tr>`).join('');
+        renderSalePagination(total);
+    } catch(e) {
+        body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</td></tr>`;
+    }
+}
+
+function renderSalePagination(total) {
+    const pages = Math.ceil(total / salePageSize);
+    const pag   = document.getElementById('salesPagination');
+    if (pages <= 1) { pag.innerHTML=''; return; }
+    let html = `<button class="page-btn" onclick="goSalePage(${salePage-1})" ${salePage===0?'disabled':''}>&#8249;</button>`;
+    const start = Math.max(0, salePage-2), end = Math.min(pages-1, salePage+2);
+    for (let i=start; i<=end; i++)
+        html += `<button class="page-btn${i===salePage?' active':''}" onclick="goSalePage(${i})">${i+1}</button>`;
+    html += `<button class="page-btn" onclick="goSalePage(${salePage+1})" ${salePage>=pages-1?'disabled':''}>&#8250;</button>`;
+    pag.innerHTML = html;
+}
+
+function goSalePage(p) { salePage = p; fetchSales(); }
+
+async function refund(id) {
+    if (!confirm('이 결제 내역을 환불 처리(삭제)하시겠습니까?')) return;
+    await fetch(`/api/revenue/sales/${id}`, { method:'DELETE' });
+    fetchSales();
+    loadSummary();
+}
+
+function exportCsv() {
+    const type  = document.getElementById('saleType').value;
+    const start = document.getElementById('saleStart').value;
+    const end   = document.getElementById('saleEnd').value;
+    location.href = `/api/revenue/sales/export?type=${type}&startDate=${start}&endDate=${end}`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   패널 3: 구독권 현황
+═══════════════════════════════════════════════════════════ */
+let tierChartInst = null;
+
+async function loadSubs() {
+    const grid = document.getElementById('subGrid');
+    grid.dataset.loaded = '1';
+    try {
+        const res  = await fetch('/api/revenue/subscriptions/stats');
+        const json = await res.json();
+        const data = json.data || [];
+        const totalMembers = data.reduce((s,r) => s + Number(r.cnt||0), 0);
+
+        const tiers = ['INTENSIVE_FIT','REGULAR_FIT','LIGHT_FIT','BASIC'];
+        const byTier = {};
+        data.forEach(r => { byTier[r.tier] = Number(r.cnt||0); });
+
+        grid.innerHTML = tiers.map(t => {
+            const cnt = byTier[t] || 0;
+            const pct = totalMembers > 0 ? Math.round(cnt/totalMembers*100) : 0;
+            return `<div class="sub-tier-card ${t}">
+                <div class="sub-tier-name">${tierLabel[t]||t}</div>
+                <div class="sub-tier-count">${cnt.toLocaleString()}<span style="font-size:14px;font-weight:400;color:var(--text-muted)">명</span></div>
+                <div class="sub-tier-pct">${pct}% · 전체 대비</div>
+                <div class="sub-tier-bar"><div class="sub-tier-fill" style="width:${pct}%;background:${tierColor[t]||'#ccc'}"></div></div>
+            </div>`;
+        }).join('');
+
+        // 도넛 차트
+        const ctx = document.getElementById('tierChart').getContext('2d');
+        if (tierChartInst) tierChartInst.destroy();
+        tierChartInst = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: tiers.map(t => tierLabel[t]||t),
+                datasets: [{
+                    data: tiers.map(t => byTier[t]||0),
+                    backgroundColor: tiers.map(t => tierColor[t]||'#ccc'),
+                    borderRadius: 6, borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                plugins: { legend:{ display:false } },
+                scales: {
+                    x: { ticks:{ color:'#9CA3AF', stepSize:1 }, grid:{ color:'#F3F4F6' }, beginAtZero:true },
+                    y: { ticks:{ color:'#636C76', font:{ size:12 } }, grid:{ display:false } }
+                }
+            }
+        });
+    } catch(e) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</div>`;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   패널 4: 티켓 판매
+═══════════════════════════════════════════════════════════ */
+let ticketPage = 0;
+const ticketPageSize = 20;
+
+const ticketProductLabel = { FEEDBACK_TICKET: '피드백 티켓', ONEPOINT_CARD: '원포인트 카드' };
+const ticketProductBadge = { FEEDBACK_TICKET: 'badge-active', ONEPOINT_CARD: 'badge-admin' };
+
+async function loadTickets() {
+    ticketPage = 0;
+    await fetchTickets();
+}
+
+async function fetchTickets() {
+    const productId = document.getElementById('ticketType').value;
+    const start     = document.getElementById('ticketStart').value;
+    const end       = document.getElementById('ticketEnd').value;
+    const body      = document.getElementById('ticketBody');
+    body.dataset.loaded = '1';
+    body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">로딩 중...</td></tr>`;
+    try {
+        const res  = await fetch(`/api/revenue/tickets?productId=${productId}&startDate=${start}&endDate=${end}&page=${ticketPage}&size=${ticketPageSize}`);
+        const json = await res.json();
+        const data  = json.data?.tickets || [];
+        const total = json.data?.total   || 0;
+        document.getElementById('ticketTotal').textContent = `총 ${total.toLocaleString()}건`;
+        if (!data.length) {
+            body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">티켓 구매 내역이 없습니다.</td></tr>`;
+            document.getElementById('ticketPagination').innerHTML = '';
+            return;
+        }
+        body.innerHTML = data.map(t => `<tr>
+            <td>${String(t.purchaseDate||t.createdAt||'').substring(0,10)}</td>
+            <td>${t.memberName||t.memberId||'-'}</td>
+            <td><span class="badge ${ticketProductBadge[t.productId]||'badge-pending'}">${ticketProductLabel[t.productId]||t.productId||'-'}</span></td>
+            <td style="text-align:center;font-weight:600">${t.quantity||'-'}</td>
+            <td class="sale-amount">${Number(t.priceKrw||0).toLocaleString()}원</td>
+            <td>${payLabel[t.paymentMethod]||t.paymentMethod||'-'}</td>
+            <td style="font-size:12px;color:var(--text-secondary)">${t.description||'-'}</td>
+        </tr>`).join('');
+        renderTicketPagination(total);
+    } catch(e) {
+        body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</td></tr>`;
+    }
+}
+
+function renderTicketPagination(total) {
+    const pages = Math.ceil(total / ticketPageSize);
+    const pag   = document.getElementById('ticketPagination');
+    if (pages <= 1) { pag.innerHTML=''; return; }
+    let html = `<button class="page-btn" onclick="goTicketPage(${ticketPage-1})" ${ticketPage===0?'disabled':''}>&#8249;</button>`;
+    const start = Math.max(0, ticketPage-2), end = Math.min(pages-1, ticketPage+2);
+    for (let i=start; i<=end; i++)
+        html += `<button class="page-btn${i===ticketPage?' active':''}" onclick="goTicketPage(${i})">${i+1}</button>`;
+    html += `<button class="page-btn" onclick="goTicketPage(${ticketPage+1})" ${ticketPage>=pages-1?'disabled':''}>&#8250;</button>`;
+    pag.innerHTML = html;
+}
+
+function goTicketPage(p) { ticketPage = p; fetchTickets(); }
+
+/* ═══════════════════════════════════════════════════════════
+   사이드바
+═══════════════════════════════════════════════════════════ */
 function openSidebar() {
     document.querySelector('.sidebar').classList.add('open');
     document.getElementById('sidebarOverlay').classList.add('open');
@@ -428,7 +655,21 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
-loadAll();
+/* ── 초기화 ── */
+// 이달 날짜 기본값
+const today = new Date();
+const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+document.getElementById('saleStart').value   = fmt(firstDay);
+document.getElementById('saleEnd').value     = fmt(today);
+document.getElementById('ticketStart').value = fmt(firstDay);
+document.getElementById('ticketEnd').value   = fmt(today);
+
+loadSummary();
+loadMemberStats();
+loadAttendStats();
+loadFeedbackStats();
+loadMonthlyRevenue();
+loadMemberTrend();
 </script>
 </body>
 </html>

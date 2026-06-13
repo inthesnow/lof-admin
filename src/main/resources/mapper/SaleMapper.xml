@@ -51,4 +51,74 @@
         VALUES (#{memberId}, #{productId}, #{productName}, #{productType}, #{amount}, #{paymentMethod}, #{saleDate}, #{memo})
     </insert>
 
+    <sql id="salesWhere">
+        <where>
+            <if test="type != null and type != ''">AND s.product_type = #{type}</if>
+            <if test="startDate != null and startDate != ''">AND s.sale_date &gt;= #{startDate}</if>
+            <if test="endDate != null and endDate != ''">AND s.sale_date &lt;= #{endDate}</if>
+        </where>
+    </sql>
+
+    <!-- 결제 내역 페이징 -->
+    <select id="findPaged" resultType="map">
+        SELECT s.id, s.product_type AS productType, s.product_name AS productName,
+               s.amount, s.payment_method AS paymentMethod, s.sale_date AS saleDate, s.memo,
+               up.name AS memberName, s.user_id AS memberId
+        FROM sale s
+        LEFT JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        <include refid="salesWhere"/>
+        ORDER BY s.sale_date DESC, s.id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countPaged" resultType="long">
+        SELECT COUNT(*) FROM sale s
+        <include refid="salesWhere"/>
+    </select>
+
+    <!-- 환불(삭제) -->
+    <delete id="deleteById">
+        DELETE FROM sale WHERE id = #{id}
+    </delete>
+
+    <!-- CSV export (최대 5000건) -->
+    <select id="findForExport" resultType="map">
+        SELECT s.id, s.product_type AS productType, s.product_name AS productName,
+               s.amount, s.payment_method AS paymentMethod, s.sale_date AS saleDate, s.memo,
+               up.name AS memberName
+        FROM sale s
+        LEFT JOIN users u ON s.user_id = u.user_id
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        <include refid="salesWhere"/>
+        ORDER BY s.sale_date DESC, s.id DESC
+        LIMIT 5000
+    </select>
+
+    <!-- 등급별 회원 분포 -->
+    <select id="tierDistribution" resultType="map">
+        SELECT
+            COALESCE(up.tier, 'NONE') AS tier,
+            COUNT(*) AS cnt
+        FROM users u
+        LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        WHERE u.role = 'MEMBER' AND u.is_active = 1 AND u.deleted_at IS NULL
+        GROUP BY up.tier
+        ORDER BY FIELD(up.tier, 'INTENSIVE_FIT','REGULAR_FIT','LIGHT_FIT','BASIC') DESC
+    </select>
+
+    <!-- 월별 매출 추이 -->
+    <select id="monthlyTrend" resultType="map">
+        SELECT
+            DATE_FORMAT(s.sale_date, '%Y-%m') AS ym,
+            COALESCE(SUM(CASE WHEN s.product_type='MEMBERSHIP' THEN s.amount ELSE 0 END), 0) AS membership,
+            COALESCE(SUM(CASE WHEN s.product_type='PT'         THEN s.amount ELSE 0 END), 0) AS pt,
+            COALESCE(SUM(CASE WHEN s.product_type='GROUP'      THEN s.amount ELSE 0 END), 0) AS groupClass,
+            COALESCE(SUM(s.amount), 0) AS total
+        FROM sale s
+        WHERE s.sale_date >= DATE_SUB(CURDATE(), INTERVAL #{months} MONTH)
+        GROUP BY DATE_FORMAT(s.sale_date, '%Y-%m')
+        ORDER BY ym ASC
+    </select>
+
 </mapper>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.TicketPurchaseMapper">
+
+    <sql id="ticketWhere">
+        <where>
+            <if test="productId != null and productId != ''">AND tp.product_id = #{productId}</if>
+            <if test="startDate != null and startDate != ''">AND DATE(tp.created_at) &gt;= #{startDate}</if>
+            <if test="endDate != null and endDate != ''">AND DATE(tp.created_at) &lt;= #{endDate}</if>
+        </where>
+    </sql>
+
+    <select id="findAll" resultType="map">
+        SELECT tp.id, tp.user_id AS memberId, up.name AS memberName,
+               tp.product_id AS productId, tp.quantity, tp.price_krw AS priceKrw,
+               tp.payment_method AS paymentMethod, tp.description,
+               DATE(tp.created_at) AS purchaseDate, tp.created_at AS createdAt
+        FROM ticket_purchases tp
+        LEFT JOIN user_profiles up ON tp.user_id = up.user_id
+        <include refid="ticketWhere"/>
+        ORDER BY tp.created_at DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM ticket_purchases tp
+        <include refid="ticketWhere"/>
+    </select>
+
+    <select id="statsByType" resultType="map">
+        SELECT
+            product_id                       AS productId,
+            COUNT(*)                         AS purchaseCount,
+            SUM(quantity)                    AS totalQty,
+            SUM(price_krw)                   AS totalRevenue,
+            DATE_FORMAT(created_at, '%Y-%m') AS ym
+        FROM ticket_purchases
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL #{months} MONTH)
+        GROUP BY product_id, DATE_FORMAT(created_at, '%Y-%m')
+        ORDER BY ym DESC, product_id
+    </select>
+
+</mapper>

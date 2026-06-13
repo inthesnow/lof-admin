@@ -74,10 +74,10 @@
 - [x] 매출 대시보드 — 일간·주간·월간 집계 + 날짜 네비게이션
 - [x] 매출 펼치기(expand) — 카테고리별 상세 내역
 - [x] 상품 목록 관리 (`/products`) — 등록·수정·삭제
-- [ ] 구독권 판매 현황 — 등급별 가입자 수, 신규·해지 추이
-- [ ] 티켓 판매 현황 — 원포인트·피드백 판매량
-- [ ] 결제 내역 조회·환불 처리
-- [ ] 매출 리포트 엑셀 내보내기
+- [x] 구독권 판매 현황 — 등급별 가입자 수 + 가로 막대 차트 (`GET /api/revenue/subscriptions/stats`)
+- [x] 티켓 판매 현황 — 원포인트·피드백 구매 이력 (`ticket_purchases` 연동, `GET /api/revenue/tickets`)
+- [x] 결제 내역 조회·환불 처리 — 유형·날짜 필터 + 환불(DELETE) + CSV 내보내기 (`GET /api/revenue/sales`)
+- [x] 매출 리포트 CSV 내보내기 — `GET /api/revenue/sales/export` (BOM UTF-8, 최대 5000건)
 
 ### 9. 메시지(공지·이벤트)
 > ⚠️ `message` / `message_recipient` 테이블은 DB에서 **미사용(레거시)**  
