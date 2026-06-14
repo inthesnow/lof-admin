@@ -23,5 +23,17 @@ app:
 
 server:
   forward-headers-strategy: native
+  tomcat:
+    accesslog:
+      enabled: true
+      directory: /opt/lof-admin/logs
+      prefix: access
+      suffix: .log
+      # 날짜별 로테이트: access.log.2026-06-14
+      file-date-format: .yyyy-MM-dd
+      rotate: true
+      # IP, 메서드, URI, 상태코드, 바이트, 응답시간(ms)
+      pattern: "%{yyyy-MM-dd HH:mm:ss.SSS}t %a \"%m %U%q\" %s %b %Dms"
+      buffered: false   # 즉시 flush (버퍼 없이 실시간 기록)
 
 # 로그 레벨은 logback-spring.xml springProfile(prod) 블록에서 관리

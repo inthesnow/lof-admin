@@ -2,6 +2,8 @@ package com.linkfit.admin.exception;
 
 import com.linkfit.admin.common.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -12,28 +14,36 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(NoHandlerFoundException.class)
-    public String handleNotFound() {
+    public String handleNotFound(NoHandlerFoundException ex, HttpServletRequest request) {
+        log.warn("[404] {} {}", request.getMethod(), request.getRequestURI());
         return "error/404";
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public Object handleNoResource(NoResourceFoundException ex, HttpServletRequest request) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
+        log.warn("[404] {} {}", request.getMethod(), request.getRequestURI());
+        if (isJsonRequest(request)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error("리소스를 찾을 수 없습니다."));
+                    .body(ApiResponse.error("리소스를 찾을 수 없습니다."));
         }
         return "error/404";
     }
 
     @ExceptionHandler(Exception.class)
     public Object handleGeneral(Exception ex, HttpServletRequest request) {
-        String accept = request.getHeader("Accept");
-        if (accept != null && accept.contains("application/json")) {
+        log.error("[500] {} {} — {}", request.getMethod(), request.getRequestURI(), ex.getMessage(), ex);
+        if (isJsonRequest(request)) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("서버 오류가 발생했습니다: " + ex.getMessage()));
+                    .body(ApiResponse.error("서버 오류가 발생했습니다."));
         }
         return "error/500";
+    }
+
+    private boolean isJsonRequest(HttpServletRequest request) {
+        String accept = request.getHeader("Accept");
+        return accept != null && accept.contains("application/json");
     }
 }
