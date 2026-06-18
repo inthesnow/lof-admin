@@ -4,7 +4,6 @@ import com.linkfit.admin.mapper.AttendanceMapper;
 import com.linkfit.admin.mapper.ConsultMapper;
 import com.linkfit.admin.mapper.DashboardMapper;
 import com.linkfit.admin.service.DashboardService;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -13,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@Profile("dev")
 public class MyBatisDashboardService implements DashboardService {
 
     private final DashboardMapper dashboardMapper;

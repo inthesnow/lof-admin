@@ -3,7 +3,6 @@ package com.linkfit.admin.service.mybatis;
 import com.linkfit.admin.domain.Staff;
 import com.linkfit.admin.mapper.StaffMapper;
 import com.linkfit.admin.service.StaffService;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,7 +10,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-@Profile("dev")
 public class MyBatisStaffService implements StaffService {
 
     private final StaffMapper staffMapper;

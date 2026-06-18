@@ -5,7 +5,6 @@ import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.domain.Membership;
 import com.linkfit.admin.mapper.MemberMapper;
 import com.linkfit.admin.service.MemberService;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,7 +12,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-@Profile("dev")
 public class MyBatisMemberService implements MemberService {
 
     private final MemberMapper memberMapper;
