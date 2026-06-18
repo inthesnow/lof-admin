@@ -57,16 +57,16 @@
             루틴 출석
         </a>
 
-        <span class="nav-section-label">피드백 / 티켓</span>
-
-        <a th:href="@{/feedback}"        th:classappend="${activePage == 'feedback'}        ? ' active'" class="nav-item">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-            피드백 관리
-        </a>
+        <span class="nav-section-label">이용권 / 구독권</span>
 
         <a th:href="@{/products}"        th:classappend="${activePage == 'products'}        ? ' active'" class="nav-item">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 7H5c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-8 8H9v-2h2v2zm0-4H9V9h2v2zm4 4h-2v-2h2v2zm0-4h-2V9h2v2z"/></svg>
-            티켓 관리
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.34C18 2.23 15.5.8 13.16 2.05L12 2.97l-1.16-.92C8.5.8 6 2.23 6 4.66c0 .46.11.9.18 1.34H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5-1.34c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5c0 .46-.21.86-.53 1.15L12 10.96 7.03 5.81C6.71 5.52 6.5 5.12 6.5 4.66c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5V5h2v-.34c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5V5h2v-.34zM4 19V8h16v11H4z"/></svg>
+            이용권/PT 관리
+        </a>
+
+        <a th:href="@{/feedback}"        th:classappend="${activePage == 'feedback'}        ? ' active'" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 12c0-4.42-3.58-8-8-8s-8 3.58-8 8 3.58 8 8 8 8-3.58 8-8zM4 12c0-4.42 3.58-8 8-8s8 3.58 8 8-3.58 8-8 8-8-3.58-8-8zm9 3h-2v-5h2v5zm0-7h-2V6h2v2z"/></svg>
+            구독권/티켓 관리
         </a>
 
         <span class="nav-section-label">커뮤니케이션</span>
