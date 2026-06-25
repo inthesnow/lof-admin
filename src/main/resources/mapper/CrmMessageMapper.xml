@@ -80,7 +80,7 @@
                (id, gym_id, sender_type, sender_id, receiver_type, receiver_id,
                 content, is_read, is_notice, parent_id, created_at)
         VALUES (#{id}, #{gymId}, #{senderType}, #{senderId}, #{receiverType}, #{receiverId},
-                #{content}, 0, #{notice}, #{parentId}, NOW())
+                #{content}, 0, #{isNotice}, #{parentId}, NOW())
     </insert>
 
     <update id="markRead">

@@ -35,7 +35,7 @@
     </insert>
 
     <insert id="insertRecipients">
-        INSERT INTO message_recipient (message_id, member_id) VALUES
+        INSERT INTO message_recipient (message_id, user_id) VALUES
         <foreach collection="memberIds" item="memberId" separator=",">
             (#{messageId}, #{memberId})
         </foreach>
