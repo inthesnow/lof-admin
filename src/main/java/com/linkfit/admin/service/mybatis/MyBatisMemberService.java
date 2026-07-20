@@ -21,71 +21,84 @@ public class MyBatisMemberService implements MemberService {
     }
 
     @Override
-    public List<Member> findAll(String keyword, String status, String tier, int page, int size) {
-        return memberMapper.findAll(keyword, status, tier, page * size, size);
+    public List<Member> findAll(String keyword, String status, String tier, Long gymId, List<String> trainerIds,
+                                 Integer minDaysLeft, Integer maxDaysLeft, Integer minPtRemaining, Integer minAbsentDays,
+                                 int page, int size) {
+        return memberMapper.findAll(keyword, status, tier, gymId, trainerIds,
+                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays, page * size, size);
     }
 
     @Override
-    public long count(String keyword, String status, String tier) {
-        return memberMapper.count(keyword, status, tier);
+    public long count(String keyword, String status, String tier, Long gymId, List<String> trainerIds,
+                       Integer minDaysLeft, Integer maxDaysLeft, Integer minPtRemaining, Integer minAbsentDays) {
+        return memberMapper.count(keyword, status, tier, gymId, trainerIds,
+                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays);
     }
 
     @Override
-    public Optional<Member> findById(String id) {
-        return memberMapper.findById(id);
+    public Optional<Member> findById(String id, Long gymId) {
+        return memberMapper.findById(id, gymId);
     }
 
     @Override
-    public Member save(Member member) {
+    public Member save(Member member, Long gymId) {
         if (member.getId() == null || member.getId().isBlank()) {
             member.setId(UUID.randomUUID().toString());
         }
         memberMapper.insertUser(member);
         memberMapper.insertProfile(member);
+        if (gymId != null) {
+            memberMapper.insertUserGym(member.getId(), gymId);
+        }
         return member;
     }
 
     @Override
-    public Member update(String id, Member member) {
+    public Member update(String id, Member member, Long gymId) {
         member.setId(id);
-        memberMapper.update(member);
+        memberMapper.update(member, gymId);
         return member;
     }
 
     @Override
-    public void delete(String id) {
-        memberMapper.delete(id);
+    public void delete(String id, Long gymId) {
+        memberMapper.delete(id, gymId);
     }
 
     @Override
-    public void updateStatus(String id, String status) {
-        memberMapper.updateStatus(id, "ACTIVE".equals(status) ? 1 : 0);
+    public void updateStatus(String id, String status, Long gymId) {
+        memberMapper.updateStatus(id, "ACTIVE".equals(status) ? 1 : 0, gymId);
     }
 
     @Override
-    public void updateTier(String id, String tier) {
-        memberMapper.updateTier(id, tier);
+    public void updateTier(String id, String tier, Long gymId) {
+        memberMapper.updateTier(id, tier, gymId);
     }
 
     @Override
-    public void updateMemberType(String id, String memberType) {
-        memberMapper.updateMemberType(id, memberType);
+    public void updateMemberType(String id, String memberType, Long gymId) {
+        memberMapper.updateMemberType(id, memberType, gymId);
     }
 
     @Override
-    public void updateRole(String id, String role) {
-        memberMapper.updateRole(id, role);
+    public void updateRole(String id, String role, Long gymId) {
+        memberMapper.updateRole(id, role, gymId);
     }
 
     @Override
-    public void freeze(String id, String startDate, String endDate) {
+    public void updateAssignedTrainer(String id, String trainerId, Long gymId) {
+        memberMapper.updateAssignedTrainer(id, trainerId, gymId);
+    }
+
+    @Override
+    public void freeze(String id, String startDate, String endDate, Long gymId) {
         memberMapper.insertFreeze(id, startDate, endDate, null);
-        memberMapper.updateStatus(id, 0);
+        memberMapper.updateStatus(id, 0, gymId);
     }
 
     @Override
-    public void withdraw(String id) {
-        memberMapper.withdraw(id);
+    public void withdraw(String id, Long gymId) {
+        memberMapper.withdraw(id, gymId);
     }
 
     @Override

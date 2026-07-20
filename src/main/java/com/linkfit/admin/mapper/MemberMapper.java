@@ -14,18 +14,29 @@ import java.util.Optional;
 @Mapper
 public interface MemberMapper {
     List<Member> findAll(@Param("keyword") String keyword, @Param("status") String status,
-                         @Param("tier") String tier, @Param("offset") int offset, @Param("size") int size);
-    long count(@Param("keyword") String keyword, @Param("status") String status, @Param("tier") String tier);
-    Optional<Member> findById(@Param("id") String id);
+                         @Param("tier") String tier, @Param("gymId") Long gymId,
+                         @Param("trainerIds") List<String> trainerIds,
+                         @Param("minDaysLeft") Integer minDaysLeft, @Param("maxDaysLeft") Integer maxDaysLeft,
+                         @Param("minPtRemaining") Integer minPtRemaining, @Param("minAbsentDays") Integer minAbsentDays,
+                         @Param("offset") int offset, @Param("size") int size);
+    long count(@Param("keyword") String keyword, @Param("status") String status,
+               @Param("tier") String tier, @Param("gymId") Long gymId,
+               @Param("trainerIds") List<String> trainerIds,
+               @Param("minDaysLeft") Integer minDaysLeft, @Param("maxDaysLeft") Integer maxDaysLeft,
+               @Param("minPtRemaining") Integer minPtRemaining, @Param("minAbsentDays") Integer minAbsentDays);
+    Optional<Member> findById(@Param("id") String id, @Param("gymId") Long gymId);
+    boolean existsInGym(@Param("id") String id, @Param("gymId") Long gymId);
     void insertUser(Member member);
     void insertProfile(Member member);
-    void update(Member member);
-    void delete(@Param("id") String id);
-    void updateStatus(@Param("id") String id, @Param("isActive") int isActive);
-    void updateTier(@Param("id") String id, @Param("tier") String tier);
-    void updateMemberType(@Param("id") String id, @Param("memberType") String memberType);
-    void updateRole(@Param("id") String id, @Param("role") String role);
-    void withdraw(@Param("id") String id);
+    void insertUserGym(@Param("userId") String userId, @Param("gymId") Long gymId);
+    int update(@Param("member") Member member, @Param("gymId") Long gymId);
+    int delete(@Param("id") String id, @Param("gymId") Long gymId);
+    int updateStatus(@Param("id") String id, @Param("isActive") int isActive, @Param("gymId") Long gymId);
+    int updateTier(@Param("id") String id, @Param("tier") String tier, @Param("gymId") Long gymId);
+    int updateMemberType(@Param("id") String id, @Param("memberType") String memberType, @Param("gymId") Long gymId);
+    int updateRole(@Param("id") String id, @Param("role") String role, @Param("gymId") Long gymId);
+    int updateAssignedTrainer(@Param("id") String id, @Param("trainerId") String trainerId, @Param("gymId") Long gymId);
+    int withdraw(@Param("id") String id, @Param("gymId") Long gymId);
     void insertFreeze(@Param("memberId") String memberId, @Param("freezeStart") String freezeStart,
                       @Param("freezeEnd") String freezeEnd, @Param("reason") String reason);
     List<MemberFreeze> findFreezeByMemberId(@Param("memberId") String memberId);

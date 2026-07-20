@@ -11,11 +11,15 @@ public class Member {
     private LocalDate birthDate;
     private String status;       // ACTIVE, SUSPENDED
     private LocalDate joinDate;
+    private LocalDate membershipStart;
     private LocalDate membershipEnd;
     private String memo;
     private String memberType;   // PT, OT
     private String tier;         // BASIC, LIGHT_FIT, REGULAR_FIT, INTENSIVE_FIT
     private String role;         // MEMBER, TRAINER
+    private String trainerId;
+    private String trainerName;
+    private Integer ptSessionsLeft;
 
     public Member() {}
 
@@ -45,4 +49,12 @@ public class Member {
     public void setTier(String tier) { this.tier = tier; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public String getTrainerId() { return trainerId; }
+    public void setTrainerId(String trainerId) { this.trainerId = trainerId; }
+    public String getTrainerName() { return trainerName; }
+    public void setTrainerName(String trainerName) { this.trainerName = trainerName; }
+    public LocalDate getMembershipStart() { return membershipStart; }
+    public void setMembershipStart(LocalDate membershipStart) { this.membershipStart = membershipStart; }
+    public Integer getPtSessionsLeft() { return ptSessionsLeft; }
+    public void setPtSessionsLeft(Integer ptSessionsLeft) { this.ptSessionsLeft = ptSessionsLeft; }
 }

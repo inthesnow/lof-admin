@@ -12,26 +12,62 @@
         <result property="birthDate"     column="birth_date"/>
         <result property="status"        column="status"/>
         <result property="joinDate"      column="join_date"/>
+        <result property="membershipStart" column="membership_start"/>
         <result property="membershipEnd" column="membership_end"/>
         <result property="memberType"    column="member_type"/>
         <result property="tier"          column="tier"/>
         <result property="memo"          column="memo"/>
         <result property="role"          column="role"/>
+        <result property="trainerId"     column="trainer_id"/>
+        <result property="trainerName"   column="trainer_name"/>
+        <result property="ptSessionsLeft" column="pt_sessions_left"/>
     </resultMap>
+
+    <!-- 상태: 탈퇴 > 휴면(freeze) > 정지 > 유효 순으로 판정 -->
+    <sql id="statusCase">
+        CASE WHEN u.deleted_at IS NOT NULL THEN 'WITHDRAWN'
+             WHEN EXISTS (SELECT 1 FROM member_freeze mf WHERE mf.user_id = u.user_id
+                            AND CURDATE() BETWEEN mf.freeze_start AND mf.freeze_end) THEN 'FROZEN'
+             WHEN u.is_active = 1 THEN 'ACTIVE'
+             ELSE 'SUSPENDED' END
+    </sql>
 
     <sql id="memberSelect">
         SELECT u.user_id AS id, u.email, u.role,
                up.name, up.contact AS phone, up.gender, up.birth_date, up.member_type,
-               up.tier,
-               CASE WHEN u.deleted_at IS NOT NULL THEN 'WITHDRAWN'
-                    WHEN u.is_active = 1 THEN 'ACTIVE'
-                    ELSE 'SUSPENDED' END AS status,
+               up.tier, up.trainer_id, tp.name AS trainer_name, up.pt_sessions_left,
+               <include refid="statusCase"/> AS status,
                DATE(u.created_at) AS join_date,
+               (SELECT start_date FROM membership ms WHERE ms.user_id = u.user_id ORDER BY ms.end_date DESC LIMIT 1) AS membership_start,
                (SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id ORDER BY ms.end_date DESC LIMIT 1) AS membership_end,
                NULL AS memo
         FROM users u
         LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        LEFT JOIN user_profiles tp ON tp.user_id = up.trainer_id
+        LEFT JOIN (SELECT user_id, MAX(attend_date) AS last_attend FROM attendance GROUP BY user_id) la ON la.user_id = u.user_id
+        <if test="gymId != null">
+            JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        </if>
         WHERE u.role IN ('MEMBER', 'TRAINER')
+    </sql>
+
+    <sql id="extraFilters">
+        <if test="trainerIds != null and trainerIds.size() > 0">
+            AND up.trainer_id IN
+            <foreach collection="trainerIds" item="tid" open="(" separator="," close=")">#{tid}</foreach>
+        </if>
+        <if test="minDaysLeft != null">
+            AND DATEDIFF((SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id ORDER BY ms.end_date DESC LIMIT 1), CURDATE()) &gt;= #{minDaysLeft}
+        </if>
+        <if test="maxDaysLeft != null">
+            AND DATEDIFF((SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id ORDER BY ms.end_date DESC LIMIT 1), CURDATE()) &lt;= #{maxDaysLeft}
+        </if>
+        <if test="minPtRemaining != null">
+            AND up.pt_sessions_left &gt;= #{minPtRemaining}
+        </if>
+        <if test="minAbsentDays != null">
+            AND (la.last_attend IS NULL OR DATEDIFF(CURDATE(), la.last_attend) &gt;= #{minAbsentDays})
+        </if>
     </sql>
 
     <select id="findAll" resultMap="memberResultMap">
@@ -40,11 +76,12 @@
             AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="status != null and status != ''">
-            AND CASE WHEN u.deleted_at IS NOT NULL THEN 'WITHDRAWN' WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
+            AND <include refid="statusCase"/> = #{status}
         </if>
         <if test="tier != null and tier != ''">
             AND up.tier = #{tier}
         </if>
+        <include refid="extraFilters"/>
         ORDER BY u.created_at DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -53,21 +90,31 @@
         SELECT COUNT(*)
         FROM users u
         LEFT JOIN user_profiles up ON u.user_id = up.user_id
+        LEFT JOIN (SELECT user_id, MAX(attend_date) AS last_attend FROM attendance GROUP BY user_id) la ON la.user_id = u.user_id
+        <if test="gymId != null">
+            JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        </if>
         WHERE u.role IN ('MEMBER', 'TRAINER')
         <if test="keyword != null and keyword != ''">
             AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         <if test="status != null and status != ''">
-            AND CASE WHEN u.deleted_at IS NOT NULL THEN 'WITHDRAWN' WHEN u.is_active = 1 THEN 'ACTIVE' ELSE 'SUSPENDED' END = #{status}
+            AND <include refid="statusCase"/> = #{status}
         </if>
         <if test="tier != null and tier != ''">
             AND up.tier = #{tier}
         </if>
+        <include refid="extraFilters"/>
     </select>
 
     <select id="findById" resultMap="memberResultMap">
         <include refid="memberSelect"/>
         AND u.user_id = #{id}
+    </select>
+
+    <select id="existsInGym" resultType="boolean">
+        SELECT COUNT(*) > 0 FROM user_gym
+         WHERE user_id = #{id} AND gym_id = #{gymId} AND is_active = 1
     </select>
 
     <insert id="insertUser">
@@ -80,36 +127,62 @@
         VALUES (#{id}, #{name}, #{phone}, #{gender}, #{birthDate}, #{memberType}, #{tier})
     </insert>
 
+    <insert id="insertUserGym">
+        INSERT INTO user_gym (user_id, gym_id) VALUES (#{userId}, #{gymId})
+    </insert>
+
     <update id="update">
-        UPDATE user_profiles
-        SET name=#{name}, contact=#{phone}, gender=#{gender}, birth_date=#{birthDate},
-            member_type=#{memberType}, tier=#{tier}
-        WHERE user_id=#{id};
-        UPDATE users SET email=#{email} WHERE user_id=#{id}
+        UPDATE user_profiles up
+        JOIN user_gym ug ON ug.user_id = up.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET up.name=#{member.name}, up.contact=#{member.phone}, up.gender=#{member.gender}, up.birth_date=#{member.birthDate},
+            up.member_type=#{member.memberType}, up.tier=#{member.tier}
+        WHERE up.user_id=#{member.id};
+        UPDATE users u
+        JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET u.email=#{member.email} WHERE u.user_id=#{member.id}
     </update>
 
     <delete id="delete">
-        DELETE FROM users WHERE user_id=#{id}
+        DELETE u FROM users u
+        JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        WHERE u.user_id=#{id}
     </delete>
 
     <update id="updateStatus">
-        UPDATE users SET is_active=#{isActive} WHERE user_id=#{id}
+        UPDATE users u
+        JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET u.is_active=#{isActive} WHERE u.user_id=#{id}
     </update>
 
     <update id="updateTier">
-        UPDATE user_profiles SET tier=#{tier} WHERE user_id=#{id}
+        UPDATE user_profiles up
+        JOIN user_gym ug ON ug.user_id = up.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET up.tier=#{tier} WHERE up.user_id=#{id}
     </update>
 
     <update id="updateMemberType">
-        UPDATE user_profiles SET member_type=#{memberType} WHERE user_id=#{id}
+        UPDATE user_profiles up
+        JOIN user_gym ug ON ug.user_id = up.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET up.member_type=#{memberType} WHERE up.user_id=#{id}
     </update>
 
     <update id="updateRole">
-        UPDATE users SET role=#{role} WHERE user_id=#{id}
+        UPDATE users u
+        JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET u.role=#{role} WHERE u.user_id=#{id}
+    </update>
+
+    <!-- 담당 트레이너 지정: user_profiles.trainer_id (앱에서 실제로 사용하는 필드) -->
+    <update id="updateAssignedTrainer">
+        UPDATE user_profiles up
+        JOIN user_gym ug ON ug.user_id = up.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET up.trainer_id=#{trainerId} WHERE up.user_id=#{id}
     </update>
 
     <update id="withdraw">
-        UPDATE users SET deleted_at=NOW(), is_active=0 WHERE user_id=#{id}
+        UPDATE users u
+        JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
+        SET u.deleted_at=NOW(), u.is_active=0 WHERE u.user_id=#{id}
     </update>
 
     <insert id="insertFreeze">

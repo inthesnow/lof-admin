@@ -6,6 +6,48 @@
     <title>LINK_Fit Admin — 회원 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
+    <style>
+        .filter-bar-2 {
+            display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+            padding: 12px 24px 16px; border-bottom: 1px solid var(--border); background: var(--surface);
+        }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-label { font-size: 11px; color: var(--text-muted); }
+        .range-input { width: 70px; text-align: center; }
+        .trainer-filter-wrap { position: relative; }
+        .trainer-filter-count {
+            display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px;
+            background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+        }
+        .trainer-filter-dropdown {
+            display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 20;
+            min-width: 220px; max-height: 280px; overflow-y: auto;
+            background: #fff; border: 1px solid var(--border); border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 6px 0;
+        }
+        .trainer-filter-dropdown.open { display: block; }
+        .trainer-filter-item { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; }
+        .trainer-filter-item:hover { background: var(--surface-up); }
+        .trainer-filter-actions { display: flex; justify-content: flex-end; gap: 6px; padding: 8px 12px 4px; border-top: 1px solid var(--border); margin-top: 4px; }
+
+        /* ── 회원 상세정보창 ── */
+        .detail-tabs { display: flex; border-bottom: 1px solid var(--border); margin: -20px -20px 16px; padding: 0 20px; }
+        .detail-tab {
+            background: none; border: none; padding: 10px 16px; cursor: pointer;
+            color: var(--text-secondary); font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent;
+        }
+        .detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .detail-pane { min-height: 200px; }
+        .crm-note-item { padding: 10px 12px; border-radius: 6px; background: var(--surface-up); margin-bottom: 8px; font-size: 13px; }
+        .crm-note-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        .badge-muted { background: rgba(139,148,158,.12); color: var(--text-muted); }
+        .badge-frozen { background: rgba(210,153,34,.15); color: var(--warning); }
+        .ms-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 8px; background: var(--surface-up); margin-bottom: 8px; font-size: 13px; }
+        .ms-item-info { flex: 1; min-width: 0; }
+        .ms-item-type { font-weight: 600; color: var(--text-primary); }
+        .ms-item-dates { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .ms-expire-input { width: 130px; padding: 3px 8px; font-size: 12px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-primary); }
+    </style>
 </head>
 <body>
 
@@ -37,7 +79,7 @@
         <button class="sub-tab active" onclick="setMemberTab('', this)">전체</button>
         <button class="sub-tab" onclick="setMemberTab('membership', this)">이용권 회원</button>
         <button class="sub-tab" onclick="setMemberTab('PT', this)">PT 회원</button>
-        <button class="sub-tab" onclick="setMemberTab('expiring', this)">곧 만료 회원</button>
+        <button class="sub-tab" onclick="setMemberTab('expiring', this)">만료예정 회원</button>
     </div>
 
     <div class="search-bar">
@@ -49,10 +91,11 @@
             <option value="">전체 상태</option>
             <option value="ACTIVE">유효</option>
             <option value="SUSPENDED">정지</option>
+            <option value="FROZEN">휴면</option>
             <option value="WITHDRAWN">탈퇴</option>
         </select>
         <select class="filter-select" id="tierFilter" onchange="loadMembers()">
-            <option value="">전체 등급</option>
+            <option value="">전체 구독권</option>
             <option value="BASIC">기본</option>
             <option value="LIGHT_FIT">라이트</option>
             <option value="REGULAR_FIT">레귤러</option>
@@ -60,17 +103,52 @@
         </select>
     </div>
 
+    <!-- 상세 필터 -->
+    <div class="filter-bar-2">
+        <div class="filter-group">
+            <span class="filter-label">담당 트레이너</span>
+            <div class="trainer-filter-wrap">
+                <button type="button" class="btn btn-secondary" onclick="toggleTrainerDropdown()">
+                    선택<span id="trainerFilterCount" class="trainer-filter-count" style="display:none"></span>
+                </button>
+                <div id="trainerFilterDropdown" class="trainer-filter-dropdown"></div>
+            </div>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">PT 잔여횟수 (이상)</span>
+            <input type="number" class="form-input range-input" id="minPtRemaining" placeholder="0" min="0" onkeyup="if(event.key==='Enter')loadMembers()">
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">잔여일자</span>
+            <div style="display:flex;align-items:center;gap:4px">
+                <input type="number" class="form-input range-input" id="minDaysLeft" placeholder="0" onkeyup="if(event.key==='Enter')loadMembers()">
+                <span>~</span>
+                <input type="number" class="form-input range-input" id="maxDaysLeft" placeholder="100" onkeyup="if(event.key==='Enter')loadMembers()">
+                <span style="font-size:12px;color:var(--text-muted)">일</span>
+            </div>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">미출석기간 (이상)</span>
+            <div style="display:flex;align-items:center;gap:4px">
+                <input type="number" class="form-input range-input" id="minAbsentDays" placeholder="0" onkeyup="if(event.key==='Enter')loadMembers()">
+                <span style="font-size:12px;color:var(--text-muted)">일</span>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="currentPage=0;loadMembers()">조회</button>
+        <button class="btn btn-secondary" onclick="resetExtraFilters()">필터 초기화</button>
+    </div>
+
     <div class="table-wrap">
         <table>
             <thead>
                 <tr>
                     <th>회원명</th>
+                    <th>성별</th>
                     <th>연락처</th>
                     <th>가입일</th>
-                    <th>회원구분</th>
-                    <th>등급</th>
-                    <th>상태</th>
-                    <th>회원권 만료</th>
+                    <th>이용권기간</th>
+                    <th>잔여일수 / PT</th>
+                    <th>구독권</th>
                     <th>관리</th>
                 </tr>
             </thead>
@@ -83,11 +161,11 @@
     <div class="pagination" id="pagination"></div>
 </main>
 
-<!-- 회원 등록/수정 모달 -->
+<!-- 회원 등록 모달 (신규 등록 전용) -->
 <div class="modal-overlay" id="memberModal">
     <div class="modal" style="max-width:600px">
         <div class="modal-header">
-            <span class="modal-title" id="modalTitle">회원 등록</span>
+            <span class="modal-title">회원 등록</span>
             <button class="modal-close" onclick="closeModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
@@ -102,7 +180,7 @@
                     <label class="form-label">전화번호</label>
                     <input type="text" class="form-input" id="mPhone" placeholder="010-0000-0000">
                 </div>
-                <div class="form-group full" id="emailGroup">
+                <div class="form-group full">
                     <label class="form-label">이메일 <span style="color:var(--text-muted);font-size:11px">(로그인 ID)</span></label>
                     <input type="email" class="form-input" id="mEmail" placeholder="example@email.com">
                 </div>
@@ -135,10 +213,6 @@
                         <option value="INTENSIVE_FIT">인텐시브 (INTENSIVE_FIT)</option>
                     </select>
                 </div>
-                <div class="form-group full">
-                    <label class="form-label">메모</label>
-                    <textarea class="form-textarea" id="mMemo" placeholder="메모 입력..."></textarea>
-                </div>
             </div>
         </div>
         <div class="modal-footer">
@@ -148,89 +222,181 @@
     </div>
 </div>
 
-<!-- 티켓 관리 모달 -->
-<div class="modal-overlay" id="ticketModal">
-    <div class="modal" style="max-width:460px">
+<!-- 회원 상세정보창 (통합) -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal" style="max-width:640px">
         <div class="modal-header">
-            <span class="modal-title" id="ticketModalTitle">티켓 관리</span>
-            <button class="modal-close" onclick="closeTicketModal()">
+            <span class="modal-title" id="detailModalTitle">회원 상세정보</span>
+            <button class="modal-close" onclick="closeDetailModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
         </div>
         <div class="modal-body">
-            <!-- 현재 잔량 -->
-            <div style="display:flex;gap:12px;margin-bottom:24px">
-                <div style="flex:1;background:var(--surface-up);border-radius:8px;padding:14px;text-align:center">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">원포인트 티켓</div>
-                    <div style="font-size:26px;font-weight:700;color:var(--accent)" id="ticketCountOp">-</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">개 보유</div>
+            <div class="detail-tabs">
+                <button class="detail-tab active" id="dtab-info"      onclick="switchDetailTab('info')">기본정보</button>
+                <button class="detail-tab"        id="dtab-trainer"   onclick="switchDetailTab('trainer')">트레이너 지정</button>
+                <button class="detail-tab"        id="dtab-ms"        onclick="switchDetailTab('ms')">이용권</button>
+                <button class="detail-tab"        id="dtab-ticket"    onclick="switchDetailTab('ticket')">티켓</button>
+                <button class="detail-tab"        id="dtab-memo"      onclick="switchDetailTab('memo')">메모</button>
+                <button class="detail-tab"        id="dtab-tag"       onclick="switchDetailTab('tag')">태그</button>
+            </div>
+
+            <!-- 기본정보 -->
+            <div class="detail-pane" id="dpane-info">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">이름 *</label>
+                        <input type="text" class="form-input" id="dName">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">전화번호</label>
+                        <input type="text" class="form-input" id="dPhone">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">성별</label>
+                        <select class="form-select" id="dGender">
+                            <option value="">선택</option>
+                            <option value="남자">남성</option>
+                            <option value="여자">여성</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">생년월일</label>
+                        <input type="date" class="form-input" id="dBirthDate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">회원 구분</label>
+                        <select class="form-select" id="dMemberType">
+                            <option value="">일반</option>
+                            <option value="OT">OT</option>
+                            <option value="PT">PT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">구독 등급</label>
+                        <select class="form-select" id="dTier">
+                            <option value="BASIC">기본 (BASIC)</option>
+                            <option value="LIGHT_FIT">라이트 (LIGHT_FIT)</option>
+                            <option value="REGULAR_FIT">레귤러 (REGULAR_FIT)</option>
+                            <option value="INTENSIVE_FIT">인텐시브 (INTENSIVE_FIT)</option>
+                        </select>
+                    </div>
                 </div>
-                <div style="flex:1;background:var(--surface-up);border-radius:8px;padding:14px;text-align:center">
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">피드백 티켓</div>
-                    <div style="font-size:26px;font-weight:700;color:var(--success)" id="ticketCountFb">-</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">개 보유</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+                    <button class="btn btn-secondary" style="font-size:12px" id="dRoleBtn" onclick="toggleTrainerRoleFromDetail()">트레이너 권한 부여</button>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-danger" style="font-size:12px" onclick="withdrawMemberFromDetail()">탈퇴 처리</button>
+                        <button class="btn btn-primary" onclick="saveDetailInfo()">기본정보 저장</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- 지급/차감 폼 -->
-            <div class="form-group">
-                <label class="form-label">티켓 종류</label>
-                <select class="form-select" id="tTicketType">
-                    <option value="ONE_POINT">원포인트 티켓</option>
-                    <option value="FEEDBACK">피드백 티켓</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin-top:12px">
-                <label class="form-label">수량</label>
-                <div style="display:flex;gap:8px;align-items:center">
-                    <button class="btn btn-secondary" style="padding:6px 14px" onclick="setTicketAmount(-1)">차감 (–)</button>
-                    <button class="btn btn-secondary" style="padding:6px 14px" onclick="setTicketAmount(1)">지급 (+)</button>
-                    <input type="number" class="form-input" id="tAmount" value="1" min="1" style="width:90px;text-align:center">
-                    <span style="font-size:12px;color:var(--text-muted)">개</span>
+            <!-- 트레이너 지정 -->
+            <div class="detail-pane" id="dpane-trainer" style="display:none">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">이 회원을 관리할 담당 트레이너를 지정합니다.</div>
+                <div class="form-group">
+                    <label class="form-label">담당 트레이너</label>
+                    <select class="form-select" id="dTrainerSelect">
+                        <option value="">배정 안 함</option>
+                    </select>
                 </div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:6px">
-                    차감 시 (–) 클릭 후 수량 입력 — 0 미만으로 내려가지 않습니다.
+                <div style="margin-top:16px;text-align:right">
+                    <button class="btn btn-primary" onclick="saveTrainerAssignment()">저장</button>
                 </div>
             </div>
-            <div class="form-group" style="margin-top:12px">
-                <label class="form-label">메모 <span style="color:var(--text-muted);font-size:11px">(선택)</span></label>
-                <input type="text" class="form-input" id="tDescription" placeholder="지급 사유 등">
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeTicketModal()">닫기</button>
-            <button class="btn btn-primary" id="ticketSaveBtn" onclick="saveTicket()">저장</button>
-        </div>
-    </div>
-</div>
 
-<!-- CRM 메모/태그 모달 -->
-<div class="modal-overlay" id="crmModal">
-    <div class="modal" style="max-width:520px">
-        <div class="modal-header">
-            <span class="modal-title" id="crmModalTitle">CRM — </span>
-            <button class="modal-close" onclick="closeCrmModal()">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-        </div>
-        <div class="modal-body" style="padding-top:0">
-            <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px">
-                <button id="crmTabNote" class="crm-tab active" onclick="switchCrmTab('note')">메모</button>
-                <button id="crmTabTag"  class="crm-tab"        onclick="switchCrmTab('tag')">태그</button>
+            <!-- 이용권 -->
+            <div class="detail-pane" id="dpane-ms" style="display:none">
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">등록된 이용권</div>
+                <div id="membershipList" style="margin-bottom:20px;min-height:40px">
+                    <div style="color:var(--text-muted);font-size:13px">로딩 중...</div>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:16px">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">이용권 등록</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">유형 *</label>
+                            <select class="form-select" id="msType">
+                                <option value="MEMBERSHIP">일반 회원권</option>
+                                <option value="PT">PT</option>
+                                <option value="OT">OT</option>
+                                <option value="GROUP">그룹 수업</option>
+                                <option value="LOCKER">락커</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">금액</label>
+                            <input type="number" class="form-input" id="msPrice" placeholder="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">시작일 *</label>
+                            <input type="date" class="form-input" id="msStart">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">만료일 *</label>
+                            <input type="date" class="form-input" id="msEnd">
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label">메모</label>
+                            <input type="text" class="form-input" id="msMemo" placeholder="메모 입력...">
+                        </div>
+                    </div>
+                    <div style="margin-top:12px;text-align:right">
+                        <button class="btn btn-primary" onclick="addMembership()">이용권 등록</button>
+                    </div>
+                </div>
             </div>
 
-            <!-- 메모 탭 -->
-            <div id="crmPaneNote">
-                <div id="crmNoteList" style="max-height:240px;overflow-y:auto;margin-bottom:12px"></div>
+            <!-- 티켓 -->
+            <div class="detail-pane" id="dpane-ticket" style="display:none">
+                <div style="display:flex;gap:12px;margin-bottom:24px">
+                    <div style="flex:1;background:var(--surface-up);border-radius:8px;padding:14px;text-align:center">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">원포인트 티켓</div>
+                        <div style="font-size:26px;font-weight:700;color:var(--accent)" id="ticketCountOp">-</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">개 보유</div>
+                    </div>
+                    <div style="flex:1;background:var(--surface-up);border-radius:8px;padding:14px;text-align:center">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">피드백 티켓</div>
+                        <div style="font-size:26px;font-weight:700;color:var(--success)" id="ticketCountFb">-</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">개 보유</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">티켓 종류</label>
+                    <select class="form-select" id="tTicketType">
+                        <option value="ONE_POINT">원포인트 티켓</option>
+                        <option value="FEEDBACK">피드백 티켓</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-top:12px">
+                    <label class="form-label">수량</label>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <button class="btn btn-secondary" id="tMinusBtn" style="padding:6px 14px" onclick="setTicketAmount(-1)">차감 (–)</button>
+                        <button class="btn btn-secondary" id="tPlusBtn" style="padding:6px 14px" onclick="setTicketAmount(1)">지급 (+)</button>
+                        <input type="number" class="form-input" id="tAmount" value="1" min="1" style="width:90px;text-align:center">
+                        <span style="font-size:12px;color:var(--text-muted)">개</span>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:12px">
+                    <label class="form-label">메모 <span style="color:var(--text-muted);font-size:11px">(선택)</span></label>
+                    <input type="text" class="form-input" id="tDescription" placeholder="지급 사유 등">
+                </div>
+                <div style="margin-top:16px;text-align:right">
+                    <button class="btn btn-primary" id="ticketSaveBtn" onclick="saveTicket()">저장</button>
+                </div>
+            </div>
+
+            <!-- 메모 -->
+            <div class="detail-pane" id="dpane-memo" style="display:none">
+                <div id="crmNoteList" style="max-height:280px;overflow-y:auto;margin-bottom:12px"></div>
                 <div style="display:flex;gap:8px">
-                    <textarea id="crmNoteInput" class="form-textarea" rows="2"
-                              placeholder="메모 입력..." style="flex:1;margin:0"></textarea>
+                    <textarea id="crmNoteInput" class="form-textarea" rows="2" placeholder="메모 입력..." style="flex:1;margin:0"></textarea>
                     <button class="btn btn-primary" style="align-self:flex-end" onclick="addNote()">추가</button>
                 </div>
             </div>
 
-            <!-- 태그 탭 -->
-            <div id="crmPaneTag" style="display:none">
+            <!-- 태그 -->
+            <div class="detail-pane" id="dpane-tag" style="display:none">
                 <div id="crmTagList" style="display:flex;flex-wrap:wrap;gap:8px;min-height:40px;margin-bottom:16px"></div>
                 <div style="display:flex;gap:8px;align-items:center">
                     <input type="text" id="crmTagInput" class="form-input" placeholder="태그 이름" maxlength="30" style="flex:1">
@@ -239,100 +405,19 @@
                 </div>
             </div>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeCrmModal()">닫기</button>
-        </div>
     </div>
 </div>
-
-<!-- 회원권 관리 모달 -->
-<div class="modal-overlay" id="membershipModal">
-    <div class="modal" style="max-width:640px">
-        <div class="modal-header">
-            <span class="modal-title" id="membershipModalTitle">이용권 관리</span>
-            <button class="modal-close" onclick="closeMembershipModal()">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-        </div>
-        <div class="modal-body" style="padding-bottom:8px">
-            <!-- 현재 이용권 목록 -->
-            <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">등록된 이용권</div>
-            <div id="membershipList" style="margin-bottom:20px;min-height:40px">
-                <div style="color:var(--text-muted);font-size:13px">로딩 중...</div>
-            </div>
-            <!-- 신규 이용권 등록 -->
-            <div style="border-top:1px solid var(--border);padding-top:16px">
-                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">이용권 등록</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">유형 *</label>
-                        <select class="form-select" id="msType">
-                            <option value="MEMBERSHIP">일반 회원권</option>
-                            <option value="PT">PT</option>
-                            <option value="OT">OT</option>
-                            <option value="GROUP">그룹 수업</option>
-                            <option value="LOCKER">락커</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">금액</label>
-                        <input type="number" class="form-input" id="msPrice" placeholder="0" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">시작일 *</label>
-                        <input type="date" class="form-input" id="msStart">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">만료일 *</label>
-                        <input type="date" class="form-input" id="msEnd">
-                    </div>
-                    <div class="form-group full">
-                        <label class="form-label">메모</label>
-                        <input type="text" class="form-input" id="msMemo" placeholder="메모 입력...">
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeMembershipModal()">닫기</button>
-            <button class="btn btn-primary" onclick="addMembership()">이용권 등록</button>
-        </div>
-    </div>
-</div>
-
-<style>
-.crm-tab {
-    background: none; border: none; padding: 10px 18px; cursor: pointer;
-    color: var(--text-secondary); font-size: 13px; border-bottom: 2px solid transparent;
-}
-.crm-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.crm-note-item {
-    padding: 10px 12px; border-radius: 6px; background: var(--surface-up);
-    margin-bottom: 8px; font-size: 13px;
-}
-.crm-note-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-.badge-muted { background: rgba(139,148,158,.12); color: var(--text-muted); }
-.ms-item {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 10px 12px; border-radius: 8px; background: var(--surface-up);
-    margin-bottom: 8px; font-size: 13px;
-}
-.ms-item-info { flex: 1; min-width: 0; }
-.ms-item-type { font-weight: 600; color: var(--text-primary); }
-.ms-item-dates { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.ms-expire-input { width: 130px; padding: 3px 8px; font-size: 12px;
-    border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-primary); }
-</style>
 
 <script>
 let currentPage = 0;
 const pageSize = 10;
-let editingId = null;
 let searchTimer = null;
 let memberTypeFilter = '';
+let selectedTrainerIds = [];
+let trainerList = [];
 
-const statusLabel = { ACTIVE: '유효', SUSPENDED: '정지', WITHDRAWN: '탈퇴' };
-const statusBadge = { ACTIVE: 'badge-active', SUSPENDED: 'badge-suspended', WITHDRAWN: 'badge-muted' };
+const statusLabel = { ACTIVE: '유효', SUSPENDED: '정지', FROZEN: '휴면', WITHDRAWN: '탈퇴' };
+const statusBadge = { ACTIVE: 'badge-active', SUSPENDED: 'badge-suspended', FROZEN: 'badge-frozen', WITHDRAWN: 'badge-muted' };
 const genderLabel = { '남자': '남성', '여자': '여성', M: '남성', F: '여성' };
 const memberTypeLabel = { PT: 'PT', OT: 'OT' };
 const tierLabel = { BASIC: '기본', LIGHT_FIT: '라이트', REGULAR_FIT: '레귤러', INTENSIVE_FIT: '인텐시브' };
@@ -355,17 +440,110 @@ function setMemberTab(typeVal, btn) {
     loadMembers();
 }
 
+function resetExtraFilters() {
+    selectedTrainerIds = [];
+    updateTrainerCountBadge();
+    document.getElementById('minPtRemaining').value = '';
+    document.getElementById('minDaysLeft').value = '';
+    document.getElementById('maxDaysLeft').value = '';
+    document.getElementById('minAbsentDays').value = '';
+    currentPage = 0;
+    loadMembers();
+}
+
+// ── 담당 트레이너 필터 (다중 선택) ────────────────────────────
+async function loadTrainerList() {
+    try {
+        const res  = await fetch('/api/staff?role=TRAINER&size=200');
+        const json = await res.json();
+        trainerList = (json.data?.staff || []).map(s => ({ id: s.id, name: s.name || s.id }));
+    } catch (e) {}
+}
+
+function toggleTrainerDropdown() {
+    const dd = document.getElementById('trainerFilterDropdown');
+    const opening = !dd.classList.contains('open');
+    if (opening) { renderTrainerDropdown(); dd.classList.add('open'); }
+    else dd.classList.remove('open');
+}
+
+function renderTrainerDropdown() {
+    const dd = document.getElementById('trainerFilterDropdown');
+    if (!trainerList.length) {
+        dd.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--text-muted)">담당 트레이너가 없습니다.</div>`;
+        return;
+    }
+    dd.innerHTML = trainerList.map(t => `
+        <label class="trainer-filter-item">
+            <input type="checkbox" value="${t.id}" ${selectedTrainerIds.includes(t.id) ? 'checked' : ''}
+                   onchange="onTrainerCheck('${t.id}',this.checked)">
+            ${escHtml(t.name)}
+        </label>`).join('')
+        + `<div class="trainer-filter-actions">
+             <button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onclick="applyTrainerFilter()">적용</button>
+           </div>`;
+}
+
+function onTrainerCheck(trainerId, checked) {
+    const set = new Set(selectedTrainerIds);
+    checked ? set.add(trainerId) : set.delete(trainerId);
+    selectedTrainerIds = Array.from(set);
+}
+
+function applyTrainerFilter() {
+    document.getElementById('trainerFilterDropdown').classList.remove('open');
+    updateTrainerCountBadge();
+    currentPage = 0;
+    loadMembers();
+}
+
+function updateTrainerCountBadge() {
+    const badge = document.getElementById('trainerFilterCount');
+    const n = selectedTrainerIds.length;
+    badge.textContent = n ? ` ${n}` : '';
+    badge.style.display = n ? '' : 'none';
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.trainer-filter-wrap')) {
+        document.getElementById('trainerFilterDropdown').classList.remove('open');
+    }
+});
+
+// ── 목록 조회 ────────────────────────────────────────────────
+function trainerQuery() {
+    return selectedTrainerIds.length ? selectedTrainerIds.map(id => `&trainerIds=${encodeURIComponent(id)}`).join('') : '';
+}
+
 async function loadMembers() {
     const keyword = document.getElementById('searchInput').value;
     const status  = document.getElementById('statusFilter').value;
     const tier    = document.getElementById('tierFilter').value;
+    const minPt   = document.getElementById('minPtRemaining').value;
+    const minDL   = document.getElementById('minDaysLeft').value;
+    const maxDL   = document.getElementById('maxDaysLeft').value;
+    const minAbs  = document.getElementById('minAbsentDays').value;
+
     let url = `/api/members?keyword=${encodeURIComponent(keyword)}&status=${status}&tier=${tier}&page=${currentPage}&size=${pageSize}`;
-    if (memberTypeFilter === 'PT')         url += '&memberType=PT';
+    if (memberTypeFilter === 'PT')              url += '&memberType=PT';
     else if (memberTypeFilter === 'membership') url += '&memberType=MEMBERSHIP';
     else if (memberTypeFilter === 'expiring')   url += '&expiring=30';
+    url += trainerQuery();
+    if (minPt  !== '') url += `&minPtRemaining=${encodeURIComponent(minPt)}`;
+    if (minDL  !== '') url += `&minDaysLeft=${encodeURIComponent(minDL)}`;
+    if (maxDL  !== '') url += `&maxDaysLeft=${encodeURIComponent(maxDL)}`;
+    if (minAbs !== '') url += `&minAbsentDays=${encodeURIComponent(minAbs)}`;
+
     const res = await fetch(url);
     const json = await res.json();
     renderTable(json.data.members, json.data.total);
+}
+
+function daysLeftOf(m) {
+    if (!m.membershipEnd) return null;
+    const end = new Date(m.membershipEnd);
+    const today = new Date(); today.setHours(0,0,0,0);
+    return Math.ceil((end - today) / 86400000);
 }
 
 function renderTable(members, total) {
@@ -375,31 +553,27 @@ function renderTable(members, total) {
         renderPagination(0);
         return;
     }
-    tbody.innerHTML = members.map(m => `
+    tbody.innerHTML = members.map(m => {
+        const daysLeft = daysLeftOf(m);
+        const daysLeftStr = daysLeft == null ? '-' : (daysLeft < 0 ? `만료 D+${-daysLeft}` : `D-${daysLeft}`);
+        const ptStr = (m.memberType === 'PT' || m.ptSessionsLeft != null) ? `PT ${m.ptSessionsLeft ?? 0}회` : '';
+        const msPeriod = (m.membershipStart || m.membershipEnd) ? `${m.membershipStart || '-'} ~ ${m.membershipEnd || '-'}` : '-';
+        return `
         <tr>
-            <td>${m.name || '-'}</td>
+            <td>${escHtml(m.name || m.id)}</td>
+            <td>${genderLabel[m.gender] || '-'}</td>
             <td>${m.phone || '-'}</td>
             <td>${m.joinDate || '-'}</td>
-            <td>${m.memberType ? `<span class="badge badge-trainer">${memberTypeLabel[m.memberType] || m.memberType}</span>` : '<span style="color:var(--text-muted);font-size:12px">이용권</span>'}</td>
+            <td style="font-size:12px">${msPeriod}</td>
+            <td style="font-size:12px">${daysLeftStr}${ptStr ? ' / ' + ptStr : ''}</td>
             <td>${m.tier ? `<span class="badge ${tierBadge[m.tier] || ''}">${tierLabel[m.tier] || m.tier}</span>` : '-'}</td>
-            <td><span class="badge ${statusBadge[m.status] || ''}">${statusLabel[m.status] || m.status}</span></td>
-            <td>${m.membershipEnd || '-'}</td>
-            <td style="display:flex;gap:6px;flex-wrap:wrap">
-                ${m.status !== 'WITHDRAWN' ? `
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="editMember('${m.id}')">수정</button>
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openMembershipModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">이용권</button>
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--success)" onclick="openTicketModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">티켓</button>
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:#8B949E" onclick="openCrmModal('${m.id}', '${(m.name||'').replace(/'/g,'')}')">메모</button>
-                ${m.role === 'TRAINER'
-                    ? `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--error)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}', 'MEMBER')">트레이너 지정해제</button>`
-                    : `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--warning)" onclick="assignTrainerRole('${m.id}', '${(m.name||'').replace(/'/g,'')}', 'TRAINER')">트레이너 지정</button>`
-                }
-                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--error)" onclick="withdrawMember('${m.id}', '${(m.name||'').replace(/'/g,'')}')">탈퇴</button>
-                ` : `<span style="font-size:12px;color:var(--text-muted)">탈퇴 처리됨</span>`}
-                <button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="deleteMember('${m.id}', '${(m.name||'').replace(/'/g,'')}')">삭제</button>
+            <td>
+                ${m.status !== 'WITHDRAWN'
+                    ? `<button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="openDetailModal('${m.id}')">관리</button>`
+                    : `<span style="font-size:12px;color:var(--text-muted)">탈퇴 처리됨</span>`}
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
     renderPagination(total);
 }
 
@@ -417,42 +591,22 @@ function renderPagination(total) {
 
 function goPage(p) { currentPage = p; loadMembers(); }
 
-function openModal(id) {
-    editingId = id || null;
-    document.getElementById('modalTitle').textContent = id ? '회원 수정' : '회원 등록';
-    document.getElementById('emailGroup').style.display = id ? 'none' : '';
-    ['mName','mPhone','mEmail','mBirthDate','mMemo'].forEach(fid => {
-        document.getElementById(fid).value = '';
-    });
+// ── 회원 등록(신규) 모달 ──────────────────────────────────────
+function openModal() {
+    document.getElementById('mName').value = '';
+    document.getElementById('mPhone').value = '';
+    document.getElementById('mEmail').value = '';
+    document.getElementById('mBirthDate').value = '';
     document.getElementById('mGender').value = '';
     document.getElementById('mMemberType').value = '';
     document.getElementById('mTier').value = 'BASIC';
     document.getElementById('memberModal').classList.add('open');
 }
-
 function closeModal() { document.getElementById('memberModal').classList.remove('open'); }
-
-async function editMember(id) {
-    const res = await fetch(`/api/members/${id}`);
-    const json = await res.json();
-    const m = json.data;
-    editingId = id;
-    document.getElementById('modalTitle').textContent = '회원 수정';
-    document.getElementById('emailGroup').style.display = 'none';
-    document.getElementById('mName').value = m.name || '';
-    document.getElementById('mPhone').value = m.phone || '';
-    document.getElementById('mGender').value = m.gender || '';
-    document.getElementById('mBirthDate').value = m.birthDate || '';
-    document.getElementById('mMemberType').value = m.memberType || '';
-    document.getElementById('mTier').value = m.tier || 'BASIC';
-    document.getElementById('mMemo').value = m.memo || '';
-    document.getElementById('memberModal').classList.add('open');
-}
 
 async function saveMember() {
     const name = document.getElementById('mName').value.trim();
     if (!name) { alert('이름을 입력해주세요.'); return; }
-
     const body = {
         name,
         phone:      document.getElementById('mPhone').value,
@@ -461,111 +615,11 @@ async function saveMember() {
         birthDate:  document.getElementById('mBirthDate').value || null,
         memberType: document.getElementById('mMemberType').value || null,
         tier:       document.getElementById('mTier').value,
-        memo:       document.getElementById('mMemo').value,
     };
-    const url    = editingId ? `/api/members/${editingId}` : '/api/members';
-    const method = editingId ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, headers: csrfHeaders(), body: JSON.stringify(body) });
+    const res = await fetch('/api/members', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
     if (!res.ok) { alert('저장에 실패했습니다.'); return; }
     closeModal();
     loadMembers();
-}
-
-async function deleteMember(id, name) {
-    if (!confirm(`${name} 회원을 삭제하시겠습니까?\n삭제된 데이터는 복구되지 않습니다.`)) return;
-    const res = await fetch(`/api/members/${id}`, { method: 'DELETE', headers: csrfHeaders() });
-    if (!res.ok) { alert('삭제에 실패했습니다.'); return; }
-    loadMembers();
-}
-
-async function assignTrainerRole(id, name, targetRole) {
-    const msg = targetRole === 'TRAINER'
-        ? `${name} 회원을 트레이너로 지정하시겠습니까?`
-        : `${name} 트레이너 지정을 해제하시겠습니까?`;
-    if (!confirm(msg)) return;
-    const res = await fetch(`/api/members/${id}/role`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ role: targetRole })
-    });
-    if (!res.ok) {
-        alert(targetRole === 'TRAINER' ? '트레이너 지정에 실패했습니다.' : '트레이너 지정 해제에 실패했습니다.');
-        return;
-    }
-    loadMembers();
-}
-
-// ── 티켓 관리 ────────────────────────────────────────────
-let ticketMemberId = null;
-let ticketSign = 1; // 1: 지급, -1: 차감
-
-async function openTicketModal(id, name) {
-    ticketMemberId = id;
-    ticketSign = 1;
-    document.getElementById('ticketModalTitle').textContent = `티켓 관리 — ${name}`;
-    document.getElementById('tAmount').value = 1;
-    document.getElementById('tDescription').value = '';
-    document.getElementById('tTicketType').value = 'ONE_POINT';
-    document.getElementById('ticketCountOp').textContent = '-';
-    document.getElementById('ticketCountFb').textContent = '-';
-    document.getElementById('ticketModal').classList.add('open');
-    await refreshTicketCounts();
-}
-
-async function refreshTicketCounts() {
-    const res = await fetch(`/api/members/${ticketMemberId}/tickets`);
-    const json = await res.json();
-    const tickets = json.data || [];
-    const op = tickets.find(t => t.ticketType === 'ONE_POINT');
-    const fb = tickets.find(t => t.ticketType === 'FEEDBACK');
-    document.getElementById('ticketCountOp').textContent = op ? op.remaining : 0;
-    document.getElementById('ticketCountFb').textContent = fb ? fb.remaining : 0;
-}
-
-function setTicketAmount(sign) {
-    ticketSign = sign;
-    const btn1 = document.querySelectorAll('#ticketModal .btn-secondary')[1];
-    const btn2 = document.querySelectorAll('#ticketModal .btn-secondary')[2];
-    if (sign === -1) {
-        btn1.style.background = 'var(--error)';
-        btn1.style.color = '#fff';
-        btn2.style.background = '';
-        btn2.style.color = '';
-    } else {
-        btn2.style.background = 'var(--success)';
-        btn2.style.color = '#fff';
-        btn1.style.background = '';
-        btn1.style.color = '';
-    }
-}
-
-async function saveTicket() {
-    const ticketType  = document.getElementById('tTicketType').value;
-    const rawAmount   = parseInt(document.getElementById('tAmount').value, 10);
-    const description = document.getElementById('tDescription').value.trim();
-    if (!rawAmount || rawAmount <= 0) { alert('수량을 1 이상 입력해주세요.'); return; }
-    const amount = ticketSign * rawAmount;
-
-    const btn = document.getElementById('ticketSaveBtn');
-    btn.disabled = true;
-    try {
-        const res = await fetch(`/api/members/${ticketMemberId}/tickets/charge`, {
-            method: 'POST',
-            headers: csrfHeaders(),
-            body: JSON.stringify({ ticketType, amount, description })
-        });
-        if (!res.ok) { alert('저장에 실패했습니다.'); return; }
-        await refreshTicketCounts();
-        document.getElementById('tAmount').value = 1;
-        document.getElementById('tDescription').value = '';
-    } finally {
-        btn.disabled = false;
-    }
-}
-
-function closeTicketModal() {
-    document.getElementById('ticketModal').classList.remove('open');
-    ticketMemberId = null;
 }
 
 function exportMembers() {
@@ -585,140 +639,140 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
-loadMembers();
-
-// ── CRM Modal ──────────────────────────────────────────────────
-
-let crmMemberId = null;
-let crmActiveTab = 'note';
-
-async function openCrmModal(id, name) {
-    crmMemberId = id;
-    document.getElementById('crmModalTitle').textContent = `CRM — ${name}`;
-    document.getElementById('crmModal').classList.add('open');
-    switchCrmTab('note');
-}
-
-function closeCrmModal() {
-    document.getElementById('crmModal').classList.remove('open');
-    crmMemberId = null;
-}
-
-function switchCrmTab(tab) {
-    crmActiveTab = tab;
-    document.getElementById('crmTabNote').classList.toggle('active', tab === 'note');
-    document.getElementById('crmTabTag').classList.toggle('active',  tab === 'tag');
-    document.getElementById('crmPaneNote').style.display = tab === 'note' ? '' : 'none';
-    document.getElementById('crmPaneTag').style.display  = tab === 'tag'  ? '' : 'none';
-    if (tab === 'note') loadNotes();
-    if (tab === 'tag')  loadTags();
-}
-
-async function loadNotes() {
-    const res  = await fetch(`/api/members/${crmMemberId}/notes`);
-    const json = await res.json();
-    const list = document.getElementById('crmNoteList');
-    if (!json.success || !json.data.length) {
-        list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">등록된 메모가 없습니다.</div>';
-        return;
-    }
-    list.innerHTML = json.data.map(n => `
-        <div class="crm-note-item">
-            <div>${escHtml(n.content)}</div>
-            <div class="crm-note-meta">${n.authorName || '관리자'} · ${fmtDatetime(n.createdAt)}</div>
-        </div>`).join('');
-}
-
-async function addNote() {
-    const content = document.getElementById('crmNoteInput').value.trim();
-    if (!content) return;
-    await fetch(`/api/members/${crmMemberId}/notes`, {
-        method: 'POST', headers: csrfHeaders(),
-        body: JSON.stringify({ content })
-    });
-    document.getElementById('crmNoteInput').value = '';
-    loadNotes();
-}
-
-async function loadTags() {
-    const res  = await fetch(`/api/members/${crmMemberId}/tags`);
-    const json = await res.json();
-    const list = document.getElementById('crmTagList');
-    if (!json.success || !json.data.length) {
-        list.innerHTML = '<span style="color:var(--text-muted);font-size:13px">등록된 태그가 없습니다.</span>';
-        return;
-    }
-    list.innerHTML = json.data.map(t => `
-        <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;
-                     background:${t.color || '#30363D'};color:#fff;font-size:12px">
-            ${escHtml(t.tag)}
-            <button onclick="deleteTag('${t.id}')" style="background:none;border:none;cursor:pointer;
-                    color:rgba(255,255,255,.7);padding:0;font-size:14px;line-height:1">&times;</button>
-        </span>`).join('');
-}
-
-async function addTag() {
-    const tag   = document.getElementById('crmTagInput').value.trim();
-    const color = document.getElementById('crmTagColor').value;
-    if (!tag) return;
-    await fetch(`/api/members/${crmMemberId}/tags`, {
-        method: 'POST', headers: csrfHeaders(),
-        body: JSON.stringify({ tag, color })
-    });
-    document.getElementById('crmTagInput').value = '';
-    loadTags();
-}
-
-async function deleteTag(tagId) {
-    await fetch(`/api/members/${crmMemberId}/tags/${tagId}`, { method: 'DELETE', headers: csrfHeaders() });
-    loadTags();
-}
-
 function escHtml(s) {
-    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function fmtDatetime(s) {
     if (!s) return '';
     return s.replace('T', ' ').substring(0, 16);
 }
 
-// ── 탈퇴 처리 ────────────────────────────────────────────────
-async function withdrawMember(id, name) {
-    if (!confirm(`${name} 회원을 탈퇴 처리하시겠습니까?\n탈퇴 후 앱 로그인이 불가능하며, 관리자 목록에 '탈퇴' 상태로 남습니다.`)) return;
-    const res = await fetch(`/api/members/${id}/withdraw`, { method: 'PATCH', headers: csrfHeaders() });
-    if (!res.ok) { alert('탈퇴 처리에 실패했습니다.'); return; }
+loadTrainerList();
+loadMembers();
+
+/* ═══════════════════════════════════════════════════════════
+   회원 상세정보창 (통합)
+═══════════════════════════════════════════════════════════ */
+let detailMemberId = null;
+let detailMemberData = null;
+
+async function openDetailModal(id) {
+    detailMemberId = id;
+    document.getElementById('detailModal').classList.add('open');
+    switchDetailTab('info');
+
+    const res  = await fetch(`/api/members/${id}`);
+    const json = await res.json();
+    const m = json.data;
+    detailMemberData = m;
+    document.getElementById('detailModalTitle').textContent = `회원 상세정보 — ${m.name || m.id}`;
+
+    document.getElementById('dName').value       = m.name || '';
+    document.getElementById('dPhone').value       = m.phone || '';
+    document.getElementById('dGender').value      = m.gender || '';
+    document.getElementById('dBirthDate').value   = m.birthDate || '';
+    document.getElementById('dMemberType').value  = m.memberType || '';
+    document.getElementById('dTier').value        = m.tier || 'BASIC';
+
+    const roleBtn = document.getElementById('dRoleBtn');
+    if (m.role === 'TRAINER') {
+        roleBtn.textContent = '트레이너 권한 해제';
+        roleBtn.style.color = 'var(--error)';
+    } else {
+        roleBtn.textContent = '트레이너 권한 부여';
+        roleBtn.style.color = 'var(--warning)';
+    }
+
+    if (!trainerList.length) await loadTrainerList();
+    const sel = document.getElementById('dTrainerSelect');
+    sel.innerHTML = '<option value="">배정 안 함</option>' +
+        trainerList.map(t => `<option value="${t.id}" ${t.id === m.trainerId ? 'selected' : ''}>${escHtml(t.name)}</option>`).join('');
+}
+
+function closeDetailModal() {
+    document.getElementById('detailModal').classList.remove('open');
+    detailMemberId = null;
+    detailMemberData = null;
+}
+
+function switchDetailTab(tab) {
+    ['info','trainer','ms','ticket','memo','tag'].forEach(t => {
+        document.getElementById('dtab-' + t).classList.toggle('active', t === tab);
+        document.getElementById('dpane-' + t).style.display = t === tab ? '' : 'none';
+    });
+    if (tab === 'ms')     loadMemberships();
+    if (tab === 'ticket') refreshTicketCounts();
+    if (tab === 'memo')   loadNotes();
+    if (tab === 'tag')    loadTags();
+}
+
+async function saveDetailInfo() {
+    const name = document.getElementById('dName').value.trim();
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+    const body = {
+        name,
+        phone:      document.getElementById('dPhone').value,
+        gender:     document.getElementById('dGender').value,
+        birthDate:  document.getElementById('dBirthDate').value || null,
+        memberType: document.getElementById('dMemberType').value || null,
+        tier:       document.getElementById('dTier').value,
+    };
+    const res = await fetch(`/api/members/${detailMemberId}`, { method: 'PUT', headers: csrfHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { alert('저장에 실패했습니다.'); return; }
+    alert('저장되었습니다.');
     loadMembers();
 }
 
-// ── 이용권(회원권) 관리 모달 ──────────────────────────────────
-let membershipMemberId = null;
+async function toggleTrainerRoleFromDetail() {
+    const targetRole = detailMemberData.role === 'TRAINER' ? 'MEMBER' : 'TRAINER';
+    const msg = targetRole === 'TRAINER'
+        ? `${detailMemberData.name} 회원에게 트레이너 권한을 부여하시겠습니까?`
+        : `${detailMemberData.name}의 트레이너 권한을 해제하시겠습니까?`;
+    if (!confirm(msg)) return;
+    const res = await fetch(`/api/members/${detailMemberId}/role`, {
+        method: 'PATCH', headers: csrfHeaders(), body: JSON.stringify({ role: targetRole })
+    });
+    if (!res.ok) { alert('처리에 실패했습니다.'); return; }
+    detailMemberData.role = targetRole;
+    const roleBtn = document.getElementById('dRoleBtn');
+    if (targetRole === 'TRAINER') { roleBtn.textContent = '트레이너 권한 해제'; roleBtn.style.color = 'var(--error)'; }
+    else { roleBtn.textContent = '트레이너 권한 부여'; roleBtn.style.color = 'var(--warning)'; }
+    loadMembers();
+}
 
-async function openMembershipModal(id, name) {
-    membershipMemberId = id;
-    document.getElementById('membershipModalTitle').textContent = `이용권 관리 — ${name}`;
-    // 오늘 날짜를 기본값으로 설정
+async function withdrawMemberFromDetail() {
+    if (!confirm(`${detailMemberData.name} 회원을 탈퇴 처리하시겠습니까?\n탈퇴 후 앱 로그인이 불가능하며, 관리자 목록에 '탈퇴' 상태로 남습니다.`)) return;
+    const res = await fetch(`/api/members/${detailMemberId}/withdraw`, { method: 'PATCH', headers: csrfHeaders() });
+    if (!res.ok) { alert('탈퇴 처리에 실패했습니다.'); return; }
+    closeDetailModal();
+    loadMembers();
+}
+
+// ── 트레이너 지정(담당 코치 배정) ─────────────────────────────
+async function saveTrainerAssignment() {
+    const trainerId = document.getElementById('dTrainerSelect').value;
+    const res = await fetch(`/api/members/${detailMemberId}/assigned-trainer`, {
+        method: 'PATCH', headers: csrfHeaders(), body: JSON.stringify({ trainerId: trainerId || null })
+    });
+    if (!res.ok) { alert('트레이너 지정에 실패했습니다.'); return; }
+    alert('담당 트레이너가 저장되었습니다.');
+    loadMembers();
+}
+
+// ── 이용권 ───────────────────────────────────────────────────
+const msTypeLabel = { MEMBERSHIP: '일반 회원권', PT: 'PT', OT: 'OT', GROUP: '그룹 수업', LOCKER: '락커' };
+
+async function loadMemberships() {
+    const res  = await fetch(`/api/members/${detailMemberId}/memberships`);
+    const json = await res.json();
+    renderMembershipList(json.data || []);
     const today = new Date().toISOString().slice(0, 10);
     document.getElementById('msStart').value = today;
     document.getElementById('msEnd').value   = '';
     document.getElementById('msPrice').value = '';
     document.getElementById('msMemo').value  = '';
     document.getElementById('msType').value  = 'MEMBERSHIP';
-    document.getElementById('membershipModal').classList.add('open');
-    await loadMemberships();
 }
-
-function closeMembershipModal() {
-    document.getElementById('membershipModal').classList.remove('open');
-    membershipMemberId = null;
-}
-
-async function loadMemberships() {
-    const res  = await fetch(`/api/members/${membershipMemberId}/memberships`);
-    const json = await res.json();
-    renderMembershipList(json.data || []);
-}
-
-const msTypeLabel = { MEMBERSHIP: '일반 회원권', PT: 'PT', OT: 'OT', GROUP: '그룹 수업', LOCKER: '락커' };
 
 function renderMembershipList(list) {
     const el = document.getElementById('membershipList');
@@ -745,10 +799,8 @@ function renderMembershipList(list) {
                     ${ms.memo ? `&nbsp;·&nbsp; ${escHtml(ms.memo)}` : ''}
                 </div>
             </div>
-            <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;color:var(--accent)"
-                onclick="updateEndDate(${ms.id})">만료일 저장</button>
-            <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;color:var(--error)"
-                onclick="deleteMembership(${ms.id})">회수</button>
+            <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;color:var(--accent)" onclick="updateEndDate(${ms.id})">만료일 저장</button>
+            <button class="btn btn-secondary" style="padding:3px 10px;font-size:12px;color:var(--error)" onclick="deleteMembership(${ms.id})">회수</button>
         </div>`;
     }).join('');
 }
@@ -757,8 +809,7 @@ async function updateEndDate(msId) {
     const endDate = document.getElementById(`msExpire_${msId}`).value;
     if (!endDate) { alert('만료일을 입력해주세요.'); return; }
     const res = await fetch(`/api/memberships/${msId}/end-date`, {
-        method: 'PATCH', headers: csrfHeaders(),
-        body: JSON.stringify({ endDate })
+        method: 'PATCH', headers: csrfHeaders(), body: JSON.stringify({ endDate })
     });
     if (!res.ok) { alert('만료일 변경에 실패했습니다.'); return; }
     await loadMemberships();
@@ -780,9 +831,8 @@ async function addMembership() {
     if (!startDate || !endDate) { alert('시작일과 만료일을 입력해주세요.'); return; }
     const price = parseInt(document.getElementById('msPrice').value) || 0;
     const memo  = document.getElementById('msMemo').value.trim();
-    const res = await fetch(`/api/members/${membershipMemberId}/memberships`, {
-        method: 'POST', headers: csrfHeaders(),
-        body: JSON.stringify({ type, startDate, endDate, price, memo })
+    const res = await fetch(`/api/members/${detailMemberId}/memberships`, {
+        method: 'POST', headers: csrfHeaders(), body: JSON.stringify({ type, startDate, endDate, price, memo })
     });
     if (!res.ok) { alert('이용권 등록에 실패했습니다.'); return; }
     document.getElementById('msEnd').value   = '';
@@ -790,6 +840,111 @@ async function addMembership() {
     document.getElementById('msMemo').value  = '';
     await loadMemberships();
     loadMembers();
+}
+
+// ── 티켓 ─────────────────────────────────────────────────────
+let ticketSign = 1;
+
+async function refreshTicketCounts() {
+    document.getElementById('tAmount').value = 1;
+    document.getElementById('tDescription').value = '';
+    ticketSign = 1;
+    setTicketAmount(1);
+    const res = await fetch(`/api/members/${detailMemberId}/tickets`);
+    const json = await res.json();
+    const tickets = json.data || [];
+    const op = tickets.find(t => t.ticketType === 'ONE_POINT');
+    const fb = tickets.find(t => t.ticketType === 'FEEDBACK');
+    document.getElementById('ticketCountOp').textContent = op ? op.remaining : 0;
+    document.getElementById('ticketCountFb').textContent = fb ? fb.remaining : 0;
+}
+
+function setTicketAmount(sign) {
+    ticketSign = sign;
+    const minusBtn = document.getElementById('tMinusBtn');
+    const plusBtn  = document.getElementById('tPlusBtn');
+    if (sign === -1) {
+        minusBtn.style.background = 'var(--error)'; minusBtn.style.color = '#fff';
+        plusBtn.style.background = ''; plusBtn.style.color = '';
+    } else {
+        plusBtn.style.background = 'var(--success)'; plusBtn.style.color = '#fff';
+        minusBtn.style.background = ''; minusBtn.style.color = '';
+    }
+}
+
+async function saveTicket() {
+    const ticketType  = document.getElementById('tTicketType').value;
+    const rawAmount   = parseInt(document.getElementById('tAmount').value, 10);
+    const description = document.getElementById('tDescription').value.trim();
+    if (!rawAmount || rawAmount <= 0) { alert('수량을 1 이상 입력해주세요.'); return; }
+    const amount = ticketSign * rawAmount;
+    const btn = document.getElementById('ticketSaveBtn');
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/members/${detailMemberId}/tickets/charge`, {
+            method: 'POST', headers: csrfHeaders(), body: JSON.stringify({ ticketType, amount, description })
+        });
+        if (!res.ok) { alert('저장에 실패했습니다.'); return; }
+        await refreshTicketCounts();
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ── 메모 ─────────────────────────────────────────────────────
+async function loadNotes() {
+    const res  = await fetch(`/api/members/${detailMemberId}/notes`);
+    const json = await res.json();
+    const list = document.getElementById('crmNoteList');
+    if (!json.success || !json.data.length) {
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px 0">등록된 메모가 없습니다.</div>';
+        return;
+    }
+    list.innerHTML = json.data.map(n => `
+        <div class="crm-note-item">
+            <div>${escHtml(n.content)}</div>
+            <div class="crm-note-meta">${n.authorName || '관리자'} · ${fmtDatetime(n.createdAt)}</div>
+        </div>`).join('');
+}
+
+async function addNote() {
+    const content = document.getElementById('crmNoteInput').value.trim();
+    if (!content) return;
+    await fetch(`/api/members/${detailMemberId}/notes`, { method: 'POST', headers: csrfHeaders(), body: JSON.stringify({ content }) });
+    document.getElementById('crmNoteInput').value = '';
+    loadNotes();
+}
+
+// ── 태그 ─────────────────────────────────────────────────────
+async function loadTags() {
+    const res  = await fetch(`/api/members/${detailMemberId}/tags`);
+    const json = await res.json();
+    const list = document.getElementById('crmTagList');
+    if (!json.success || !json.data.length) {
+        list.innerHTML = '<span style="color:var(--text-muted);font-size:13px">등록된 태그가 없습니다.</span>';
+        return;
+    }
+    list.innerHTML = json.data.map(t => `
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;
+                     background:${t.color || '#30363D'};color:#fff;font-size:12px">
+            ${escHtml(t.tag)}
+            <button onclick="deleteTag('${t.id}')" style="background:none;border:none;cursor:pointer;
+                    color:rgba(255,255,255,.7);padding:0;font-size:14px;line-height:1">&times;</button>
+        </span>`).join('');
+}
+
+async function addTag() {
+    const tag   = document.getElementById('crmTagInput').value.trim();
+    const color = document.getElementById('crmTagColor').value;
+    if (!tag) return;
+    await fetch(`/api/members/${detailMemberId}/tags`, { method: 'POST', headers: csrfHeaders(), body: JSON.stringify({ tag, color }) });
+    document.getElementById('crmTagInput').value = '';
+    loadTags();
+}
+
+async function deleteTag(tagId) {
+    await fetch(`/api/members/${detailMemberId}/tags/${tagId}`, { method: 'DELETE', headers: csrfHeaders() });
+    loadTags();
 }
 </script>
 </body>

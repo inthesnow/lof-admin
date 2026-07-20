@@ -42,80 +42,111 @@ public class MemberApiController {
             @RequestParam(defaultValue = "") String keyword,
             @RequestParam(defaultValue = "") String status,
             @RequestParam(defaultValue = "") String tier,
+            @RequestParam(required = false) List<String> trainerIds,
+            @RequestParam(required = false) Integer minDaysLeft,
+            @RequestParam(required = false) Integer maxDaysLeft,
+            @RequestParam(required = false) Integer minPtRemaining,
+            @RequestParam(required = false) Integer minAbsentDays,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        log.info("[Member] GET /api/members - keyword={}, status={}", keyword, status);
-        List<Member> members = memberService.findAll(keyword, status, tier, page, size);
-        long total = memberService.count(keyword, status, tier);
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Member] GET /api/members - keyword={}, status={}, trainerIds={}", keyword, status, trainerIds);
+        Long gymId = principal.getGymId();
+        List<Member> members = memberService.findAll(keyword, status, tier, gymId, trainerIds,
+                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays, page, size);
+        long total = memberService.count(keyword, status, tier, gymId, trainerIds,
+                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays);
         return ApiResponse.ok(Map.of("members", members, "total", total, "page", page, "size", size));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Member>> get(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<Member>> get(@PathVariable String id,
+                                                    @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] GET /api/members/{id} - id={}", id);
-        return memberService.findById(id)
+        return memberService.findById(id, principal.getGymId())
             .map(m -> ResponseEntity.ok(ApiResponse.ok(m)))
             .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ApiResponse<Member> create(@RequestBody Member member) {
+    public ApiResponse<Member> create(@RequestBody Member member,
+                                       @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] POST /api/members");
-        return ApiResponse.ok(memberService.save(member));
+        return ApiResponse.ok(memberService.save(member, principal.getGymId()));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<Member> update(@PathVariable String id, @RequestBody Member member) {
+    public ApiResponse<Member> update(@PathVariable String id, @RequestBody Member member,
+                                       @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] PUT /api/members/{id} - id={}", id);
-        return ApiResponse.ok(memberService.update(id, member));
+        return ApiResponse.ok(memberService.update(id, member, principal.getGymId()));
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable String id) {
+    public ApiResponse<Void> delete(@PathVariable String id,
+                                     @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] DELETE /api/members/{id} - id={}", id);
-        memberService.delete(id);
+        memberService.delete(id, principal.getGymId());
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/status")
-    public ApiResponse<Void> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body,
+                                           @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] PATCH /api/members/{id}/status - id={}", id);
-        memberService.updateStatus(id, body.get("status"));
+        memberService.updateStatus(id, body.get("status"), principal.getGymId());
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/tier")
-    public ApiResponse<Void> updateTier(@PathVariable String id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> updateTier(@PathVariable String id, @RequestBody Map<String, String> body,
+                                         @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] PATCH /api/members/{id}/tier - id={}", id);
-        memberService.updateTier(id, body.get("tier"));
+        memberService.updateTier(id, body.get("tier"), principal.getGymId());
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/member-type")
-    public ApiResponse<Void> updateMemberType(@PathVariable String id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> updateMemberType(@PathVariable String id, @RequestBody Map<String, String> body,
+                                               @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] PATCH /api/members/{id}/member-type - id={}", id);
-        memberService.updateMemberType(id, body.get("memberType"));
+        memberService.updateMemberType(id, body.get("memberType"), principal.getGymId());
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/role")
-    public ApiResponse<Void> updateRole(@PathVariable String id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> updateRole(@PathVariable String id, @RequestBody Map<String, String> body,
+                                         @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] PATCH /api/members/{id}/role - id={}, role={}", id, body.get("role"));
-        memberService.updateRole(id, body.get("role"));
+        memberService.updateRole(id, body.get("role"), principal.getGymId());
         return ApiResponse.ok();
     }
 
     @PostMapping("/{id}/freeze")
-    public ApiResponse<Void> freeze(@PathVariable String id, @RequestBody Map<String, String> body) {
+    public ApiResponse<Void> freeze(@PathVariable String id, @RequestBody Map<String, String> body,
+                                     @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] POST /api/members/{id}/freeze - id={}", id);
-        memberService.freeze(id, body.get("startDate"), body.get("endDate"));
+        memberService.freeze(id, body.get("startDate"), body.get("endDate"), principal.getGymId());
         return ApiResponse.ok();
     }
 
     @PatchMapping("/{id}/withdraw")
-    public ApiResponse<Void> withdraw(@PathVariable String id) {
+    public ApiResponse<Void> withdraw(@PathVariable String id,
+                                       @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] PATCH /api/members/{id}/withdraw - id={}", id);
-        memberService.withdraw(id);
+        memberService.withdraw(id, principal.getGymId());
+        return ApiResponse.ok();
+    }
+
+    // 담당 트레이너 지정 — user_profiles.trainer_id (앱이 실제로 사용하는 필드).
+    // PUT /{id}/trainer(아래, crm_member_assignments 대상)와는 별개의 값이니 혼동 주의.
+    @PatchMapping("/{id}/assigned-trainer")
+    public ApiResponse<Void> updateAssignedTrainer(
+            @PathVariable String id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Member] PATCH /api/members/{id}/assigned-trainer - id={}", id);
+        memberService.updateAssignedTrainer(id, body.get("trainerId"), principal.getGymId());
         return ApiResponse.ok();
     }
 
@@ -203,9 +234,12 @@ public class MemberApiController {
             @RequestParam(defaultValue = "") String keyword,
             @RequestParam(defaultValue = "") String status,
             @RequestParam(defaultValue = "") String tier,
-            HttpServletResponse response) throws IOException {
+            @RequestParam(required = false) List<String> trainerIds,
+            HttpServletResponse response,
+            @AuthenticationPrincipal CrmUserDetails principal) throws IOException {
         log.info("[Member] GET /api/members/export - keyword={}, status={}", keyword, status);
-        List<Member> members = memberService.findAll(keyword, status, tier, 0, 100_000);
+        List<Member> members = memberService.findAll(keyword, status, tier, principal.getGymId(), trainerIds,
+                null, null, null, null, 0, 100_000);
 
         String filename = "members-" + LocalDate.now() + ".xlsx";
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
