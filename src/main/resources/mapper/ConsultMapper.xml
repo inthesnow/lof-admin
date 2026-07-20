@@ -14,6 +14,7 @@
         <result property="content"     column="content"/>
         <result property="result"      column="result"/>
         <result property="consultDate" column="consult_date"/>
+        <result property="staffId"     column="staff_id"/>
         <result property="staffName"   column="staff_name"/>
     </resultMap>
 
