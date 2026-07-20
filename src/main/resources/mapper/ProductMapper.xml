@@ -10,7 +10,7 @@
         <result property="price"        column="price"/>
         <result property="durationDays" column="duration_days"/>
         <result property="description"  column="description"/>
-        <result property="active"       column="active"/>
+        <result property="active"       column="is_active"/>
     </resultMap>
 
     <select id="findAll" resultMap="productResultMap">
@@ -34,18 +34,18 @@
     </select>
 
     <select id="findAllActive" resultMap="productResultMap">
-        SELECT * FROM product WHERE active=1 ORDER BY type ASC, name ASC
+        SELECT * FROM product WHERE is_active=1 ORDER BY type ASC, name ASC
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO product (name, type, price, duration_days, description, active)
+        INSERT INTO product (name, type, price, duration_days, description, is_active)
         VALUES (#{name}, #{type}, #{price}, #{durationDays}, #{description}, #{active})
     </insert>
 
     <update id="update">
         UPDATE product
         SET name=#{name}, type=#{type}, price=#{price},
-            duration_days=#{durationDays}, description=#{description}, active=#{active}
+            duration_days=#{durationDays}, description=#{description}, is_active=#{active}
         WHERE id=#{id}
     </update>
 
