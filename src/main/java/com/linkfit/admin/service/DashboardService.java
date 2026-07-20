@@ -9,4 +9,6 @@ public interface DashboardService {
     Map<String, Object> revenueStats(String date, String period);
     Map<String, Object> revenueDetail(String category, String date, String period);
     Map<String, Object> attendanceStats(String date, String period, String type);
+    Long appUsageCount(int days);
+    Map<String, Object> routineComplianceStats(int days);
 }

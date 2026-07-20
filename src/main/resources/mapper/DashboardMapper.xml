@@ -144,4 +144,26 @@
         WHERE #{date} BETWEEN f.freeze_start AND f.freeze_end
     </select>
 
+    <!-- 실 어플사용 회원: 최근 N일 내 운동기록을 남긴 회원 수 -->
+    <select id="countAppActiveMembers" resultType="long">
+        SELECT COUNT(DISTINCT er.user_id)
+        FROM exercise_records er
+        JOIN users u ON u.user_id = er.user_id
+        WHERE u.role = 'MEMBER'
+          AND er.record_date >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+    </select>
+
+    <!-- 루틴 이행률: 담당 트레이너가 배정된 회원(분모) 중 최근 N일 내
+         추천 루틴 기준 운동기록을 남긴 회원(분자) -->
+    <select id="routineComplianceStats" resultType="map">
+        SELECT
+            (SELECT COUNT(DISTINCT tm.member_id) FROM trainer_members tm) AS assigned,
+            (SELECT COUNT(DISTINCT er.user_id)
+               FROM exercise_records er
+              WHERE er.recommended_routine_id IS NOT NULL
+                AND er.record_date >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+                AND er.user_id IN (SELECT member_id FROM trainer_members)
+            ) AS completed
+    </select>
+
 </mapper>

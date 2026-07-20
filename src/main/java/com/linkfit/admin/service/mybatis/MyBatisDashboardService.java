@@ -78,6 +78,18 @@ public class MyBatisDashboardService implements DashboardService {
         return stats;
     }
 
+    @Override
+    public Long appUsageCount(int days) {
+        Long count = dashboardMapper.countAppActiveMembers(days);
+        return count != null ? count : 0L;
+    }
+
+    @Override
+    public Map<String, Object> routineComplianceStats(int days) {
+        Map<String, Object> result = dashboardMapper.routineComplianceStats(days);
+        return result != null ? result : Map.of("assigned", 0, "completed", 0);
+    }
+
     private String defaultDate(String date) {
         return (date == null || date.isBlank()) ? LocalDate.now().toString() : date;
     }

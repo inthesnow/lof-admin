@@ -18,4 +18,7 @@ public interface DashboardMapper {
     Map<String, Object> attendanceStats(@Param("date") String date, @Param("period") String period,
                                         @Param("type") String type);
     Map<String, Object> frozenStats(@Param("date") String date);
+
+    Long countAppActiveMembers(@Param("days") int days);
+    Map<String, Object> routineComplianceStats(@Param("days") int days);
 }

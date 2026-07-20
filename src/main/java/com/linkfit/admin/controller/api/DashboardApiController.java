@@ -98,4 +98,44 @@ public class DashboardApiController {
         data.put("pendingReregistration", reRegistrationMapper.countByStatus(gymId, "pending"));
         return ApiResponse.ok(data);
     }
+
+    @GetMapping("/expiring")
+    public ApiResponse<Map<String, Object>> expiring(@RequestParam(defaultValue = "30") int days) {
+        log.info("[Dashboard] GET /api/dashboard/expiring - days={}", days);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("count", memberMapper.countExpiringMemberships(days));
+        data.put("days", days);
+        return ApiResponse.ok(data);
+    }
+
+    @GetMapping("/app-usage")
+    public ApiResponse<Map<String, Object>> appUsage(@RequestParam(defaultValue = "30") int days) {
+        log.info("[Dashboard] GET /api/dashboard/app-usage - days={}", days);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("count", dashboardService.appUsageCount(days));
+        data.put("days", days);
+        return ApiResponse.ok(data);
+    }
+
+    @GetMapping("/routine-compliance")
+    public ApiResponse<Map<String, Object>> routineCompliance(@RequestParam(defaultValue = "30") int days) {
+        log.info("[Dashboard] GET /api/dashboard/routine-compliance - days={}", days);
+        Map<String, Object> data = new LinkedHashMap<>(dashboardService.routineComplianceStats(days));
+        data.put("days", days);
+        return ApiResponse.ok(data);
+    }
+
+    @GetMapping("/reregistration-summary")
+    public ApiResponse<Map<String, Object>> reregistrationSummary(
+            @RequestParam(defaultValue = "30") int days,
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Dashboard] GET /api/dashboard/reregistration-summary - days={}", days);
+        Long gymId = (principal != null) ? principal.getGymId() : 1L;
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("pending",     reRegistrationMapper.countByStatusInPeriod(gymId, "pending", days));
+        data.put("in_progress", reRegistrationMapper.countByStatusInPeriod(gymId, "in_progress", days));
+        data.put("hold",        reRegistrationMapper.countByStatusInPeriod(gymId, "hold", days));
+        data.put("days", days);
+        return ApiResponse.ok(data);
+    }
 }
