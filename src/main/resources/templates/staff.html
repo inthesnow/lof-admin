@@ -6,6 +6,7 @@
     <title>링크온핏 CRM — 트레이너 관리</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="stylesheet" th:href="@{/css/common.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         /* ── 메인 탭 ── */
         .main-tab {
@@ -112,6 +113,75 @@
             color: var(--text-muted);
             padding: 0 24px 8px;
         }
+
+        /* ── 수업 목록 ── */
+        .routine-body {
+            display: grid;
+            grid-template-columns: 1fr 240px;
+            gap: 0;
+        }
+        .routine-main    { overflow: auto; border-right: 1px solid var(--border); }
+        .routine-sidebar { padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; background: var(--surface); }
+        .routine-donut-card {
+            background: var(--surface-up);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .routine-donut-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-align: center; }
+        .routine-donut-wrap  { position: relative; width: 100px; height: 100px; }
+        .routine-donut-center {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .routine-pct  { font-size: 22px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+        .routine-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .type-tabs { display:flex; gap:4px; padding:14px 24px; border-bottom:1px solid var(--border); background:var(--surface); }
+        .type-tab  { padding:6px 16px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--text-muted); font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
+        .type-tab.active { background:var(--surface-up); border-color:var(--accent); color:var(--accent); font-weight:600; }
+        .capacity-bar  { width:60px; height:5px; border-radius:3px; background:var(--border); overflow:hidden; display:inline-block; vertical-align:middle; margin-right:5px; }
+        .capacity-fill { height:100%; background:var(--accent); border-radius:3px; }
+
+        /* ── 개인 스케줄 ── */
+        .schedule-filter-bar {
+            display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+            padding: 20px 24px 16px;
+        }
+        .schedule-empty { text-align:center; padding:60px 20px; color:var(--text-muted); font-size:13px; }
+        .sched-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 20px; border-bottom: 1px solid var(--border);
+        }
+        .sched-item:last-child { border-bottom: none; }
+        .sched-date { min-width: 90px; font-size:13px; font-weight:600; color:var(--text-primary); }
+        .sched-time { min-width: 110px; font-size:12px; color:var(--text-secondary); }
+        .sched-info { flex:1; font-size:13px; }
+        .sched-memo  { font-size:12px; color:var(--text-muted); margin-top:2px; }
+
+        /* ── 원포인트 신청 ── */
+        .op-filter-bar {
+            display: flex;
+            gap: 6px;
+            padding: 16px 24px 0;
+        }
+        .op-status-btn {
+            padding: 5px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .op-status-btn.active { background: var(--surface-up); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+        @media(max-width:900px) { .routine-body { grid-template-columns:1fr; } .routine-sidebar { border-right:none; border-top:1px solid var(--border); } }
     </style>
 </head>
 <body>
@@ -127,19 +197,29 @@
             </button>
             <h1 class="page-title">트레이너 관리</h1>
         </div>
-        <div class="header-right">
+        <div class="header-right" id="headerActions-list">
             <button class="btn btn-primary" onclick="openModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                 트레이너 등록
             </button>
         </div>
+        <div class="header-right" id="headerActions-classes" style="display:none">
+            <input type="date" class="form-input" id="dateFilter" style="width:150px" onchange="loadClasses()">
+            <button class="btn btn-primary" onclick="openClassModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                수업 등록
+            </button>
+        </div>
     </header>
 
     <!-- 메인 탭 -->
-    <div style="display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface)">
-        <button class="main-tab active" id="mainTab-list"    onclick="setMainTab('list',this)">직원 목록</button>
-        <button class="main-tab"        id="mainTab-today"   onclick="setMainTab('today',this)">출근 현황판</button>
-        <button class="main-tab"        id="mainTab-history" onclick="setMainTab('history',this)">출근 기록</button>
+    <div style="display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap">
+        <button class="main-tab active" id="mainTab-list"     onclick="setMainTab('list',this)">직원 목록</button>
+        <button class="main-tab"        id="mainTab-today"    onclick="setMainTab('today',this)">출근 현황판</button>
+        <button class="main-tab"        id="mainTab-history"  onclick="setMainTab('history',this)">출근 기록</button>
+        <button class="main-tab"        id="mainTab-classes"  onclick="setMainTab('classes',this)">수업 목록</button>
+        <button class="main-tab"        id="mainTab-schedule" onclick="setMainTab('schedule',this)">개인 스케줄</button>
+        <button class="main-tab"        id="mainTab-onepoint" onclick="setMainTab('onepoint',this)">원포인트 신청</button>
     </div>
 
     <!-- ── 패널: 직원 목록 ── -->
@@ -228,6 +308,112 @@
         <div style="font-size:12px;color:var(--text-muted);margin-top:10px" id="histTotal"></div>
     </div>
 
+    <!-- ── 패널: 수업 목록 ── -->
+    <div id="panel-classes" style="display:none">
+        <div class="type-tabs">
+            <button class="type-tab active" onclick="filterClassType('',this)">전체</button>
+            <button class="type-tab" onclick="filterClassType('GROUP',this)">그룹 루틴</button>
+            <button class="type-tab" onclick="filterClassType('PT',this)">PT 루틴</button>
+            <button class="type-tab" onclick="filterClassType('OT',this)">OT</button>
+        </div>
+        <div class="routine-body">
+            <div class="routine-main">
+                <div class="table-wrap" style="margin:0">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>수업명</th><th>유형</th><th>카테고리</th>
+                                <th>트레이너</th><th>날짜</th><th>시간</th>
+                                <th>정원/신청</th><th>상태</th><th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="classTableBody">
+                            <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="classPagination"></div>
+            </div>
+            <div class="routine-sidebar">
+                <div class="routine-donut-card">
+                    <div class="routine-donut-title">루틴 이행률</div>
+                    <div class="routine-donut-wrap">
+                        <canvas id="donutRoutine"></canvas>
+                        <div class="routine-donut-center">
+                            <div class="routine-pct" id="pctRoutine">-</div>
+                            <div class="routine-desc">이행률</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-secondary);text-align:center" id="descRoutine">루틴 이행 현황</div>
+                </div>
+                <div class="routine-donut-card">
+                    <div class="routine-donut-title">오늘 출석률</div>
+                    <div class="routine-donut-wrap">
+                        <canvas id="donutAttend"></canvas>
+                        <div class="routine-donut-center">
+                            <div class="routine-pct" id="pctAttend">-</div>
+                            <div class="routine-desc">출석률</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-secondary);text-align:center" id="descAttend">오늘 출석 현황</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 패널: 개인 스케줄 (캘린더 대신 트레이너별 목록) ── -->
+    <div id="panel-schedule" style="display:none;padding:0">
+        <div class="schedule-filter-bar">
+            <div class="attn-filter-group">
+                <label class="attn-filter-label">트레이너</label>
+                <select class="field-input" id="schedTrainer" style="width:180px" onchange="loadPersonalSchedule()">
+                    <option value="">트레이너를 선택하세요</option>
+                </select>
+            </div>
+            <div class="attn-filter-group">
+                <label class="attn-filter-label">시작일</label>
+                <input type="date" class="field-input" id="schedFrom" style="width:150px" onchange="loadPersonalSchedule()">
+            </div>
+            <div class="attn-filter-group">
+                <label class="attn-filter-label">종료일</label>
+                <input type="date" class="field-input" id="schedTo" style="width:150px" onchange="loadPersonalSchedule()">
+            </div>
+            <span style="font-size:12px;color:var(--text-muted)">
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:3px"></span>PT &nbsp;
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success);margin-right:3px"></span>원포인트
+            </span>
+        </div>
+        <div id="schedList" style="margin:0 24px 32px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)">
+            <div class="schedule-empty">트레이너를 선택하면 해당 트레이너의 개인 스케줄을 확인할 수 있습니다.</div>
+        </div>
+    </div>
+
+    <!-- ── 패널: 원포인트 신청 ── -->
+    <div id="panel-onepoint" style="display:none">
+        <div class="op-filter-bar">
+            <button class="op-status-btn active" id="opBtn-" onclick="setOpStatus('',this)">전체</button>
+            <button class="op-status-btn" id="opBtn-PENDING"   onclick="setOpStatus('PENDING',this)">대기중</button>
+            <button class="op-status-btn" id="opBtn-APPROVED"  onclick="setOpStatus('APPROVED',this)">승인됨</button>
+            <button class="op-status-btn" id="opBtn-REJECTED"  onclick="setOpStatus('REJECTED',this)">반려됨</button>
+            <button class="op-status-btn" id="opBtn-CANCELLED" onclick="setOpStatus('CANCELLED',this)">취소됨</button>
+        </div>
+        <div class="table-wrap" style="margin:16px 24px 32px">
+            <table>
+                <thead>
+                    <tr>
+                        <th>회원</th><th>트레이너</th><th>신청일</th>
+                        <th>희망 일시</th><th>신체 부위</th><th>통증 여부</th>
+                        <th>상태</th><th>처리</th>
+                    </tr>
+                </thead>
+                <tbody id="opTableBody">
+                    <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination" id="opPagination"></div>
+    </div>
+
 </main>
 
 <!-- 직원 등록/수정 모달 -->
@@ -266,6 +452,107 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal()">취소</button>
             <button class="btn btn-primary" onclick="saveStaff()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 수업 등록/수정 모달 -->
+<div class="modal-overlay" id="classModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="classModalTitle">수업 등록</span>
+            <button class="modal-close" onclick="closeClassModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">수업명 *</label>
+                    <input type="text" class="form-input" id="cTitle" placeholder="헬스 기초반">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">유형</label>
+                    <select class="form-select" id="cType">
+                        <option value="GROUP">그룹 루틴</option>
+                        <option value="PT">PT 루틴</option>
+                        <option value="OT">OT</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">카테고리</label>
+                    <select class="form-select" id="cCategory">
+                        <option value="헬스">헬스</option>
+                        <option value="필라테스">필라테스</option>
+                        <option value="골프">골프</option>
+                        <option value="기타">기타</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">날짜</label>
+                    <input type="date" class="form-input" id="cDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">정원</label>
+                    <input type="number" class="form-input" id="cCapacity" value="10" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">시작 시간</label>
+                    <input type="time" class="form-input" id="cStart">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">종료 시간</label>
+                    <input type="time" class="form-input" id="cEnd">
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">트레이너명</label>
+                    <input type="text" class="form-input" id="cTrainerName" placeholder="트레이너 이름">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeClassModal()">취소</button>
+            <button class="btn btn-primary" onclick="saveClassSession()">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 신청자 목록 모달 -->
+<div class="modal-overlay" id="attendeeModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <span class="modal-title" id="attendeeModalTitle">신청자 목록</span>
+            <button class="modal-close" onclick="closeAttendeeModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="attendeeList" style="min-height:80px">
+            <div style="color:var(--text-muted);font-size:13px">로딩 중...</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAttendeeModal()">닫기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 원포인트 처리 모달 -->
+<div class="modal-overlay" id="opModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title" id="opModalTitle">원포인트 신청 처리</span>
+            <button class="modal-close" onclick="closeOpModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="margin-bottom:0">
+                <label class="form-label">관리자 메모 (선택)</label>
+                <textarea class="form-textarea" id="opNote" placeholder="처리 사유 또는 안내 메시지..." rows="3"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeOpModal()">취소</button>
+            <button class="btn btn-primary" id="opConfirmBtn" onclick="confirmOpAction()">확인</button>
         </div>
     </div>
 </div>
@@ -401,16 +688,396 @@ function closeSidebar() {
 }
 
 // ── 메인 탭 전환 ────────────────────────────────────────────
+const ALL_TABS = ['list','today','history','classes','schedule','onepoint'];
 function setMainTab(tab, btn) {
-    ['list','today','history'].forEach(t => {
-        document.getElementById('panel-' + t).style.display = t === tab ? '' : 'none';
+    ALL_TABS.forEach(t => {
+        const panel = document.getElementById('panel-' + t);
+        panel.style.display = t === tab ? (t === 'classes' ? 'block' : '') : 'none';
         document.getElementById('mainTab-' + t).classList.toggle('active', t === tab);
     });
-    if (tab === 'today')   initToday();
-    if (tab === 'history') initHistory();
+    document.getElementById('headerActions-list').style.display    = tab === 'list'    ? '' : 'none';
+    document.getElementById('headerActions-classes').style.display = tab === 'classes' ? '' : 'none';
+
+    if (tab === 'today')    initToday();
+    if (tab === 'history')  initHistory();
+    if (tab === 'classes')  initClasses();
+    if (tab === 'schedule') initSchedule();
+    if (tab === 'onepoint') initOnepoint();
 }
 
 loadStaff();
+
+/* ═══════════════════════════════════════════════════════════
+   수업 목록 (구 수업관리 페이지에서 이관)
+═══════════════════════════════════════════════════════════ */
+let classLoaded = false;
+let clsPage = 0;
+const clsPageSize = 10;
+let clsEditingId = null;
+let currentClassType = '';
+const donutCharts = {};
+const classTypeLabel = { GROUP: '그룹 루틴', PT: 'PT 루틴', OT: 'OT' };
+const classTypeBadge = { GROUP: 'badge-active', PT: 'badge-admin', OT: 'badge-pending' };
+
+function initClasses() {
+    if (classLoaded) return;
+    classLoaded = true;
+    document.getElementById('dateFilter').valueAsDate = new Date();
+    loadClasses();
+    loadSideStats();
+}
+
+function filterClassType(type, btn) {
+    currentClassType = type;
+    document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    clsPage = 0;
+    loadClasses();
+}
+
+async function loadClasses() {
+    const date = document.getElementById('dateFilter').value;
+    try {
+        const res  = await fetch(`/api/classes?type=${currentClassType}&date=${date}&page=${clsPage}&size=${clsPageSize}`);
+        const json = await res.json();
+        renderClassTable(json.data.classes, json.data.total);
+    } catch(e) {
+        document.getElementById('classTableBody').innerHTML =
+            `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">데이터를 불러올 수 없습니다.</td></tr>`;
+    }
+}
+
+function renderClassTable(classes, total) {
+    const tbody = document.getElementById('classTableBody');
+    if (!classes || !classes.length) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">수업 데이터가 없습니다.</td></tr>`;
+        renderClassPagination(0); return;
+    }
+    tbody.innerHTML = classes.map(c => {
+        const pct = c.capacity > 0 ? Math.round(c.enrolled / c.capacity * 100) : 0;
+        return `<tr>
+            <td>${c.title}</td>
+            <td><span class="badge ${classTypeBadge[c.type] || 'badge-pending'}">${classTypeLabel[c.type] || c.type}</span></td>
+            <td>${c.category || '-'}</td>
+            <td>${c.trainerName || '-'}</td>
+            <td>${c.classDate || '-'}</td>
+            <td>${c.startTime || ''} ~ ${c.endTime || ''}</td>
+            <td>
+                <div class="capacity-bar"><div class="capacity-fill" style="width:${pct}%"></div></div>
+                ${c.enrolled}/${c.capacity}
+            </td>
+            <td><span class="badge ${c.status === 'OPEN' ? 'badge-active' : 'badge-expired'}">${c.status === 'OPEN' ? '진행중' : '취소됨'}</span></td>
+            <td style="display:flex;gap:6px">
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onclick="editClass(${c.id})">수정</button>
+                <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;color:var(--accent)" onclick="openAttendeeModal(${c.id},'${(c.title||'').replace(/'/g,'')}')">신청자</button>
+                ${c.status === 'OPEN' ? `<button class="btn btn-danger" style="padding:4px 9px;font-size:12px" onclick="cancelClass(${c.id})">취소</button>` : ''}
+            </td>
+        </tr>`;
+    }).join('');
+    renderClassPagination(total);
+}
+
+function renderClassPagination(total) {
+    const totalPages = Math.ceil(total / clsPageSize);
+    const pag = document.getElementById('classPagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goClassPage(${clsPage-1})" ${clsPage===0?'disabled':''}>&#8249;</button>`;
+    for (let i = 0; i < totalPages; i++)
+        html += `<button class="page-btn${i===clsPage?' active':''}" onclick="goClassPage(${i})">${i+1}</button>`;
+    html += `<button class="page-btn" onclick="goClassPage(${clsPage+1})" ${clsPage>=totalPages-1?'disabled':''}>&#8250;</button>`;
+    pag.innerHTML = html;
+}
+
+function goClassPage(p) { clsPage = p; loadClasses(); }
+
+function makeDonut(id, pct, color) {
+    const ctx = document.getElementById(id).getContext('2d');
+    if (donutCharts[id]) donutCharts[id].destroy();
+    donutCharts[id] = new Chart(ctx, {
+        type: 'doughnut',
+        data: { datasets: [{ data: [pct, 100-pct], backgroundColor: [color, '#E5E7EB'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+    });
+}
+
+async function loadSideStats() {
+    try {
+        const today = new Date().toISOString().slice(0,10);
+        const res   = await fetch(`/api/dashboard/attendance?date=${today}&period=monthly`);
+        const { data } = await res.json();
+        const rp = data.routineRate || 68;
+        const ap = data.attendanceRate || 70;
+        document.getElementById('pctRoutine').textContent = rp + '%';
+        document.getElementById('descRoutine').textContent = `루틴 이행 ${rp}%`;
+        makeDonut('donutRoutine', rp, '#F59E0B');
+        document.getElementById('pctAttend').textContent = ap + '%';
+        document.getElementById('descAttend').textContent = `출석 ${data.total || 0}명`;
+        makeDonut('donutAttend', ap, '#10B981');
+    } catch(e) {
+        makeDonut('donutRoutine', 68, '#F59E0B');
+        makeDonut('donutAttend', 70, '#10B981');
+        document.getElementById('pctRoutine').textContent = '68%';
+        document.getElementById('pctAttend').textContent = '70%';
+    }
+}
+
+function openClassModal() {
+    clsEditingId = null;
+    document.getElementById('classModalTitle').textContent = '수업 등록';
+    document.getElementById('cTitle').value = '';
+    document.getElementById('cType').value = 'GROUP';
+    document.getElementById('cCategory').value = '헬스';
+    document.getElementById('cDate').valueAsDate = new Date();
+    document.getElementById('cCapacity').value = 10;
+    document.getElementById('cStart').value = '';
+    document.getElementById('cEnd').value = '';
+    document.getElementById('cTrainerName').value = '';
+    document.getElementById('classModal').classList.add('open');
+}
+
+async function editClass(id) {
+    const res  = await fetch(`/api/classes/${id}`);
+    const json = await res.json();
+    const c    = json.data;
+    clsEditingId = id;
+    document.getElementById('classModalTitle').textContent = '수업 수정';
+    document.getElementById('cTitle').value       = c.title || '';
+    document.getElementById('cType').value        = c.type  || 'GROUP';
+    document.getElementById('cCategory').value    = c.category || '헬스';
+    document.getElementById('cDate').value        = c.classDate || '';
+    document.getElementById('cCapacity').value    = c.capacity || 10;
+    document.getElementById('cStart').value       = c.startTime ? c.startTime.substring(0,5) : '';
+    document.getElementById('cEnd').value         = c.endTime   ? c.endTime.substring(0,5)   : '';
+    document.getElementById('cTrainerName').value = c.trainerName || '';
+    document.getElementById('classModal').classList.add('open');
+}
+
+function closeClassModal() { document.getElementById('classModal').classList.remove('open'); }
+
+async function saveClassSession() {
+    const title = document.getElementById('cTitle').value.trim();
+    if (!title) { alert('수업명을 입력해주세요.'); return; }
+    const body = {
+        title,
+        type:        document.getElementById('cType').value,
+        category:    document.getElementById('cCategory').value,
+        classDate:   document.getElementById('cDate').value,
+        capacity:    parseInt(document.getElementById('cCapacity').value),
+        startTime:   document.getElementById('cStart').value,
+        endTime:     document.getElementById('cEnd').value,
+        trainerName: document.getElementById('cTrainerName').value,
+    };
+    const url    = clsEditingId ? `/api/classes/${clsEditingId}` : '/api/classes';
+    const method = clsEditingId ? 'PUT' : 'POST';
+    await fetch(url, { method, headers: csrfHeaders(), body: JSON.stringify(body) });
+    closeClassModal();
+    loadClasses();
+}
+
+async function cancelClass(id) {
+    if (!confirm('수업을 취소하시겠습니까?')) return;
+    await fetch(`/api/classes/${id}`, { method: 'DELETE', headers: csrfHeaders() });
+    loadClasses();
+}
+
+async function openAttendeeModal(classId, title) {
+    document.getElementById('attendeeModalTitle').textContent = `신청자 목록 — ${title}`;
+    document.getElementById('attendeeModal').classList.add('open');
+    const res  = await fetch(`/api/classes/${classId}/attendees`);
+    const json = await res.json();
+    const list = json.data || [];
+    const el   = document.getElementById('attendeeList');
+    if (!list.length) {
+        el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">신청자가 없습니다.</div>';
+        return;
+    }
+    el.innerHTML = `<table style="width:100%;font-size:13px">
+        <thead><tr>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600">이름</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600">연락처</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600">성별</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600">신청일시</th>
+            <th style="padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600">출석</th>
+        </tr></thead>
+        <tbody>${list.map(a => `<tr>
+            <td style="padding:6px 8px">${a.memberName || '-'}</td>
+            <td style="padding:6px 8px">${a.phone || '-'}</td>
+            <td style="padding:6px 8px">${a.gender || '-'}</td>
+            <td style="padding:6px 8px">${(a.registeredAt||'').replace('T',' ').substring(0,16)}</td>
+            <td style="padding:6px 8px">${a.attended ? '<span style="color:var(--success)">✓</span>' : '-'}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function closeAttendeeModal() { document.getElementById('attendeeModal').classList.remove('open'); }
+
+/* ═══════════════════════════════════════════════════════════
+   개인 스케줄 (캘린더 대신 트레이너 선택 후 목록으로 확인)
+═══════════════════════════════════════════════════════════ */
+let scheduleLoaded = false;
+
+async function initSchedule() {
+    if (scheduleLoaded) return;
+    scheduleLoaded = true;
+    const res  = await fetch('/api/staff?role=TRAINER&page=0&size=100');
+    const json = await res.json();
+    const trainers = json.data?.staff || [];
+    const sel = document.getElementById('schedTrainer');
+    sel.innerHTML = '<option value="">트레이너를 선택하세요</option>' +
+        trainers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    const today = new Date();
+    const monthAgo = new Date(); monthAgo.setMonth(monthAgo.getMonth() - 1);
+    const monthLater = new Date(); monthLater.setMonth(monthLater.getMonth() + 2);
+    document.getElementById('schedFrom').value = monthAgo.toISOString().slice(0,10);
+    document.getElementById('schedTo').value   = monthLater.toISOString().slice(0,10);
+}
+
+async function loadPersonalSchedule() {
+    const trainerId = document.getElementById('schedTrainer').value;
+    const list = document.getElementById('schedList');
+    if (!trainerId) {
+        list.innerHTML = '<div class="schedule-empty">트레이너를 선택하면 해당 트레이너의 개인 스케줄을 확인할 수 있습니다.</div>';
+        return;
+    }
+    const from = document.getElementById('schedFrom').value;
+    const to   = document.getElementById('schedTo').value;
+    list.innerHTML = '<div class="schedule-empty">로딩 중...</div>';
+    try {
+        const res  = await fetch(`/api/classes/schedules/trainer/${trainerId}?fromDate=${from}&toDate=${to}`);
+        const json = await res.json();
+        renderPersonalSchedule(json.data || []);
+    } catch(e) {
+        list.innerHTML = '<div class="schedule-empty">일정을 불러올 수 없습니다.</div>';
+    }
+}
+
+function renderPersonalSchedule(items) {
+    const list = document.getElementById('schedList');
+    if (!items.length) {
+        list.innerHTML = '<div class="schedule-empty">해당 기간에 등록된 일정이 없습니다.</div>';
+        return;
+    }
+    list.innerHTML = items.map(s => {
+        const typeBadgeClass = s.type === 'PT' ? 'badge-admin' : 'badge-active';
+        const typeText = s.type === 'PT' ? 'PT' : '원포인트';
+        return `<div class="sched-item">
+            <span class="badge ${typeBadgeClass}" style="flex-shrink:0">${typeText}</span>
+            <div class="sched-date">${s.scheduleDate}</div>
+            <div class="sched-time">${s.startTime ? s.startTime.substring(0,5) : ''} ~ ${s.endTime ? s.endTime.substring(0,5) : ''}</div>
+            <div class="sched-info">
+                ${s.memberName ? `회원: ${s.memberName}` : '<span style="color:var(--text-muted)">배정된 회원 없음</span>'}
+                ${s.memo ? `<div class="sched-memo">${s.memo}</div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   원포인트 신청
+═══════════════════════════════════════════════════════════ */
+let opLoaded = false;
+let opStatus = '';
+let opPage   = 0;
+const opPageSize = 20;
+
+function initOnepoint() {
+    if (opLoaded) return;
+    opLoaded = true;
+    loadOnepoint();
+}
+
+function setOpStatus(status, btn) {
+    opStatus = status;
+    opPage   = 0;
+    document.querySelectorAll('.op-status-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadOnepoint();
+}
+
+async function loadOnepoint() {
+    const res  = await fetch(`/api/classes/onepoint/requests?status=${opStatus}&page=${opPage}&size=${opPageSize}`);
+    const json = await res.json();
+    renderOpTable(json.data.requests || [], json.data.total || 0);
+}
+
+const opStatusLabel = { PENDING: '대기중', APPROVED: '승인됨', REJECTED: '반려됨', CANCELLED: '취소됨', ACCEPTED: '수락됨', COMPLETED: '완료됨' };
+const opStatusBadge = { PENDING: 'badge-pending', APPROVED: 'badge-active', REJECTED: 'badge-expired', CANCELLED: 'badge-suspended', ACCEPTED: 'badge-admin', COMPLETED: 'badge-muted' };
+
+function renderOpTable(list, total) {
+    const tbody = document.getElementById('opTableBody');
+    if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">신청 내역이 없습니다.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map(r => {
+        const parts = tryParseJson(r.bodyParts);
+        const dates = tryParseJson(r.preferredDates);
+        const partsStr = Array.isArray(parts) ? parts.join(', ') : (r.bodyParts || '-');
+        const datesStr = Array.isArray(dates) ? dates.slice(0,2).join(', ') + (dates.length > 2 ? `…` : '') : (r.selectedDate || '-');
+        const canAct   = r.status === 'PENDING';
+        return `<tr>
+            <td>${r.memberName || r.memberId}</td>
+            <td>${r.trainerName || r.trainerId}</td>
+            <td>${(r.createdAt||'').substring(0,10)}</td>
+            <td style="font-size:12px">${datesStr}</td>
+            <td style="font-size:12px">${partsStr}</td>
+            <td style="text-align:center">${r.hasPain ? '<span style="color:var(--error)">있음</span>' : '<span style="color:var(--text-muted)">없음</span>'}</td>
+            <td><span class="badge ${opStatusBadge[r.status]||''}">${opStatusLabel[r.status]||r.status}</span></td>
+            <td style="display:flex;gap:5px">
+                ${canAct ? `
+                <button class="btn btn-secondary" style="padding:3px 9px;font-size:12px;color:var(--success)" onclick="openOpModal(${r.id},'APPROVED','${(r.memberName||r.memberId).replace(/'/g,'')}')">승인</button>
+                <button class="btn btn-secondary" style="padding:3px 9px;font-size:12px;color:var(--error)"   onclick="openOpModal(${r.id},'REJECTED','${(r.memberName||r.memberId).replace(/'/g,'')}')">반려</button>
+                ` : `<span style="font-size:12px;color:var(--text-muted)">${r.note || '-'}</span>`}
+            </td>
+        </tr>`;
+    }).join('');
+
+    const totalPages = Math.ceil(total / opPageSize);
+    const pag = document.getElementById('opPagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goOpPage(${opPage-1})" ${opPage===0?'disabled':''}>&#8249;</button>`;
+    for (let i = 0; i < totalPages; i++)
+        html += `<button class="page-btn${i===opPage?' active':''}" onclick="goOpPage(${i})">${i+1}</button>`;
+    html += `<button class="page-btn" onclick="goOpPage(${opPage+1})" ${opPage>=totalPages-1?'disabled':''}>&#8250;</button>`;
+    pag.innerHTML = html;
+}
+
+function goOpPage(p) { opPage = p; loadOnepoint(); }
+
+function tryParseJson(s) {
+    try { return JSON.parse(s); } catch { return null; }
+}
+
+let opPendingId = null, opPendingAction = null;
+
+function openOpModal(id, action, name) {
+    opPendingId     = id;
+    opPendingAction = action;
+    document.getElementById('opNote').value = '';
+    document.getElementById('opModalTitle').textContent =
+        action === 'APPROVED' ? `승인 처리 — ${name}` : `반려 처리 — ${name}`;
+    document.getElementById('opConfirmBtn').textContent  = action === 'APPROVED' ? '승인' : '반려';
+    document.getElementById('opConfirmBtn').style.background =
+        action === 'APPROVED' ? 'var(--success)' : 'var(--error)';
+    document.getElementById('opModal').classList.add('open');
+}
+
+function closeOpModal() {
+    document.getElementById('opModal').classList.remove('open');
+    opPendingId = opPendingAction = null;
+}
+
+async function confirmOpAction() {
+    const note = document.getElementById('opNote').value.trim();
+    await fetch(`/api/classes/onepoint/requests/${opPendingId}/status`, {
+        method: 'PATCH',
+        headers: csrfHeaders(),
+        body: JSON.stringify({ status: opPendingAction, note })
+    });
+    closeOpModal();
+    loadOnepoint();
+}
 
 // ── Sector 13: 트레이너 CRM 대시보드 ──────────────────────
 

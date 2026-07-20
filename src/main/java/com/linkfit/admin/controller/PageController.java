@@ -13,7 +13,7 @@ public class PageController {
     public String staff() { return "staff"; }
 
     @GetMapping("/classes")
-    public String classes() { return "classes"; }
+    public String classes() { return "redirect:/staff"; }
 
     @GetMapping("/attendance")
     public String attendance() { return "attendance"; }

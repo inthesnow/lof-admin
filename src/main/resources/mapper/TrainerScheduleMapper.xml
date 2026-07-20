@@ -40,4 +40,17 @@
         ORDER BY ts.start_time ASC
     </select>
 
+    <!-- 트레이너 개인 스케줄 조회 (캘린더 대신 목록으로 확인) -->
+    <select id="findByTrainer" resultMap="scheduleResultMap">
+        <include refid="scheduleSelect"/>
+        WHERE ts.trainer_id = #{trainerId}
+        <if test="fromDate != null and fromDate != ''">
+            AND ts.schedule_date &gt;= #{fromDate}
+        </if>
+        <if test="toDate != null and toDate != ''">
+            AND ts.schedule_date &lt;= #{toDate}
+        </if>
+        ORDER BY ts.schedule_date ASC, ts.start_time ASC
+    </select>
+
 </mapper>

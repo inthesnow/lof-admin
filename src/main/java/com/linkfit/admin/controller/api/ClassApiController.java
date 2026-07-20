@@ -117,6 +117,17 @@ public class ClassApiController {
         return ApiResponse.ok(trainerScheduleMapper.findByDate(date));
     }
 
+    // 트레이너 개인 스케줄 (캘린더 대신 목록으로 조회)
+    @GetMapping("/schedules/trainer/{trainerId}")
+    public ApiResponse<List<TrainerSchedule>> schedulesByTrainer(
+            @PathVariable String trainerId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate) {
+        log.info("[Class] GET /api/classes/schedules/trainer/{trainerId} - trainerId={}, fromDate={}, toDate={}",
+                trainerId, fromDate, toDate);
+        return ApiResponse.ok(trainerScheduleMapper.findByTrainer(trainerId, fromDate, toDate));
+    }
+
     // ── 원포인트 신청 (onepoint_requests) ─────────────────────
 
     @GetMapping("/onepoint/requests")

@@ -10,4 +10,7 @@ import java.util.List;
 public interface TrainerScheduleMapper {
     List<TrainerSchedule> findByMonth(@Param("year") int year, @Param("month") int month);
     List<TrainerSchedule> findByDate(@Param("date") String date);
+    List<TrainerSchedule> findByTrainer(@Param("trainerId") String trainerId,
+                                         @Param("fromDate") String fromDate,
+                                         @Param("toDate") String toDate);
 }
