@@ -1,5 +1,6 @@
 package com.linkfit.admin.domain;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class ReRegistration {
@@ -16,6 +17,9 @@ public class ReRegistration {
     private LocalDateTime scheduledAt;
     private LocalDateTime resolvedAt;
     private LocalDateTime createdAt;
+    private LocalDate membershipEnd;  // 최근 회원권 만료일 (유효/만료 판정 기준)
+    private String productName;       // 최근 등록 상품명
+    private String tier;              // 구독권 등급 (LIGHT_FIT/REGULAR_FIT/INTENSIVE_FIT)
 
     public ReRegistration() {}
 
@@ -45,4 +49,10 @@ public class ReRegistration {
     public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDate getMembershipEnd() { return membershipEnd; }
+    public void setMembershipEnd(LocalDate membershipEnd) { this.membershipEnd = membershipEnd; }
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public String getTier() { return tier; }
+    public void setTier(String tier) { this.tier = tier; }
 }

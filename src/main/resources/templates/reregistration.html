@@ -30,11 +30,9 @@
 
     <!-- 요약 카드 -->
     <div style="display:flex;gap:12px;padding:16px 24px;flex-wrap:wrap" id="summaryCards">
-        <div class="summary-card" id="sc-pending"><div class="sc-val">-</div><div class="sc-label">대기</div></div>
-        <div class="summary-card" id="sc-in_progress"><div class="sc-val">-</div><div class="sc-label">진행 중</div></div>
-        <div class="summary-card success" id="sc-success"><div class="sc-val">-</div><div class="sc-label">성공</div></div>
-        <div class="summary-card error" id="sc-failed"><div class="sc-val">-</div><div class="sc-label">실패</div></div>
-        <div class="summary-card warning" id="sc-hold"><div class="sc-val">-</div><div class="sc-label">보류</div></div>
+        <div class="summary-card" id="sc-target"><div class="sc-val">-</div><div class="sc-label">대상자</div></div>
+        <div class="summary-card success" id="sc-completed"><div class="sc-val">-</div><div class="sc-label">등록완료</div></div>
+        <div class="summary-card error" id="sc-expired"><div class="sc-val">-</div><div class="sc-label">만료</div></div>
     </div>
 
     <!-- 필터 -->
@@ -47,14 +45,14 @@
             <option value="failed">실패</option>
             <option value="hold">보류</option>
         </select>
-        <select class="filter-select" id="reasonFilter" onchange="currentPage=0;loadList()">
-            <option value="">전체 사유</option>
-            <option value="membership_expiry">이용권 만료 예정</option>
-            <option value="pt_low">PT 잔여 부족</option>
-            <option value="low_routine">루틴 이행률 저조</option>
-            <option value="low_app_usage">앱 미접속</option>
-            <option value="feedback_history">피드백 이력</option>
-        </select>
+        <div class="days-left-filter">
+            <span class="days-left-label">잔여기간</span>
+            <input type="number" class="form-input days-left-input" id="minDays" placeholder="0" onkeyup="if(event.key==='Enter'){currentPage=0;loadList()}">
+            <span>~</span>
+            <input type="number" class="form-input days-left-input" id="maxDays" placeholder="100" onkeyup="if(event.key==='Enter'){currentPage=0;loadList()}">
+            <span>일</span>
+            <button class="btn btn-secondary" onclick="currentPage=0;loadList()">조회</button>
+        </div>
     </div>
 
     <div class="table-wrap">
@@ -63,16 +61,15 @@
                 <tr>
                     <th>회원명</th>
                     <th>전화번호</th>
-                    <th>분류 사유</th>
                     <th>상태</th>
-                    <th>담당자</th>
-                    <th>메모</th>
-                    <th>등록일</th>
-                    <th>관리</th>
+                    <th>등록일자</th>
+                    <th>등록상품</th>
+                    <th>구독권정보</th>
+                    <th>메모보기</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
-                <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
             </tbody>
         </table>
     </div>
@@ -89,7 +86,7 @@
             </button>
         </div>
         <div class="modal-body">
-            <div style="display:flex;gap:20px;margin-bottom:16px">
+            <div style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap">
                 <div>
                     <div style="font-size:11px;color:var(--text-muted)">회원</div>
                     <div id="dtMember" style="font-weight:600;margin-top:2px"></div>
@@ -97,6 +94,14 @@
                 <div>
                     <div style="font-size:11px;color:var(--text-muted)">사유</div>
                     <div id="dtReason" style="margin-top:2px"></div>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:var(--text-muted)">등록상품</div>
+                    <div id="dtProduct" style="margin-top:2px"></div>
+                </div>
+                <div>
+                    <div style="font-size:11px;color:var(--text-muted)">구독권정보</div>
+                    <div id="dtTier" style="margin-top:2px"></div>
                 </div>
             </div>
             <div class="form-group">
@@ -110,7 +115,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label class="form-label">메모</label>
+                <label class="form-label">메모 (특이사항, 상담 내용 등)</label>
                 <textarea class="form-textarea" id="dtMemo" rows="4" placeholder="상담 내용, 특이사항 등..."></textarea>
             </div>
         </div>
@@ -132,6 +137,9 @@
 .summary-card.warning .sc-val { color: var(--warning); }
 .sc-val { font-size: 24px; font-weight: 700; color: var(--accent); }
 .sc-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.days-left-filter { display: flex; align-items: center; gap: 6px; }
+.days-left-label { font-size: 13px; color: var(--text-secondary); margin-right: 2px; }
+.days-left-input { width: 70px; text-align: center; }
 </style>
 
 <script>
@@ -164,46 +172,59 @@ const reasonColor = {
     low_app_usage:     'var(--text-muted)',
     feedback_history:  'var(--success)'
 };
+const tierLabel = { BASIC: '기본', LIGHT_FIT: '라이트핏', REGULAR_FIT: '레귤러핏', INTENSIVE_FIT: '인텐시브핏' };
+const tierBadge = { BASIC: 'badge-pending', LIGHT_FIT: 'badge-active', REGULAR_FIT: 'badge-admin', INTENSIVE_FIT: 'badge-super' };
+
+let currentItems = [];
+
+// 유효/만료: 실제 회원권 만료일(membershipEnd) 기준. 만료일이 없으면 만료로 간주(등록 이력 없음).
+function validityBadge(r) {
+    const today = new Date().toISOString().split('T')[0];
+    const valid = r.membershipEnd && r.membershipEnd >= today;
+    return `<span class="badge ${valid ? 'badge-active' : 'badge-expired'}">${valid ? '유효' : '만료'}</span>`;
+}
 
 async function loadSummary() {
-    const res  = await fetch('/api/reregistration/summary');
+    const res  = await fetch('/api/reregistration/membership-summary');
     const json = await res.json();
     if (!json.success) return;
     const d = json.data;
-    ['pending','in_progress','success','failed','hold'].forEach(k => {
-        const el = document.getElementById(`sc-${k}`);
-        if (el) el.querySelector('.sc-val').textContent = d[k] ?? 0;
-    });
+    document.getElementById('sc-target').querySelector('.sc-val').textContent    = d.target    ?? 0;
+    document.getElementById('sc-completed').querySelector('.sc-val').textContent = d.completed ?? 0;
+    document.getElementById('sc-expired').querySelector('.sc-val').textContent   = d.expired   ?? 0;
 }
 
 async function loadList() {
-    const status = document.getElementById('statusFilter').value;
-    const reason = document.getElementById('reasonFilter').value;
-    const res  = await fetch(`/api/reregistration?status=${status}&reason=${reason}&page=${currentPage}&size=${pageSize}`);
+    const status  = document.getElementById('statusFilter').value;
+    const minDays = document.getElementById('minDays').value;
+    const maxDays = document.getElementById('maxDays').value;
+    let url = `/api/reregistration?status=${status}&page=${currentPage}&size=${pageSize}`;
+    if (minDays !== '') url += `&minDays=${encodeURIComponent(minDays)}`;
+    if (maxDays !== '') url += `&maxDays=${encodeURIComponent(maxDays)}`;
+    const res  = await fetch(url);
     const json = await res.json();
     if (!json.success) return;
-    renderTable(json.data.items, json.data.total);
+    currentItems = json.data.items || [];
+    renderTable(currentItems, json.data.total);
 }
 
 function renderTable(items, total) {
     const tbody = document.getElementById('tableBody');
     if (!items || !items.length) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">재등록 대상자가 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">재등록 대상자가 없습니다.</td></tr>`;
         renderPagination(0);
         return;
     }
     tbody.innerHTML = items.map(r => `
         <tr>
-            <td>${r.memberName || r.memberId}</td>
+            <td>${escHtml(r.memberName || r.memberId)}</td>
             <td>${r.memberPhone || '-'}</td>
-            <td><span style="font-size:12px;color:${reasonColor[r.reason] || 'inherit'}">${reasonLabel[r.reason] || r.reason}</span></td>
-            <td><span class="badge ${statusBadge[r.status] || ''}">${statusLabel[r.status] || r.status}</span></td>
-            <td>${r.assignedToName || '<span style="color:var(--text-muted)">미배정</span>'}</td>
-            <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.memo)}">${r.memo ? escHtml(r.memo) : '<span style="color:var(--text-muted)">-</span>'}</td>
+            <td>${validityBadge(r)}</td>
             <td>${fmtDate(r.createdAt)}</td>
-            <td style="display:flex;gap:6px">
-                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px"
-                        onclick="openDetail('${r.id}','${escHtml(r.memberName || r.memberId)}','${r.reason}','${r.status}','${escHtml(r.memo||'')}')">관리</button>
+            <td>${r.productName ? escHtml(r.productName) : '<span style="color:var(--text-muted)">-</span>'}</td>
+            <td><span class="badge ${tierBadge[r.tier] || 'badge-pending'}">${tierLabel[r.tier] || r.tier || '-'}</span></td>
+            <td>
+                <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="openDetail('${r.id}')">메모보기</button>
             </td>
         </tr>`).join('');
     renderPagination(total);
@@ -218,12 +239,16 @@ function renderPagination(total) {
     ).join('');
 }
 
-function openDetail(id, memberName, reason, status, memo) {
+function openDetail(id) {
+    const r = currentItems.find(x => x.id === id);
+    if (!r) return;
     editingId = id;
-    document.getElementById('dtMember').textContent = memberName;
-    document.getElementById('dtReason').textContent = reasonLabel[reason] || reason;
-    document.getElementById('dtStatus').value = status;
-    document.getElementById('dtMemo').value   = memo;
+    document.getElementById('dtMember').textContent  = r.memberName || r.memberId;
+    document.getElementById('dtReason').textContent  = reasonLabel[r.reason] || r.reason || '-';
+    document.getElementById('dtProduct').textContent = r.productName || '-';
+    document.getElementById('dtTier').textContent    = tierLabel[r.tier] || r.tier || '-';
+    document.getElementById('dtStatus').value = r.status;
+    document.getElementById('dtMemo').value   = r.memo || '';
     document.getElementById('detailModal').classList.add('open');
 }
 

@@ -17,6 +17,9 @@
         <result property="scheduledAt"     column="scheduled_at"/>
         <result property="resolvedAt"      column="resolved_at"/>
         <result property="createdAt"       column="created_at"/>
+        <result property="membershipEnd"   column="membership_end"/>
+        <result property="productName"     column="product_name"/>
+        <result property="tier"            column="tier"/>
     </resultMap>
 
     <sql id="baseJoin">
@@ -24,10 +27,28 @@
                r.memo, r.scheduled_at, r.resolved_at, r.created_at,
                up.name    AS member_name,
                up.contact AS member_phone,
-               cu.name    AS assigned_to_name
+               up.tier    AS tier,
+               cu.name    AS assigned_to_name,
+               me.end_date AS membership_end,
+               (SELECT p.name FROM membership ms2
+                  JOIN product p ON p.id = ms2.product_id
+                 WHERE ms2.user_id = r.member_id
+                 ORDER BY ms2.end_date DESC LIMIT 1) AS product_name
           FROM crm_re_registration r
           LEFT JOIN user_profiles up ON up.user_id = r.member_id
           LEFT JOIN crm_users cu     ON cu.id       = r.assigned_to
+          LEFT JOIN (
+              SELECT user_id, MAX(end_date) AS end_date FROM membership GROUP BY user_id
+          ) me ON me.user_id = r.member_id
+    </sql>
+
+    <sql id="daysLeftFilter">
+        <if test="minDays != null">
+            AND DATEDIFF(me.end_date, CURDATE()) &gt;= #{minDays}
+        </if>
+        <if test="maxDays != null">
+            AND DATEDIFF(me.end_date, CURDATE()) &lt;= #{maxDays}
+        </if>
     </sql>
 
     <select id="findAll" resultMap="reRegMap">
@@ -39,12 +60,17 @@
         <if test="reason != null and reason != ''">
            AND r.reason = #{reason}
         </if>
+        <include refid="daysLeftFilter"/>
          ORDER BY r.created_at DESC
          LIMIT #{size} OFFSET #{offset}
     </select>
 
     <select id="count" resultType="long">
-        SELECT COUNT(*) FROM crm_re_registration r
+        SELECT COUNT(*)
+          FROM crm_re_registration r
+          LEFT JOIN (
+              SELECT user_id, MAX(end_date) AS end_date FROM membership GROUP BY user_id
+          ) me ON me.user_id = r.member_id
          WHERE r.gym_id = #{gymId}
         <if test="status != null and status != ''">
            AND r.status = #{status}
@@ -52,6 +78,19 @@
         <if test="reason != null and reason != ''">
            AND r.reason = #{reason}
         </if>
+        <include refid="daysLeftFilter"/>
+    </select>
+
+    <select id="summaryByMembership" resultType="map">
+        SELECT
+            COUNT(*) AS target,
+            SUM(CASE WHEN me.end_date >= CURDATE() THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN me.end_date IS NULL OR me.end_date &lt; CURDATE() THEN 1 ELSE 0 END) AS expired
+          FROM crm_re_registration r
+          LEFT JOIN (
+              SELECT user_id, MAX(end_date) AS end_date FROM membership GROUP BY user_id
+          ) me ON me.user_id = r.member_id
+         WHERE r.gym_id = #{gymId}
     </select>
 
     <select id="findById" resultMap="reRegMap">
@@ -95,6 +134,12 @@
     <select id="countByStatus" resultType="int">
         SELECT COUNT(*) FROM crm_re_registration
          WHERE gym_id = #{gymId} AND status = #{status}
+    </select>
+
+    <select id="countByStatusInPeriod" resultType="int">
+        SELECT COUNT(*) FROM crm_re_registration
+         WHERE gym_id = #{gymId} AND status = #{status}
+           AND created_at >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
     </select>
 
 </mapper>

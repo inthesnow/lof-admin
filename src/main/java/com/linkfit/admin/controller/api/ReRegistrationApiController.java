@@ -29,13 +29,16 @@ public class ReRegistrationApiController {
     public ApiResponse<Map<String, Object>> list(
             @RequestParam(defaultValue = "") String status,
             @RequestParam(defaultValue = "") String reason,
+            @RequestParam(required = false) Integer minDays,
+            @RequestParam(required = false) Integer maxDays,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
-        log.info("[ReRegistration] GET /api/reregistration - status={}, reason={}", status, reason);
+        log.info("[ReRegistration] GET /api/reregistration - status={}, reason={}, minDays={}, maxDays={}",
+                status, reason, minDays, maxDays);
         Long gymId = principal.getGymId();
-        List<ReRegistration> list = service.findAll(gymId, status, reason, page, size);
-        long total = service.count(gymId, status, reason);
+        List<ReRegistration> list = service.findAll(gymId, status, reason, minDays, maxDays, page, size);
+        long total = service.count(gymId, status, reason, minDays, maxDays);
         return ApiResponse.ok(Map.of("items", list, "total", total, "page", page, "size", size));
     }
 
@@ -87,5 +90,12 @@ public class ReRegistrationApiController {
             @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[ReRegistration] GET /api/reregistration/summary");
         return ApiResponse.ok(service.statusSummary(principal.getGymId()));
+    }
+
+    @GetMapping("/membership-summary")
+    public ApiResponse<Map<String, Object>> membershipSummary(
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[ReRegistration] GET /api/reregistration/membership-summary");
+        return ApiResponse.ok(service.membershipSummary(principal.getGymId()));
     }
 }

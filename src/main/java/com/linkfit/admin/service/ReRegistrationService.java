@@ -7,12 +7,14 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface ReRegistrationService {
-    List<ReRegistration> findAll(Long gymId, String status, String reason, int page, int size);
-    long count(Long gymId, String status, String reason);
+    List<ReRegistration> findAll(Long gymId, String status, String reason,
+                                  Integer minDays, Integer maxDays, int page, int size);
+    long count(Long gymId, String status, String reason, Integer minDays, Integer maxDays);
     Optional<ReRegistration> findById(String id);
     void updateStatus(String id, String status);
     void updateMemo(String id, String memo);
     void assign(String id, String assignedTo);
     int autoClassify(Long gymId);         // 자동 분류 실행, 신규 생성 건수 반환
     Map<String, Integer> statusSummary(Long gymId);
+    Map<String, Object> membershipSummary(Long gymId);  // 대상자/등록완료/만료 (회원권 만료일 기준)
 }

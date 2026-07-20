@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Mapper
@@ -12,8 +13,13 @@ public interface ReRegistrationMapper {
 
     List<ReRegistration> findAll(@Param("gymId") Long gymId, @Param("status") String status,
                                   @Param("reason") String reason,
+                                  @Param("minDays") Integer minDays, @Param("maxDays") Integer maxDays,
                                   @Param("offset") int offset, @Param("size") int size);
-    long count(@Param("gymId") Long gymId, @Param("status") String status, @Param("reason") String reason);
+    long count(@Param("gymId") Long gymId, @Param("status") String status, @Param("reason") String reason,
+               @Param("minDays") Integer minDays, @Param("maxDays") Integer maxDays);
+
+    // 대상자/등록완료/만료 — 실제 회원권 만료일(membership.end_date) 기준 집계
+    Map<String, Object> summaryByMembership(@Param("gymId") Long gymId);
 
     Optional<ReRegistration> findById(@Param("id") String id);
 
@@ -30,4 +36,6 @@ public interface ReRegistrationMapper {
 
     // 집계
     int countByStatus(@Param("gymId") Long gymId, @Param("status") String status);
+    int countByStatusInPeriod(@Param("gymId") Long gymId, @Param("status") String status,
+                               @Param("days") int days);
 }
