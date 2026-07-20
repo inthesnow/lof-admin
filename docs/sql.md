@@ -554,6 +554,10 @@ sale
 
 ## CRM 전용 테이블 DDL (crm_* prefix)
 
+> ✅ **2026-07-15 로컬 적용 완료**: 18개 전부 로컬 `linkfit` DB에 적용됨 (충돌 없음, 에러 없음).
+> **운영(prod) DB는 아직 미적용** — 적용 시점은 별도 협의 필요.
+> 상세 내역은 `docs/db.md`의 "2026-07-15 (3) — CRM DDL 17개 로컬 DB 실제 적용 완료" 항목 참고.
+
 > 앱 테이블에 FK 없이 논리적 참조만 사용.
 > `member_id VARCHAR(50)` = `users.user_id` 참조.
 > `gym_id BIGINT UNSIGNED` = `gym.id` 참조.

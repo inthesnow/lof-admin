@@ -1,6 +1,6 @@
 # LINK_Fit Admin — 개발 진행 현황
 
-> 마지막 업데이트: 2026-06-09  
+> 마지막 업데이트: 2026-06-09 (2026-07-15 — CRM 테이블 DB 적용 상태 항목만 실제 확인 후 수정, 나머지는 미검증)  
 > 기준 브랜치: master  
 > 인증 방식: JWT (HttpOnly 쿠키 `crm_token`, crm_users 테이블)
 
@@ -247,7 +247,7 @@
 | GlobalExceptionHandler (404/500) | ✅ | |
 | 다크 테마 CSS 시스템 (GitHub 스타일) | ✅ | common.css CSS 변수 |
 | 반응형 사이드바 (모바일 오버레이) | ✅ | |
-| CRM 전용 테이블 DDL (`crm_*` 18개) | ✅ | docs/sql.md |
+| CRM 전용 테이블 DDL (`crm_*` 18개) | ✅ (로컬만) | 2026-07-15 로컬 DB에 17개 추가 적용 완료 (18개 전부 존재). **운영 DB는 아직 미적용** — docs/db.md 참고 |
 | @Scheduled 배치 잡 3종 | ✅ | DailyStatsScheduler |
 | @EnableScheduling 활성화 | ✅ | LinkFitAdminApplication |
 | Logback 설정 | ⬜ | 로그 레벨만 설정됨 |

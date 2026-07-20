@@ -113,14 +113,13 @@ src/main/java/com/linkfit/admin/
 │   ├── MyBatisMemberService.java
 │   ├── MyBatisStaffService.java
 │   └── ... (전 도메인 구현 완료)
-├── service/mock/                     ← 더미 구현체 (현재 @Service 미등록, 비사용)
-├── mapper/                           ← MyBatis @Mapper 인터페이스 (21개)
+├── mapper/                           ← MyBatis @Mapper 인터페이스 (28개)
 ├── security/
 │   ├── JwtUtil.java                  ← JWT 생성/검증 (JJWT)
 │   ├── JwtCookieFilter.java          ← 쿠키에서 crm_token 추출 → SecurityContext 세팅
 │   └── CrmUserDetails.java           ← UserDetails 구현체
 ├── service/
-│   └── AdminUserDetailsService.java  ← DB 기반 UserDetailsService
+│   └── AdminUserDetailsService.java  ← (미사용 — 아래 "알려진 이슈" 참고)
 ├── scheduler/
 │   └── DailyStatsScheduler.java      ← 일별 통계 자동 집계
 └── exception/
@@ -130,7 +129,7 @@ src/main/resources/
 ├── application.yml                   ← server.port=17579, profiles.active=dev
 ├── application-dev.yml               ← 로컬 DB 접속 정보, JWT 설정, CORS 설정
 ├── application-prod.yml              ← 환경변수 ${DB_URL} 방식
-├── mapper/                           ← MyBatis XML (21개, 전 도메인 작성 완료)
+├── mapper/                           ← MyBatis XML (28개, 전 도메인 작성 완료)
 ├── static/css/
 │   ├── common.css                    ← 사이드바/레이아웃/테이블/모달 공통 스타일
 │   ├── dashboard.css                 ← 대시보드 전용 + 스켈레톤 UI
@@ -154,9 +153,14 @@ Spring Security 세션 없이 JWT 쿠키(`crm_token`) 기반으로 동작한다.
 `JwtCookieFilter`가 모든 요청에서 쿠키를 추출해 `SecurityContextHolder`에 인증 정보를 세팅한다.
 로그인/로그아웃은 `POST /api/auth/login`, `POST /api/auth/logout`으로 처리한다.
 
+`AuthApiController`가 `CrmUserService`(→ `crm_users` 테이블)로 직접 아이디/비밀번호를 검증하고
+JWT를 발급하는 구조 — Spring Security의 `AuthenticationManager`/`UserDetailsService` 경로를 타지 않는다.
+`AdminUserDetailsService`(`admin_user` 테이블 기반)는 과거 로그인 방식의 잔재로, 현재는 어디서도
+호출되지 않는 미사용 코드다.
+
 ```java
 // JWT 클레임 구조
-sub: userId (admin_user.user_id)
+sub: userId (crm_users.id, CHAR(36) UUID)
 branchCode, username, role, gymId
 ```
 
@@ -185,54 +189,83 @@ activePage 값: `dashboard` / `members` / `staff` / `classes` / `attendance` / `
 
 ---
 
+## ⚠️ 알려진 이슈 (2026-07-15 검토 기준)
+
+### 1. CRM 테이블 17개 — ✅ 로컬 DB 적용 완료, 운영(prod) DB는 아직 미적용
+`docs/sql.md`에 CRM 전용 테이블(`crm_*`) 18개 DDL이 작성돼 있었는데, 로컬 `linkfit` DB엔
+`crm_users` 1개만 실제로 존재하는 상태였다 (문서엔 "적용 완료"로 잘못 기록돼 있었음).
+2026-07-15에 dry-run으로 충돌 여부를 검증(문제 없음 확인)한 뒤 **로컬 DB에 나머지 17개를 실제로 적용**했다
+(90개 → 107개 테이블). 회원 담당 트레이너 지정, CRM 메모/태그, 피드백 요청·티켓, 재등록 관리, CRM 매출,
+CS 티켓, 공지사항, CRM 쪽지함, 일별 통계 배치 등은 이제 로컬에서 정상 동작할 것으로 예상된다
+(실제 기능 동작 재검증은 아직 안 함).
+**운영 DB는 아직 미적용 — 공유 DB이므로 배포 일정과 조율 후 별도 적용 필요.**
+상세 내역은 `docs/db.md`의 2026-07-15 항목들 참고.
+
+### 2. 역할 기반 인가(Authorization) 미구현
+JWT에 `role`(super_admin/gym_admin/trainer) 클레임이 있고 `ROLE_xxx` GrantedAuthority까지 만들지만,
+`SecurityConfig`는 `anyRequest().authenticated()`뿐이라 실제로 역할을 검사하는 코드가 없다
+(`@PreAuthorize`/`hasRole` 등 전체 코드베이스에 0건). 로그인만 하면 역할 무관하게 모든 API 호출 가능.
+
+### 3. 지점(gym) 스코핑이 일부 컨트롤러에서만 적용됨
+`Crm*Mapper` 계열(2026-06-08 이후 작성분)은 쿼리에 `gym_id` 필터가 있지만, `MemberApiController`/
+`StaffApiController`/`RevenueApiController`/`SettingApiController` 등 기존 컨트롤러는 `gymId` 파라미터 자체가
+없어 전체 지점 데이터를 필터 없이 조회한다. 현재 지점이 `LF01` 1개뿐이라 실사용 영향은 없지만,
+2번째 지점이 생기면 지점 간 데이터가 섞인다.
+
+### 4. 로그인 쿠키에 `Secure`/`SameSite` 미설정 + CSRF 전역 비활성
+`AuthApiController`에서 쿠키에 `HttpOnly`만 설정하고 `Secure`/`SameSite`는 없음. `SecurityConfig`도
+CSRF를 전역 비활성화(`csrf.disable()`)한 상태라 브라우저 기본 동작에만 의존하고 있다.
+
+### 5. 미사용(dead) 코드
+- ~~`service/mock/` 패키지~~ — 2026-07-15 삭제 완료 (아무 곳에서도 참조하지 않는 것 확인 후 제거, 빌드 통과 확인)
+- `service/AdminUserDetailsService.java` — 위 인증 방식 참고, 현재 아무 데서도 호출되지 않음 (정리 대상)
+
+---
+
 ## 개발 진행 현황
 
-### ✅ 완료
+> 세부 항목별 체크리스트는 `docs/admin-todo.md` 참고 (섹터별로 훨씬 상세함).
+> 아래는 그 내용을 기준으로 한 요약. CRM 관련 기능은 2026-07-15 로컬 DB 적용 완료로 로컬에서는
+> 정상 동작 예상되나, **운영 DB는 아직 미적용**이라 운영 환경에서는 여전히 500 에러가 난다 (위 "알려진 이슈 1번" 참고).
+
+### ✅ 완료 (코드 기준)
 
 **보안 / 인증**
 - Spring Security 7.x + JWT Stateless 인증 (`JwtCookieFilter`, `JwtUtil`)
-- DB 기반 `AdminUserDetailsService` (BCrypt 해싱)
+- `crm_users` 기반 로그인 (`AuthApiController`, BCrypt 해싱) — 위 "알려진 이슈" 2·3·4번 참고
 - CORS 설정 (`application-dev.yml`의 `app.cors.allowed-origins`)
 - 로그아웃 쿠키 삭제 처리
 
 **백엔드**
-- `ApiResponse<T>` 공통 응답 포맷
-- `GlobalExceptionHandler` — 404/500 에러 페이지 반환 또는 JSON 응답
-- REST API Controller 19개 — 전 도메인 엔드포인트 구현
-- 도메인 클래스 27개 (기본 도메인 + CRM 계열 + Feedback 계열)
-- 서비스 인터페이스 12개 + MyBatis 구현체 12개 (DB 연동 완료)
-- MyBatis Mapper 인터페이스 + XML 21개 (전 도메인 작성 완료)
-- `DailyStatsScheduler` — 일별 통계 자동 집계
+- `ApiResponse<T>` 공통 응답 포맷, `GlobalExceptionHandler`(404/500)
+- REST API Controller 20개, 도메인 클래스 33개, MyBatis Mapper 인터페이스+XML 28개
+- `DailyStatsScheduler` — 일별 통계 집계(01:00) / 티켓 만료(00:05) / 재등록 자동분류(06:00) — 로컬은 2026-07-15부터 정상 동작 예상 (운영은 아직 실패)
 
-**프론트엔드**
-- 전체 페이지 HTML 20개
-- `common.css` — 사이드바, 레이아웃, 테이블, 배지, 모달, 페이지네이션, 스켈레톤 UI, 반응형
-- `fragments/sidebar.html` — Thymeleaf 재사용 fragment
-- 모바일 반응형 (사이드바 오버레이 토글)
-- 스켈레톤 UI (대시보드 초기 로딩)
-- 대시보드 날짜 네비게이션, 기간 탭, 서브 탭, 매출 expand — API 연동 완료
-- 설정 페이지 (`/settings`) — 헬스장 정보, 실시간 오픈여부 토글, 요일별 운영시간 (`gym_setting` DB 연동)
-- 회원 등급(tier) 관리 — 목록 배지, 필터, 상세 모달 수정
-- OT/PT 유형 부여 — `user_profiles.member_type` 연동
-- 회원 → 트레이너 지정 (`PUT /api/members/{id}/trainer`)
+**프론트엔드 — 최근 전면 개편분 (2026-06 커밋 기준)**
+- 메시지 시스템 — `message_conversation`+`chat_message` 기반 재설계 완료 (레거시 `message`/`message_recipient`는 미사용)
+- 출석 관리 — 기간탭, 회원별 현황, 장기 미출석, 유증(freeze) 관리 전면 개편
+- 매출 관리 — 결제 내역, 구독권 현황, 티켓 판매, CSV 내보내기 전면 개편
+- 수업 관리 — 수업 수정, 신청자 목록, 트레이너 일정 캘린더, 원포인트 신청 처리 전면 개편
+- 사이드바 카테고리 개편 + 구독권/티켓 관리 페이지 신설
+- 회원 등급(tier)·OT/PT 유형·담당 트레이너 지정, 헬스장 설정(`/settings`) 등 기존 기능
 
 **인프라**
-- `application-dev.yml` / `application-prod.yml` 환경 분리
-- prod는 `${DB_URL}`, `${DB_USERNAME}`, `${DB_PASSWORD}` 환경변수 사용
+- `application-dev.yml` / `application-prod.yml` 환경 분리, prod는 환경변수 기반
+- HTTP 요청/에러 로깅 강화 (502 추적 대응), Logback 파일 로깅 + 일별 `.gz` 로테이트
 
-### ⏳ 미완료
+### ⏳ 미완료 / 우선순위 낮은 항목
 
 | 항목 | 비고 |
 |---|---|
-| 메시지 시스템 재설계 | `message_conversation` + `chat_message` 기반으로 전환 필요 (현재 레거시 테이블 사용) |
-| 이용권(티켓) 관리 UI | `member_tickets`, `ticket_logs`, `ticket_purchases` 연동 필요 |
-| 원포인트 신청 승인·거절 | `onepoint_requests` 테이블 연동 필요 |
-| 수업 일정 캘린더 뷰 | `trainer_schedules` 기반 전체 일정 뷰 미구현 |
-| 회원 상세 모달 추가 정보 | `daily_note`, `exercise_note`, 의료이력 상세, PT 잔여 횟수 표시 |
-| 출석 주별/월별 UI | API 파라미터는 준비됨, 프론트 미구현 |
-| 유증(정지) 전용 UI | `freeze` API만 존재 |
-| 로깅 (Logback) | 로그 레벨만 설정됨 |
-| 테스트 코드 | 일부만 작성 (`DailyStatsSchedulerTest`, `MyBatisReRegistrationServiceTest`) |
+| ~~CRM 테이블 17개 DB 적용~~ | ✅ 로컬 완료 (2026-07-15). **운영 DB 적용은 아직 남음** — 위 "알려진 이슈 1번" 참고 |
+| **역할 기반 인가, 지점 스코핑** | 위 "알려진 이슈 2·3번" 참고 |
+| 티켓 구매·재고 관리 (Sector 9) | `crm_ticket_purchases`/`crm_ticket_inventory` — 정식 출시 후 구현 예정 |
+| 루틴 이행 이력 조회 | 앱 `routines` 테이블 연동 필요 (read-only) |
+| FCM 푸시 알림 실연동 | 공지사항 `send_push` 컬럼 저장만, 실제 발송 미구현 |
+| 트레이너별 매출 현황 | CRM 매출 집계 쿼리 추가 필요 |
+| 역할 권한 분기 UI | super_admin / gym_admin / trainer 화면 차등 없음 |
+| 테스트 코드 | 2개뿐 (`DailyStatsSchedulerTest`, `MyBatisReRegistrationServiceTest`) — 컨트롤러 20개 대비 매우 부족 |
+| `AdminUserDetailsService` | 미사용 dead code — 정리 대상 (`service/mock/`은 2026-07-15 삭제 완료) |
 
 ---
 
