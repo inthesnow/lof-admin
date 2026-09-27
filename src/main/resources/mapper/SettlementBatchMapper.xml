@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.SettlementBatchMapper">
+
+    <select id="findByGym" resultType="SettlementBatch">
+        SELECT id, period_start, period_end, gross_total, net_total, adjustment_amount,
+               final_amount, status, confirmed_at, paid_at
+        FROM settlement_batch
+        WHERE gym_id = #{gymId}
+        ORDER BY period_start DESC
+    </select>
+
+</mapper>

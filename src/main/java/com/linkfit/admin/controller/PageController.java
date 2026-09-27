@@ -36,6 +36,9 @@ public class PageController {
     @GetMapping("/revenue")
     public String revenue() { return "revenue"; }
 
+    @GetMapping("/settlement")
+    public String settlement() { return "settlement"; }
+
     @GetMapping("/products")
     public String products() { return "products"; }
 

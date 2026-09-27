@@ -24,6 +24,7 @@ public final class LockableCategories {
             Map.entry("staff",           List.of("/staff", "/api/staff")),
             Map.entry("crm-sales",       List.of("/crm-sales", "/api/crm-sales")),
             Map.entry("revenue",         List.of("/revenue", "/api/revenue")),
+            Map.entry("settlement",      List.of("/settlement", "/api/settlement")),
             Map.entry("settings",        List.of("/settings", "/api/settings"))
     );
 
