@@ -10,6 +10,7 @@ import com.linkfit.admin.domain.TicketLog;
 import com.linkfit.admin.mapper.CrmSalesMapper;
 import com.linkfit.admin.mapper.MemberMapper;
 import com.linkfit.admin.mapper.SaleMapper;
+import com.linkfit.admin.mapper.SettlementLedgerMapper;
 import com.linkfit.admin.service.MemberService;
 import com.linkfit.admin.service.ProductPackageService;
 import org.springframework.stereotype.Service;
@@ -32,13 +33,16 @@ public class MyBatisMemberService implements MemberService {
     private final ProductPackageService productPackageService;
     private final SaleMapper saleMapper;
     private final CrmSalesMapper crmSalesMapper;
+    private final SettlementLedgerMapper settlementLedgerMapper;
 
     public MyBatisMemberService(MemberMapper memberMapper, ProductPackageService productPackageService,
-                                 SaleMapper saleMapper, CrmSalesMapper crmSalesMapper) {
+                                 SaleMapper saleMapper, CrmSalesMapper crmSalesMapper,
+                                 SettlementLedgerMapper settlementLedgerMapper) {
         this.crmSalesMapper = crmSalesMapper;
         this.memberMapper = memberMapper;
         this.productPackageService = productPackageService;
         this.saleMapper = saleMapper;
+        this.settlementLedgerMapper = settlementLedgerMapper;
     }
 
     @Override
@@ -317,6 +321,15 @@ public class MyBatisMemberService implements MemberService {
         }
         crmSale.setNote(note);
         crmSalesMapper.insert(crmSale);
+
+        // 정산 원장(settlement_ledger)에도 COUNTER 채널로 기록 — 헬스장이 이미 직접 수금한
+        // 거래라 정산 배치 계산 대상은 아니지만(recognized_at을 즉시 채워 대기열에 남지 않게
+        // 함), 채널별 매출 통계를 위해 로그로 남긴다(2026-09-27, 정산 시스템 설계).
+        // 카운터 결제는 외부 결제대행사 거래ID가 없어 이 sale 행 자체의 id를 대신 쓴다.
+        String ledgerProductId = row.getPackageId() != null ? String.valueOf(row.getPackageId()) : productType;
+        settlementLedgerMapper.insertCounterSale(
+                gymId, row.getMemberId(), ledgerProductId, productType, row.getPaidAmount(),
+                "COUNTER-" + sale.getId());
     }
 
     @Override

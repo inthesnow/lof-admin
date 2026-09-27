@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.linkfit.admin.mapper.SettlementLedgerMapper">
+
+    <insert id="insertCounterSale">
+        INSERT INTO settlement_ledger
+            (gym_id, member_id, channel, product_id, product_type, gross_amount, net_amount,
+             external_transaction_id, status, occurred_at, recognized_at)
+        VALUES
+            (#{gymId}, #{memberId}, 'COUNTER', #{productId}, #{productType}, #{amount}, #{amount},
+             #{externalTransactionId}, 'PAID', NOW(), NOW())
+    </insert>
+
+</mapper>

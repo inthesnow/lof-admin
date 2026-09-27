@@ -706,6 +706,36 @@ Hangul 완성형 음절은 utf8mb4 콜레이션에서 코드포인트 순서가 
   정확히 확인(유효 1명은 대상자에서 제외됨), 렌더링된 페이지에 새 라벨 반영 확인 후 테스트 데이터
   삭제. 전체 테스트 스위트 통과.
 
+### 3-1-20. 정산 원장(settlement_ledger) — 카운터(현장 결제) 매출 캡처 신규 (2026-09-27)
+헬스장별/플랫폼별 정산 시스템 설계(`/Users/lof/workspase/todo.md` "정산 로직 재설계" 참고)의 일부로,
+lof-admin에서 발생하는 현장(카운터) 결제도 채널별 매출 통계용으로 `settlement_ledger`에 기록하도록
+추가함. 조사 결과 **회원권/PT/락커/운동복(운동복=ITEM) 전 상품 유형이 `MyBatisMemberService.
+addMembership()` → 내부 `recordSale()` 한 곳으로만 귀결**되는 것을 확인(라커 배정도
+`MyBatisLockerService.assign()`이 `type="LOCKER"`로 설정해 이 흐름을 그대로 재사용 — 기존
+CLAUDE.md 기록과 일치).
+- `recordSale()`(실제 입금액 `paidAmount` 기준으로 `sale`/`crm_sales`에 이미 기록하던 지점)에
+  `SettlementLedgerMapper.insertCounterSale()` 호출을 추가 — `channel='COUNTER'`,
+  `recognized_at`을 결제 즉시 채워 넣는다(다른 채널은 TICKET 상품 유형에서 `PENDING_USAGE`로
+  대기시키지만, 카운터는 헬스장이 이미 그 자리에서 직접 수금을 완료한 거래라 대기 개념 자체가 없음).
+  **정산 배치 계산(lof-potal)에서는 COUNTER 채널을 계산 대상에서 제외**하도록 설계돼 있음(헬스장에게
+  다시 정산할 필요가 없는 돈이므로) — 이 원장 행은 채널별 매출 리포트용으로만 쓰인다.
+- `gym_id`는 로그인한 관리자의 소속 지점(`principal.getGymId()`, 이미 컨트롤러→서비스로
+  관통되고 있던 파라미터)을 그대로 쓴다 — 다른 채널(IAP/웹결제)처럼 회원의 소속 지점을 역추적할
+  필요가 없음(카운터 결제는 애초에 그 지점 직원이 자기 지점 것으로 직접 입력하는 거래).
+- **`external_transaction_id`가 없는 문제**: 카운터 결제는 외부 결제대행사 거래ID가 없다(`sale`/
+  `membership` 어디에도 영수증 번호 컬럼이 없음, `SaleMapper.xml`/`Sale.java` 확인). `channel`+
+  `external_transaction_id`가 유니크 제약이라 대체 식별자가 필요해, 새로 생성된 `sale.id`(insert
+  직후 `useGeneratedKeys`로 채워짐)를 `"COUNTER-" + sale.id"` 형태로 사용.
+- `product_id`는 안정적인 SKU가 없는 경우가 많아 패키지로 등록된 경우만 `packageId`를 문자열로
+  쓰고, 개별(단품) 등록은 `productType`(MEMBERSHIP/PT/LOCKER/ITEM)을 그대로 재사용한다 — COUNTER
+  채널은 FIFO 매칭이나 가격 카탈로그 조회에 쓰이지 않아(정산 배치 대상 자체가 아님) 정밀한 SKU가
+  필요 없다고 판단.
+- 검증: `@SpringBootTest`로 `MyBatisMemberService.addMembership()`을 실제 로컬 DB에 대해 호출해
+  `settlement_ledger`에 `channel='COUNTER', status='PAID', product_type='MEMBERSHIP',
+  gross_amount=net_amount=50000, gym_id=1, recognized_at IS NOT NULL`인 행이 정확히 생기는 것
+  확인(임시 테스트 클래스, 검증 후 삭제) — `sale`/`membership`/`crm_sales`/`settlement_ledger`
+  4개 테이블 모두 테스트 데이터 삭제 완료. `./gradlew test` 전체 통과.
+
 ### 3-1-16. 내부 쪽지함(inbox.html) — 단체쪽지 발송 + 새 메시지 회원 이름검색 (2026-08-27)
 - **단체쪽지 보내기**: 헤더에 버튼 추가, 성별(전체/남자/여자)·이용상태(전체/유효/만료) 두 필터를
   AND로 조합해 대상 인원을 실시간 미리보기(`GET /api/inbox/broadcast-count`)한 뒤, 확인
