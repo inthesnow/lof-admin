@@ -736,6 +736,23 @@ CLAUDE.md 기록과 일치).
   확인(임시 테스트 클래스, 검증 후 삭제) — `sale`/`membership`/`crm_sales`/`settlement_ledger`
   4개 테이블 모두 테스트 데이터 삭제 완료. `./gradlew test` 전체 통과.
 
+### 3-1-21. 지점별 "정산 내역"(`/settlement`) 조회 화면 신규 (2026-09-28)
+본사(lof-potal)가 계산·지급하는 정산 배치(`settlement_batch`)를 지점 관리자가 열람만 할 수
+있는 화면. 실제 계산/배치 생성/지급 처리는 전부 lof-potal이 담당 — 이 저장소는 조회 전용.
+- `GET /api/settlement/batches`(`SettlementApiController`, 신규) — `SettlementBatchMapper.
+  findByGym(principal.getGymId())`로 항상 **로그인한 관리자의 소속 지점만** 조회한다. 클라이언트가
+  다른 지점 id를 넘길 방법 자체가 없음(파라미터로 안 받음) — LF01/LF02 두 지점 계정으로 교차
+  호출해 서로의 데이터가 절대 안 보이는 것까지 확인.
+- 매출 관리(`revenue`, 이 지점이 직접 수금한 현장 매출)와는 별개 화면 — 여기는 "본사로부터
+  받은/받을 정산액"만 다룬다(COUNTER 채널은 애초에 정산 대상이 아니라 이 화면에 나타나지 않음,
+  위 3-1-20 참고).
+- `LockableCategories`에 `settlement` 카테고리 추가(경로 `/settlement`, `/api/settlement`) —
+  매출/CRM매출과 동일하게 2차 비밀번호 잠금 및 직원(employee) 계정 영구 차단 대상에 포함시켰다.
+  `settings.html`의 `LOCK_CATEGORY_LABELS`에도 "정산 내역" 라벨 추가.
+- 검증: 로컬 서버 기동 후 JWT 쿠키(`crm_token`)를 LF01(gymId=1)/LF02(gymId=101) 각각으로 직접
+  서명해 `/api/settlement/batches` 호출 — 각자 자기 지점 배치만(다른 배치는 0건) 정확히
+  반환되는 것 확인 후 테스트 데이터 삭제.
+
 ### 3-1-16. 내부 쪽지함(inbox.html) — 단체쪽지 발송 + 새 메시지 회원 이름검색 (2026-08-27)
 - **단체쪽지 보내기**: 헤더에 버튼 추가, 성별(전체/남자/여자)·이용상태(전체/유효/만료) 두 필터를
   AND로 조합해 대상 인원을 실시간 미리보기(`GET /api/inbox/broadcast-count`)한 뒤, 확인
@@ -1042,6 +1059,7 @@ gradlew.bat bootRun
 | `GET /attendance` | 출석 관리 |
 | `GET /consults` | 상담 관리 |
 | `GET /revenue` | 매출 관리 |
+| `GET /settlement` | 정산 내역 (본사로부터 받은/받을 정산 배치, 조회 전용) |
 | `GET /products` | 상품 관리 |
 | `GET /messages` | 메시지 |
 | `GET /pt` | PT 관리 |
@@ -1075,6 +1093,7 @@ gradlew.bat bootRun
 | `/api/products/**` | ProductApiController | 상품 CRUD |
 | `/api/messages/**` | MessageApiController | 메시지 CRUD |
 | `/api/revenue/**` | RevenueApiController | 매출 요약, 카테고리별 상세 |
+| `GET /api/settlement/batches` | SettlementApiController | 이 지점의 정산 배치 목록(항상 자기 gymId로만 조회, 조회 전용) |
 | `/api/memberships/**` | MembershipApiController | 회원권 이력, 만료 예정, 액션 처리 |
 | `/api/pt/**` | PtApiController | PT 회원 목록, 티켓 조회·수정 |
 | `/api/reregistration/**` | ReRegistrationApiController | 재등록 목록, 상태·메모·담당자 변경, 자동 분류 |
