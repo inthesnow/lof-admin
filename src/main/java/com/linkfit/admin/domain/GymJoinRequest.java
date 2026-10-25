@@ -11,6 +11,8 @@ public class GymJoinRequest {
     private String gymName;
     private String status;       // PENDING, APPROVED, REJECTED
     private LocalDateTime requestedAt; // user_gym.joined_at (요청/재요청 시각)
+    // APPROVED 중 CRM 일괄등록 등으로 만들어져 실제 앱에 로그인해본 적 없는(user_auth 없음) 회원 구분용
+    private Boolean appInstalled;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -28,4 +30,6 @@ public class GymJoinRequest {
     public void setStatus(String status) { this.status = status; }
     public LocalDateTime getRequestedAt() { return requestedAt; }
     public void setRequestedAt(LocalDateTime requestedAt) { this.requestedAt = requestedAt; }
+    public Boolean getAppInstalled() { return appInstalled; }
+    public void setAppInstalled(Boolean appInstalled) { this.appInstalled = appInstalled; }
 }

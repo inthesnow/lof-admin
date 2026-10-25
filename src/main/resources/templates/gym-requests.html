@@ -122,6 +122,7 @@
 .log-item.REQUESTED { border-left-color: var(--text-muted); }
 .log-item.APPROVED  { border-left-color: var(--success); }
 .log-item.REJECTED  { border-left-color: var(--error); }
+.badge-muted { background: rgba(139,148,158,.12); color: var(--text-muted); }
 </style>
 
 <script>
@@ -137,6 +138,15 @@ function csrfHeaders(extra) {
 const statusLabel = { PENDING: '승인 대기', APPROVED: '승인됨', REJECTED: '거절됨' };
 const statusBadge = { PENDING: 'badge-pending', APPROVED: 'badge-active', REJECTED: 'badge-expired' };
 const actionLabel = { REQUESTED: '요청', APPROVED: '승인', REJECTED: '거절' };
+
+// 승인됨 중에서도 CRM 일괄등록 등으로 만들어져 실제 앱에 로그인해본 적 없는(user_auth 없음) 회원은
+// "승인됨" 대신 "앱미설치"로 표시한다 — 승인 자체는 됐지만 앱 가입까지는 안 된 상태임을 구분.
+function statusDisplay(r) {
+    if (r.status === 'APPROVED' && r.appInstalled === false) {
+        return { label: '앱미설치', cls: 'badge-muted' };
+    }
+    return { label: statusLabel[r.status] || r.status, cls: statusBadge[r.status] || 'badge-pending' };
+}
 
 function formatPhone(phone) {
     if (!phone) return '';
@@ -187,13 +197,13 @@ function renderTable(items, total) {
         renderPagination(0);
         return;
     }
-    tbody.innerHTML = items.map(r => `
+    tbody.innerHTML = items.map(r => { const sd = statusDisplay(r); return `
         <tr>
             <td>${escHtml(r.memberName || r.memberId)}</td>
             <td>${formatPhone(r.memberPhone) || '-'}</td>
             <td>${escHtml(r.gymName)}</td>
             <td>${fmtDatetime(r.requestedAt)}</td>
-            <td><span class="badge ${statusBadge[r.status] || 'badge-pending'}">${statusLabel[r.status] || r.status}</span></td>
+            <td><span class="badge ${sd.cls}">${sd.label}</span></td>
             <td><button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onclick="openLogModal(${r.id})">이력보기</button></td>
             <td style="display:flex;gap:6px;flex-wrap:wrap">
                 ${r.status === 'PENDING' ? `
@@ -201,7 +211,7 @@ function renderTable(items, total) {
                     <button class="btn btn-danger"  style="padding:5px 10px;font-size:12px" onclick="openRejectModal(${r.id})">거절</button>
                 ` : '<span style="color:var(--text-muted);font-size:12px">-</span>'}
             </td>
-        </tr>`).join('');
+        </tr>`; }).join('');
     renderPagination(total);
 }
 

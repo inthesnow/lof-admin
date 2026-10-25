@@ -12,6 +12,7 @@
         <result property="gymName"      column="gym_name"/>
         <result property="status"       column="status"/>
         <result property="requestedAt"  column="requested_at"/>
+        <result property="appInstalled" column="app_installed"/>
     </resultMap>
 
     <sql id="baseJoin">
@@ -19,7 +20,8 @@
                ug.joined_at AS requested_at,
                up.name    AS member_name,
                up.contact AS member_phone,
-               g.name     AS gym_name
+               g.name     AS gym_name,
+               EXISTS (SELECT 1 FROM user_auth ua WHERE ua.user_id = ug.user_id) AS app_installed
           FROM user_gym ug
           JOIN gym g ON g.id = ug.gym_id
           LEFT JOIN user_profiles up ON up.user_id = ug.user_id

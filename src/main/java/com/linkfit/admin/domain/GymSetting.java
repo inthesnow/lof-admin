@@ -1,5 +1,7 @@
 package com.linkfit.admin.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.LocalDateTime;
 
 public class GymSetting {
@@ -28,7 +30,13 @@ public class GymSetting {
     public void setGymPhone(String gymPhone) { this.gymPhone = gymPhone; }
     public String getGymAddress() { return gymAddress; }
     public void setGymAddress(String gymAddress) { this.gymAddress = gymAddress; }
+    // Jackson 기본 빈 네이밍 규칙상 isOpen()/setOpen()은 프로퍼티명이 "open"으로 인식되어
+    // 프론트/다른 엔드포인트가 쓰는 JSON 키 "isOpen"과 어긋났다(그 결과 PUT /api/settings/gym
+    // 저장 시 isOpen 값이 바인딩되지 않고 기본값 false로 덮어써져, "영업중"으로 바꿔도
+    // 다른 설정을 저장하면 다시 "휴무"로 강제 복귀하는 버그로 이어졌음). JSON 키를 "isOpen"으로 고정.
+    @JsonProperty("isOpen")
     public boolean isOpen() { return isOpen; }
+    @JsonProperty("isOpen")
     public void setOpen(boolean open) { isOpen = open; }
     public String getMonOpen() { return monOpen; }
     public void setMonOpen(String v) { monOpen = v; }
