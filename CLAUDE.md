@@ -753,6 +753,64 @@ CLAUDE.md 기록과 일치).
   서명해 `/api/settlement/batches` 호출 — 각자 자기 지점 배치만(다른 배치는 0건) 정확히
   반환되는 것 확인 후 테스트 데이터 삭제.
 
+### 3-1-22. 라커 상품 등록 시 실제 라커가 배정되지 않던 버그 수정 (2026-10-23)
+"회원에게 상품을 배분했는데 적용이 안 된다"는 리포트로 조사. 개별/패키지 등록(`MyBatisMemberService.
+addMembership()`) 어느 경로든 `type=LOCKER`로 등록해도 `membership.locker_id`를 한 번도 설정하지
+않아, 결제 기록은 생기지만 실제 물리 라커와는 전혀 연결되지 않고 `/lockers` 화면엔 항상 "미배정"으로
+남아있었다(운영 데이터 12건 전부 `locker_id IS NULL`로 재현 확인). `MemberMapper.insertMembership`의
+SQL 자체는 처음부터 `locker_id`를 올바르게 받고 있어서, 문제는 전적으로 자바 서비스 계층이 그 값을
+세팅한 적이 없다는 것이었음.
+- `GET /api/lockers/available`(`LockerApiController`, `LockerMapper.findAvailableByGym`) 신규 —
+  이 지점의 미배정 라커만 `{id, zoneName, lockerNumber}`로 반환, 회원상세 등록 모달의 드롭다운용.
+- `MyBatisMemberService.addMembership()`의 개별/패키지 두 분기 모두에 `validateLockerAvailable()`
+  검증 추가(라커 미선택 시 거부, 이미 배정된 라커 재선택 시 거부, 다른 지점 라커 거부) 후 실제
+  `lockerId`를 멤버십 행에 반영. 패키지 분기는 기존에 `row.setLockerId(...)` 호출 자체가 없었음.
+- `MemberApiController.addMembership()`에 `IllegalArgumentException` catch를 추가 —
+  이게 없으면(수정 전 상태) 위 검증 실패 시 `GlobalExceptionHandler`의 범용 `Exception` 핸들러로
+  떨어져 500 에러 페이지가 내려가고, 프론트의 `fetch().json()`이 HTML을 파싱하다 깨져 친절한
+  에러 메시지(`"배정할 라커를 선택해주세요."` 등)가 전혀 안 뜨는 상태였음(이번에 같이 발견/수정).
+- `members.html`: "개별 상품 부여"(종류=LOCKER)와 "구매 상품 구매"(선택한 패키지의
+  `lockerEnabled===true`) 두 모달에 라커 선택 `<select>`를 추가해 `GET /api/lockers/available`로
+  채우고, 선택값을 `lockerId`로 요청 본문에 포함.
+- 검증: 로컬 서버 기동 후 실제 HTTP 호출로 라커 미선택 시 거부 → 선택 후 등록 시 `membership.
+  locker_id`가 실제로 채워지고 `/api/lockers` 그리드에 올바른 회원명과 함께 "배정됨"으로 표시되는
+  것, 이미 배정된 라커 재선택 거부까지 개별/패키지 두 경로 모두 확인 후 테스트 데이터(멤버십/
+  패키지/라커구역) 전부 삭제. `./gradlew test` 통과.
+- **주의**: 이 수정은 로컬에만 적용되어 있고 아직 커밋도 운영 배포도 안 된 상태다 — 운영에서
+  "락커가 적용 안 된다"는 리포트가 또 들어오면 배포 여부부터 확인할 것.
+
+### 3-1-23. "이용중인상품/회원권만료일/미납금"이 PT 구매 이후 영원히 갱신 안 되던 버그 수정 (2026-10-25)
+위 3-1-22 조사 후 "락커 말고 이용권/PT/운동복도 배분이 적용 안 된다"는 추가 리포트로 재조사,
+운영 DB 덤프(`linkfit_prod_check`)에서 실제 재현. `members.html` 회원 목록의 "이용중인상품(가격)"/
+"회원권만료일(잔여일)"/"미납금" 컬럼은 `MemberMapper.xml`의 `memberSelect`가
+`FROM membership ms WHERE ms.user_id=... AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1`로
+회원의 전체 멤버십 중 "end_date가 가장 늦은 단 하나"를 대표로 뽑아 보여주는 구조였다. 그런데 **PT는
+기간이 아니라 횟수로 관리되는 상품**이라 `end_date`를 등록일+3650일(약 10년 뒤, 무기한 처리용
+placeholder)로 박아두므로, **PT를 한 번이라도 구매한 회원은 그 뒤에 새로 등록한 이용권/운동복/
+락커가 몇 건이든 이 컬럼에 영원히 반영되지 않고 10년 전 PT 정보만 계속 표시**됐다 — 결제는
+정상적으로 DB에 저장되는데 화면상으로는 "배분해도 효과가 없는" 것처럼 보이는 원인.
+(실제 운영 회원 `cksgnlwo`로 재현: MEMBERSHIP/PT/LOCKER/ITEM을 8건씩 등록했는데 `membership_end`
+계산 결과가 PT의 `2036-09-29`로 고정되어 2026-10-02에 새로 등록한 이용권(`2027-01-10` 만료)이
+전혀 안 보였음. PT 세션 충전 자체는 매번 정확히 쌓이고 있어 그 부분은 정상이었음.)
+- `MemberMapper.xml`의 "대표 상품" 서브쿼리 10곳(`membership_start`/`membership_end`/
+  `current_product_name`/`current_product_price`/`unpaid_amount` + `minDaysLeft`/`maxDaysLeft`/
+  `membershipEndFrom`/`membershipEndTo`/`minUnpaidAmount` 필터) 전부에 `AND ms.type != 'PT'` 추가 —
+  동일한 서브쿼리 문자열이 그대로 반복되던 패턴이라 한 번에 일괄 수정됨. "유효회원"(3-1-10/3-1-11/
+  3-1-14가 쓰는 `EXISTS(...status IS NULL AND end_date>=오늘)`) 판정은 PT를 포함하는 게 맞는
+  별개 개념이라 건드리지 않음 — "대표 상품으로 뽑을 단 하나"를 고르는 로직에서만 PT를 제외.
+- `ReRegistrationMapper.xml`("만료 및 예정 회원 관리" 페이지)의 `me` 서브쿼리(`MAX(end_date)
+  FROM membership GROUP BY user_id`)와 `product_name` 서브쿼리도 동일한 원인으로 같은 버그가
+  있어 — PT 구매 이력이 있는 회원은 영원히 "유효"로만 집계되어 재등록 대상에서 빠지는 문제였음.
+  두 서브쿼리 모두 `type != 'PT'` 조건 추가(3-1-13에서 "범위 밖"으로 남겨뒀던 `status IS NULL`
+  필터 누락은 이번 수정과는 별개 사안이라 그대로 남아있음 — 3-1-13 참고).
+- 검증: 로컬 DB의 `jisoo_kim`(기존 PT 1건 보유)에게 실제 API로 신규 PT(10년 뒤 end_date 생성)와
+  신규 MEMBERSHIP(한 달짜리)을 순서대로 등록 → 수정 전이었다면 PT의 `~2036` 날짜가 뜰 자리에
+  `GET /api/members/jisoo_kim`이 정확히 새 MEMBERSHIP의 `membershipEnd(2026-11-25)`/
+  `currentProductPrice`/`unpaidAmount`를 반환하는 것 확인. `ReRegistrationMapper`의 `me` 서브쿼리도
+  동일 데이터로 직접 SQL 실행해 PT 제외 시 `2026-11-25`, 포함 시 `2036-10-22`로 달라지는 것을
+  대조 확인. 검증 후 테스트로 추가한 멤버십 2건 삭제 + `pt_sessions_left` 원복. `./gradlew test` 통과.
+- **주의**: 이 수정도 3-1-22와 마찬가지로 로컬에만 적용되어 있고 커밋/배포 전 상태다.
+
 ### 3-1-16. 내부 쪽지함(inbox.html) — 단체쪽지 발송 + 새 메시지 회원 이름검색 (2026-08-27)
 - **단체쪽지 보내기**: 헤더에 버튼 추가, 성별(전체/남자/여자)·이용상태(전체/유효/만료) 두 필터를
   AND로 조합해 대상 인원을 실시간 미리보기(`GET /api/inbox/broadcast-count`)한 뒤, 확인
