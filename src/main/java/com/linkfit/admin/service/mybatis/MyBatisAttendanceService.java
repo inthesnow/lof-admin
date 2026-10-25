@@ -7,6 +7,7 @@ import com.linkfit.admin.service.AttendanceService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +34,9 @@ public class MyBatisAttendanceService implements AttendanceService {
     @Override
     public Attendance checkIn(Attendance attendance, Long gymId) {
         if (attendance.getAttendDate() == null) attendance.setAttendDate(LocalDate.now());
+        // check_in_time은 DB에서 NOT NULL인데 화면에서 입력받지 않으므로 서버에서 현재 시각으로 채움
+        // (이걸 빠뜨려서 체크인 시도마다 SQL 에러로 조용히 실패하던 버그가 있었음).
+        if (attendance.getCheckInTime() == null) attendance.setCheckInTime(LocalTime.now());
         attendanceMapper.checkIn(attendance, gymId);
         return attendance;
     }

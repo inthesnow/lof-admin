@@ -82,7 +82,7 @@
         .inactive-filter label { font-size:13px; color:var(--text-secondary); }
         .inactive-day-select { padding:5px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
 
-        /* ── 유증 관리 ── */
+        /* ── 정지 관리 ── */
         .freeze-banner {
             display: flex; align-items: center; gap: 10px; padding: 14px 24px;
             border-bottom: 1px solid var(--border); flex-shrink: 0;
@@ -121,7 +121,7 @@
         <button class="at-tab active" id="atTab-daily"    onclick="setAtTab('daily',this)">출석 현황</button>
         <button class="at-tab"        id="atTab-member"   onclick="setAtTab('member',this)">회원별 현황</button>
         <button class="at-tab"        id="atTab-inactive" onclick="setAtTab('inactive',this)">장기 미출석</button>
-        <button class="at-tab"        id="atTab-freeze"   onclick="setAtTab('freeze',this)">유증 관리</button>
+        <button class="at-tab"        id="atTab-freeze"   onclick="setAtTab('freeze',this)">정지 관리</button>
     </div>
 
     <!-- ─── 패널: 출석 현황 ─── -->
@@ -144,7 +144,7 @@
                     <div class="attend-card-value" id="sumClass">-</div>
                 </div>
                 <div class="attend-card">
-                    <div class="attend-card-label">유증 회원</div>
+                    <div class="attend-card-label">정지 회원</div>
                     <div class="attend-card-value" id="sumFrozen">-</div>
                     <div class="attend-card-sub" style="color:var(--warning)">오늘 기준</div>
                 </div>
@@ -163,6 +163,7 @@
                 <option value="MEMBERSHIP">회원권</option>
                 <option value="GROUP">그룹 루틴</option>
                 <option value="PT">PT 루틴</option>
+                <option value="ONE_POINT">원포인트</option>
             </select>
         </div>
         <div style="overflow:auto;flex:1">
@@ -257,19 +258,19 @@
         </div>
     </div>
 
-    <!-- ─── 패널: 유증 관리 ─── -->
+    <!-- ─── 패널: 정지 관리 ─── -->
     <div id="panel-freeze" style="display:none;overflow:auto;flex:1">
         <div class="freeze-banner">
             <span>조회 날짜:</span>
             <input type="date" class="freeze-date-input" id="freezeDate" onchange="loadFreeze()">
             <span style="font-size:12px;color:var(--text-muted)" id="freezeCount"></span>
-            <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="openFreezeModal()">+ 유증 등록</button>
+            <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="openFreezeModal()">+ 정지 등록</button>
         </div>
         <div class="table-wrap" style="margin:16px 24px 32px">
             <table>
                 <thead>
                     <tr>
-                        <th>회원명</th><th>유증 시작</th><th>유증 종료</th>
+                        <th>회원명</th><th>정지 시작</th><th>정지 종료</th>
                         <th>남은 일수</th><th>사유</th><th>관리</th>
                     </tr>
                 </thead>
@@ -292,13 +293,16 @@
         </div>
         <div class="modal-body">
             <div class="form-grid">
-                <div class="form-group">
-                    <label class="form-label">회원 ID</label>
-                    <input type="text" class="form-input" id="aMemberId" placeholder="회원 로그인 ID">
+                <div class="form-group full">
+                    <label class="form-label">회원 검색</label>
+                    <input type="text" class="form-input" id="aMemberSearch" placeholder="이름 또는 전화번호로 검색" oninput="searchCheckInMembers()" autocomplete="off">
+                    <div id="aMemberResults" style="margin-top:6px;max-height:160px;overflow-y:auto"></div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">이름</label>
-                    <input type="text" class="form-input" id="aMemberName" placeholder="이름">
+                <div class="form-group full" id="aSelectedMemberBox" style="display:none">
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-up);border-radius:8px;font-size:13px">
+                        <span>선택됨: <strong id="aSelectedMemberName"></strong></span>
+                        <button type="button" class="btn btn-secondary" style="padding:3px 9px;font-size:11px" onclick="clearCheckInMember()">변경</button>
+                    </div>
                 </div>
                 <div class="form-group full">
                     <label class="form-label">유형</label>
@@ -306,6 +310,7 @@
                         <option value="MEMBERSHIP">회원권</option>
                         <option value="GROUP">그룹 루틴</option>
                         <option value="PT">PT 루틴</option>
+                        <option value="ONE_POINT">원포인트</option>
                     </select>
                 </div>
             </div>
@@ -317,11 +322,11 @@
     </div>
 </div>
 
-<!-- 유증 등록 모달 -->
+<!-- 정지 등록 모달 -->
 <div class="modal-overlay" id="freezeModal">
     <div class="modal" style="max-width:400px">
         <div class="modal-header">
-            <span class="modal-title">유증(정지) 등록</span>
+            <span class="modal-title">정지 등록</span>
             <button class="modal-close" onclick="closeFreezeModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
@@ -333,11 +338,11 @@
                     <input type="text" class="form-input" id="fMemberId" placeholder="회원 로그인 ID">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">유증 시작일</label>
+                    <label class="form-label">정지 시작일</label>
                     <input type="date" class="form-input" id="fStart">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">유증 종료일</label>
+                    <label class="form-label">정지 종료일</label>
                     <input type="date" class="form-input" id="fEnd">
                 </div>
                 <div class="form-group full">
@@ -358,10 +363,15 @@
    공통
 ═══════════════════════════════════════════════════════════ */
 function csrfHeaders() { return { 'Content-Type': 'application/json' }; }
-function fmt(d) { return d.toISOString().slice(0, 10); }
+// toISOString()은 항상 UTC 기준이라 자정~오전9시(KST) 사이엔 실제 로컬 날짜보다 하루 전을 반환함 —
+// 서버(LocalDate.now()/CURDATE())는 KST 기준 "오늘"을 쓰는데 이 페이지만 UTC 기준으로 어긋나던 버그.
+function fmt(d) {
+    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
 
-const typeLabel   = { MEMBERSHIP: '회원권', GROUP: '그룹 루틴', PT: 'PT 루틴' };
-const typeBadge   = { MEMBERSHIP: 'badge-active', GROUP: 'badge-admin', PT: 'badge-super' };
+const typeLabel   = { MEMBERSHIP: '회원권', GROUP: '그룹 루틴', PT: 'PT 루틴', ONE_POINT: '원포인트' };
+const typeBadge   = { MEMBERSHIP: 'badge-active', GROUP: 'badge-admin', PT: 'badge-super', ONE_POINT: 'badge-sent' };
 const genderLabel = { M: '남성', F: '여성', 남자: '남성', 여자: '여성' };
 const tierLabel   = { BASIC: 'BASIC', LIGHT_FIT: 'LIGHT', REGULAR_FIT: 'REGULAR', INTENSIVE_FIT: 'INTENSIVE' };
 const tierBadge   = { BASIC: 'badge-pending', LIGHT_FIT: 'badge-active', REGULAR_FIT: 'badge-admin', INTENSIVE_FIT: 'badge-super' };
@@ -438,7 +448,7 @@ function renderAttendTable(data) {
     </tr>`).join('');
 }
 
-/* 유증 카운트 요약 */
+/* 정지 카운트 요약 */
 async function loadFrozenCount() {
     try {
         const res  = await fetch(`/api/attendance/freeze?date=${fmt(new Date())}`);
@@ -483,17 +493,77 @@ async function loadTrend() {
 }
 
 /* 출석 체크 모달 */
-function openCheckInModal()  { document.getElementById('checkInModal').classList.add('open'); }
+let checkInMemberId = null;
+let checkInMemberName = null;
+let checkInSearchTimer = null;
+
+function openCheckInModal()  {
+    clearCheckInMember();
+    document.getElementById('aMemberSearch').value = '';
+    document.getElementById('aMemberResults').innerHTML = '';
+    document.getElementById('checkInModal').classList.add('open');
+}
 function closeCheckInModal() { document.getElementById('checkInModal').classList.remove('open'); }
 
+function formatPhone(phone) {
+    if (!phone) return '';
+    const digits = String(phone).replace(/[^0-9]/g, '');
+    if (digits.length === 11) return digits.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+    if (digits.length === 10) return digits.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+    return digits;
+}
+
+function searchCheckInMembers() {
+    clearTimeout(checkInSearchTimer);
+    checkInSearchTimer = setTimeout(async () => {
+        const keyword = document.getElementById('aMemberSearch').value.trim();
+        const results = document.getElementById('aMemberResults');
+        if (!keyword) { results.innerHTML = ''; return; }
+        results.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px 0">검색 중...</div>';
+        const res  = await fetch(`/api/members?keyword=${encodeURIComponent(keyword)}&page=0&size=20`);
+        const json = await res.json();
+        const list = json.data?.members || [];
+        if (!list.length) {
+            results.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px 0">검색 결과가 없습니다.</div>';
+            return;
+        }
+        results.innerHTML = list.map(m => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer"
+                 onclick="selectCheckInMember('${m.id}','${(m.name||m.id).replace(/'/g,'')}')">
+                <span>${m.name || m.id} <span style="color:var(--text-muted);font-size:12px">${formatPhone(m.phone) || ''}</span></span>
+                <button type="button" class="btn btn-secondary" style="padding:3px 9px;font-size:11px">선택</button>
+            </div>`).join('');
+    }, 300);
+}
+
+function selectCheckInMember(id, name) {
+    checkInMemberId = id;
+    checkInMemberName = name;
+    document.getElementById('aSelectedMemberName').textContent = name;
+    document.getElementById('aSelectedMemberBox').style.display = '';
+    document.getElementById('aMemberSearch').value = '';
+    document.getElementById('aMemberResults').innerHTML = '';
+}
+
+function clearCheckInMember() {
+    checkInMemberId = null;
+    checkInMemberName = null;
+    document.getElementById('aSelectedMemberBox').style.display = 'none';
+}
+
 async function checkIn() {
+    if (!checkInMemberId) { alert('회원을 검색해서 선택해주세요.'); return; }
     const body = {
-        memberId:   document.getElementById('aMemberId').value.trim(),
-        memberName: document.getElementById('aMemberName').value.trim(),
+        memberId:   checkInMemberId,
+        memberName: checkInMemberName,
         type:       document.getElementById('aType').value,
     };
-    if (!body.memberId) { alert('회원 ID를 입력해주세요.'); return; }
-    await fetch('/api/attendance', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
+    const res  = await fetch('/api/attendance', { method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body) });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || (json && json.success === false)) {
+        alert((json && json.message) || '출석 체크에 실패했습니다.');
+        return;
+    }
     closeCheckInModal();
     loadAttendance();
     loadTrend();
@@ -666,7 +736,7 @@ async function loadInactive() {
                 <td><span style="color:${urgent ? 'var(--error)' : 'var(--warning)'};font-weight:600">${since}</span></td>
                 <td>
                     <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px"
-                            onclick="openFreezeModalFor('${m.memberId}')">유증 등록</button>
+                            onclick="openFreezeModalFor('${m.memberId}')">정지 등록</button>
                 </td>
             </tr>`;
         }).join('');
@@ -676,7 +746,7 @@ async function loadInactive() {
 }
 
 /* ─────────────────────────────────────────────────────────
-   패널 4: 유증 관리
+   패널 4: 정지 관리
 ─────────────────────────────────────────────────────────── */
 async function loadFreeze() {
     const date = document.getElementById('freezeDate').value;
@@ -687,9 +757,9 @@ async function loadFreeze() {
         const res  = await fetch(`/api/attendance/freeze?date=${date}`);
         const json = await res.json();
         const data = json.data || [];
-        document.getElementById('freezeCount').textContent = `총 ${data.length}명 유증 중`;
+        document.getElementById('freezeCount').textContent = `총 ${data.length}명 정지 중`;
         if (!data.length) {
-            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">유증 중인 회원이 없습니다.</td></tr>`;
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">정지 중인 회원이 없습니다.</td></tr>`;
             return;
         }
         const today = fmt(new Date());
@@ -726,7 +796,7 @@ function openFreezeModalFor(memberId) {
     document.getElementById('fEnd').value   = '';
     document.getElementById('fReason').value = '';
     document.getElementById('freezeModal').classList.add('open');
-    // 탭도 유증 관리로 전환
+    // 탭도 정지 관리로 전환
     setAtTab('freeze', document.getElementById('atTab-freeze'));
 }
 
@@ -746,7 +816,7 @@ async function addFreeze() {
 }
 
 async function deleteFreeze(id) {
-    if (!confirm('유증(정지)을 해제하시겠습니까?')) return;
+    if (!confirm('정지를 해제하시겠습니까?')) return;
     await fetch(`/api/attendance/freeze/${id}`, { method: 'DELETE', headers: csrfHeaders() });
     loadFreeze();
     loadFrozenCount();

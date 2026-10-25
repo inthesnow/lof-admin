@@ -5,6 +5,7 @@ import com.linkfit.admin.domain.MemberFreeze;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,6 +15,8 @@ public interface AttendanceMapper {
     List<Attendance> findAll(@Param("date") String date, @Param("period") String period, @Param("gymId") Long gymId);
     Optional<Attendance> findById(@Param("id") Long id);
     void checkIn(@Param("attendance") Attendance attendance, @Param("gymId") Long gymId);
+    // 수동 체크인 전 중복 방지 — 앱 쪽 자동 출석 체크(운동기록/PT/원포인트 완료)와 같은 "하루 1건" 원칙을 공유
+    int existsForDate(@Param("memberId") String memberId, @Param("gymId") Long gymId, @Param("attendDate") LocalDate attendDate);
     void cancel(@Param("id") Long id, @Param("gymId") Long gymId);
     List<MemberFreeze> findFrozen(@Param("date") String date, @Param("gymId") Long gymId);
     Map<String, Object> countStats(@Param("date") String date, @Param("period") String period,

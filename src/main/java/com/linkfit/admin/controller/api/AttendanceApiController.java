@@ -41,8 +41,16 @@ public class AttendanceApiController {
     @PostMapping
     public ApiResponse<Attendance> checkIn(@RequestBody Attendance attendance,
                                             @AuthenticationPrincipal CrmUserDetails principal) {
-        log.info("[Attendance] POST /api/attendance");
-        return ApiResponse.ok(attendanceService.checkIn(attendance, principal.getGymId()));
+        log.info("[Attendance] POST /api/attendance - memberId={}", attendance.getMemberId());
+        if (attendance.getMemberId() == null || attendance.getMemberId().isBlank()) {
+            return ApiResponse.error("회원을 선택해주세요.");
+        }
+        Long gymId = principal.getGymId();
+        LocalDate date = attendance.getAttendDate() != null ? attendance.getAttendDate() : LocalDate.now();
+        if (attendanceMapper.existsForDate(attendance.getMemberId(), gymId, date) > 0) {
+            return ApiResponse.error("오늘 이미 출석 처리된 회원입니다.");
+        }
+        return ApiResponse.ok(attendanceService.checkIn(attendance, gymId));
     }
 
     @DeleteMapping("/{id}")

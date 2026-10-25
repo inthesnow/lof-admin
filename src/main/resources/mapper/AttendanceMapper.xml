@@ -63,6 +63,11 @@
         VALUES (#{attendance.memberId}, #{attendance.type}, #{attendance.attendDate}, #{attendance.checkInTime}, #{gymId})
     </insert>
 
+    <select id="existsForDate" resultType="int">
+        SELECT COUNT(*) FROM attendance
+         WHERE user_id = #{memberId} AND gym_id = #{gymId} AND attend_date = #{attendDate}
+    </select>
+
     <delete id="cancel">
         DELETE FROM attendance WHERE id=#{id} AND gym_id=#{gymId}
     </delete>
@@ -114,7 +119,7 @@
     </select>
 
     <select id="dailyTrend" resultType="map">
-        SELECT attend_date AS date, COUNT(*) AS cnt
+        SELECT DATE_FORMAT(attend_date, '%Y-%m-%d') AS date, COUNT(*) AS cnt
           FROM attendance
          WHERE attend_date BETWEEN #{startDate} AND #{endDate}
            AND gym_id = #{gymId}
@@ -145,7 +150,7 @@
             up.gender                       AS gender,
             up.tier                         AS tier,
             COUNT(a.id)                     AS attendCount,
-            MAX(a.attend_date)              AS lastAttend
+            DATE_FORMAT(MAX(a.attend_date), '%Y-%m-%d') AS lastAttend
         FROM users u
         LEFT JOIN user_profiles up ON u.user_id = up.user_id
         JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
@@ -164,7 +169,7 @@
             up.name                         AS memberName,
             up.gender                       AS gender,
             up.tier                         AS tier,
-            MAX(a.attend_date)              AS lastAttend,
+            DATE_FORMAT(MAX(a.attend_date), '%Y-%m-%d') AS lastAttend,
             DATEDIFF(CURDATE(), MAX(a.attend_date)) AS daysSince
         FROM users u
         LEFT JOIN user_profiles up ON u.user_id = up.user_id
