@@ -17,11 +17,4 @@ public interface StaffAttendanceMapper {
                                       @Param("endDate")   LocalDate endDate,
                                       @Param("userId")    String userId,
                                       @Param("gymId")     Long gymId);
-
-    void insert(@Param("sa") StaffAttendance sa, @Param("gymId") Long gymId);
-
-    void updateCheckOut(@Param("id") Long id, @Param("checkOut") java.time.LocalTime checkOut,
-                        @Param("gymId") Long gymId);
-
-    void delete(@Param("id") Long id, @Param("gymId") Long gymId);
 }

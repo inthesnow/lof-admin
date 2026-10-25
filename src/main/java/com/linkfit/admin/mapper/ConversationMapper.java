@@ -49,4 +49,10 @@ public interface ConversationMapper {
     /** 이 트레이너가 회원들과 주고받은 쪽지 전체(모든 상대방 통합, 최신순) */
     List<Map<String, Object>> findMessagesByTrainer(@Param("trainerUserId") String trainerUserId,
                                                       @Param("limit") int limit);
+
+    /** "피드백이 나간 쪽지" 클릭 시 보여줄 트레이너 피드백 본문(설문+전체피드백), record_id+trainer_id로 스코핑 */
+    Map<String, Object> findFeedbackHeader(@Param("recordId") Long recordId, @Param("trainerId") String trainerId);
+
+    /** 위 피드백의 운동별 세부 피드백 목록 */
+    List<Map<String, Object>> findFeedbackItems(@Param("recordId") Long recordId, @Param("trainerId") String trainerId);
 }

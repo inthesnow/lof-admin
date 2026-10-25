@@ -61,20 +61,4 @@
         ORDER BY sa.attend_date DESC, sa.check_in ASC
     </select>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="sa.id">
-        INSERT INTO staff_attendance (user_id, attend_date, check_in, memo, gym_id)
-        VALUES (#{sa.userId}, #{sa.attendDate}, #{sa.checkIn}, #{sa.memo}, #{gymId})
-        ON DUPLICATE KEY UPDATE
-            check_in = COALESCE(#{sa.checkIn}, check_in),
-            memo     = COALESCE(#{sa.memo}, memo)
-    </insert>
-
-    <update id="updateCheckOut">
-        UPDATE staff_attendance SET check_out = #{checkOut} WHERE id = #{id} AND gym_id = #{gymId}
-    </update>
-
-    <delete id="delete">
-        DELETE FROM staff_attendance WHERE id = #{id} AND gym_id = #{gymId}
-    </delete>
-
 </mapper>

@@ -258,7 +258,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
             <div>
                 <div style="font-size:18px;font-weight:700" id="todayDateLabel"></div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">오늘 출근 현황 · 자동 저장됩니다</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">오늘 출근 현황 · 트레이너 앱의 출근/퇴근 전환 결과를 그대로 보여줍니다(조회 전용)</div>
             </div>
             <div style="display:flex;gap:8px;align-items:center">
                 <span id="todaySummary" style="font-size:13px;color:var(--text-secondary)"></span>
@@ -297,11 +297,11 @@
                 <thead>
                     <tr>
                         <th>날짜</th><th>이름</th><th>출근 시간</th>
-                        <th>퇴근 시간</th><th>근무 시간</th><th>관리</th>
+                        <th>퇴근 시간</th><th>근무 시간</th>
                     </tr>
                 </thead>
                 <tbody id="histTableBody">
-                    <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">기간을 선택하고 조회하세요.</td></tr>
+                    <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">기간을 선택하고 조회하세요.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -1279,15 +1279,64 @@ async function loadTrainerMessages() {
         list.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px 0">주고받은 쪽지가 없습니다.</div>';
         return;
     }
-    list.innerHTML = items.map(m => `
-        <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+    list.innerHTML = items.map(m => {
+        const clickable = m.recordId ? ` style="cursor:pointer" onclick="openFeedbackDetail('${dashboardTrainerId}', ${m.recordId})" title="클릭하면 트레이너가 작성한 피드백 내용을 볼 수 있습니다"` : '';
+        const badge = m.recordId ? ' <span class="badge badge-pending" style="font-size:10px;padding:1px 6px">피드백 보기</span>' : '';
+        return `
+        <div${clickable} style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
             <div style="display:flex;justify-content:space-between;color:var(--text-muted);margin-bottom:2px">
                 <span>${m.fromTrainer ? '트레이너 →' : m.memberName + ' →'} ${m.fromTrainer ? m.memberName : '트레이너'}</span>
                 <span>${(m.createdAt || '').replace('T', ' ').substring(0, 16)}</span>
             </div>
-            <div>${escHtml(m.content || '')}</div>
-        </div>`).join('');
+            <div>${escHtml(m.content || '')}${badge}</div>
+        </div>`;
+    }).join('');
 }
+
+// ── "피드백이 나간 쪽지" 클릭 시 추가 팝업 — 트레이너가 작성한 실제 피드백 내용 ──
+async function openFeedbackDetail(trainerId, recordId) {
+    const modal = document.getElementById('feedbackDetailModal');
+    const body  = document.getElementById('feedbackDetailBody');
+    body.innerHTML = '<div style="color:var(--text-muted);font-size:12px;padding:6px 0">로딩 중...</div>';
+    modal.classList.add('open');
+    const res  = await fetch(`/api/staff/${trainerId}/messages/feedback/${recordId}`);
+    const json = await res.json();
+    if (!json.success) {
+        body.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:6px 0">${json.message || '피드백 내용을 불러올 수 없습니다.'}</div>`;
+        return;
+    }
+    const d = json.data;
+    const statusBadge = d.isSent
+        ? `<span class="badge badge-active" style="font-size:11px">전송완료${d.sentAt ? ' · ' + d.sentAt.replace('T',' ').substring(0,16) : ''}</span>`
+        : `<span class="badge badge-pending" style="font-size:11px">작성 중(미전송)</span>`;
+    const surveyHtml = d.condition
+        ? `<div style="display:flex;gap:16px;font-size:12px;color:var(--text-secondary);margin:8px 0">
+               <span>컨디션: ${escHtml(d.condition)}</span>
+               <span>통증: ${escHtml(d.pain||'')}</span>
+               <span>강도: ${escHtml(d.intensity||'')}</span>
+           </div>` : '';
+    const exercises = d.exercises || [];
+    const exercisesHtml = exercises.length
+        ? exercises.map(ex => `
+            <div style="padding:8px 0;border-top:1px solid var(--border)">
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:3px">${escHtml(ex.exerciseName||'-')}</div>
+                <div style="font-size:13px">${escHtml(ex.content||'(내용 없음)')}</div>
+            </div>`).join('')
+        : '';
+    body.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:14px;font-weight:600">${escHtml(d.workoutName||'운동 기록')}${d.recordDate ? ' · '+d.recordDate : ''}</span>
+            ${statusBadge}
+        </div>
+        ${surveyHtml}
+        <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">전체 피드백</div>
+            <div style="font-size:13px">${escHtml(d.overall||'(내용 없음)')}</div>
+        </div>
+        ${exercisesHtml}
+    `;
+}
+function closeFeedbackDetail() { document.getElementById('feedbackDetailModal').classList.remove('open'); }
 
 // ── 회원 배정 (담당 트레이너 지정) ─────────────────────────────
 async function searchAssignMembers() {
@@ -1354,7 +1403,6 @@ function renderTodayGrid(list) {
     grid.innerHTML = list.map(s => {
         const isIn    = !!s.id && !s.checkOut;
         const isOut   = !!s.id && !!s.checkOut;
-        const isAbsent = !s.id;
         const borderColor = isIn ? 'var(--success)' : isOut ? 'var(--text-muted)' : 'var(--border)';
         const badgeHtml   = isIn    ? `<span class="sa-badge sa-in">출근</span>`
                           : isOut   ? `<span class="sa-badge sa-out">퇴근</span>`
@@ -1366,13 +1414,6 @@ function renderTodayGrid(list) {
                 출근 ${s.checkIn}${s.checkOut ? ' &nbsp;→&nbsp; 퇴근 ' + s.checkOut : ''}
             </div>` : '';
 
-        const btns = isAbsent
-            ? `<button class="btn btn-secondary sa-btn" style="color:var(--success)" onclick="doCheckIn('${s.userId}','${(s.staffName||'').replace(/'/g,'')}')">출근 체크</button>`
-            : isIn
-            ? `<button class="btn btn-secondary sa-btn" style="color:var(--warning)" onclick="doCheckOut(${s.id},'${(s.staffName||'').replace(/'/g,'')}')">퇴근 체크</button>
-               <button class="btn btn-secondary sa-btn" style="color:var(--error)" onclick="deleteAttendance(${s.id},'${(s.staffName||'').replace(/'/g,'')}')">삭제</button>`
-            : `<button class="btn btn-secondary sa-btn" style="color:var(--error)" onclick="deleteAttendance(${s.id},'${(s.staffName||'').replace(/'/g,'')}')">기록 삭제</button>`;
-
         return `
         <div class="sa-card" style="border-color:${borderColor}">
             <div class="sa-card-top">
@@ -1380,39 +1421,8 @@ function renderTodayGrid(list) {
                 ${badgeHtml}
             </div>
             ${timeHtml}
-            <div class="sa-btns">${btns}</div>
         </div>`;
     }).join('');
-}
-
-async function doCheckIn(userId, name) {
-    const now = new Date();
-    const time = now.toTimeString().slice(0,5);
-    if (!confirm(`${name} — ${time} 출근 처리하시겠습니까?`)) return;
-    await fetch('/api/staff/attendance/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, time })
-    });
-    loadToday();
-}
-
-async function doCheckOut(id, name) {
-    const now = new Date();
-    const time = now.toTimeString().slice(0,5);
-    if (!confirm(`${name} — ${time} 퇴근 처리하시겠습니까?`)) return;
-    await fetch(`/api/staff/attendance/${id}/checkout`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ time })
-    });
-    loadToday();
-}
-
-async function deleteAttendance(id, name) {
-    if (!confirm(`${name}의 오늘 출근 기록을 삭제하시겠습니까?`)) return;
-    await fetch(`/api/staff/attendance/${id}`, { method: 'DELETE' });
-    loadToday();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1457,7 +1467,7 @@ function renderHistoryTable(list) {
     const tbody = document.getElementById('histTableBody');
     document.getElementById('histTotal').textContent = list.length ? `총 ${list.length}건` : '';
     if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">출근 기록이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">출근 기록이 없습니다.</td></tr>';
         return;
     }
     tbody.innerHTML = list.map(r => {
@@ -1469,8 +1479,6 @@ function renderHistoryTable(list) {
             <td style="color:var(--success)">${r.checkIn || '-'}</td>
             <td style="color:var(--warning)">${r.checkOut || '-'}</td>
             <td>${workStr}</td>
-            <td><button class="btn btn-secondary" style="padding:3px 9px;font-size:12px;color:var(--error)"
-                onclick="deleteHistRecord(${r.id})">삭제</button></td>
         </tr>`;
     }).join('');
 }
@@ -1479,12 +1487,6 @@ function calcMinutes(inStr, outStr) {
     const [ih, im] = inStr.split(':').map(Number);
     const [oh, om] = outStr.split(':').map(Number);
     return (oh * 60 + om) - (ih * 60 + im);
-}
-
-async function deleteHistRecord(id) {
-    if (!confirm('이 출근 기록을 삭제하시겠습니까?')) return;
-    await fetch(`/api/staff/attendance/${id}`, { method: 'DELETE' });
-    loadHistory();
 }
 
 </script>
@@ -1520,6 +1522,22 @@ async function deleteHistRecord(id) {
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeDashboardModal()">닫기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 쪽지내역 중 "피드백이 나간 쪽지" 클릭 시 추가 팝업 -->
+<div class="modal-overlay" id="feedbackDetailModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title">피드백 내용</span>
+            <button class="modal-close" onclick="closeFeedbackDetail()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body" id="feedbackDetailBody" style="max-height:60vh;overflow-y:auto"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFeedbackDetail()">닫기</button>
         </div>
     </div>
 </div>

@@ -14,7 +14,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -192,7 +191,32 @@ public class StaffApiController {
         return ApiResponse.ok(conversationMapper.findMessagesByTrainer(id, 100));
     }
 
-    // ── 출근 관리 ──────────────────────────────────────────────
+    // 쪽지내역 중 "피드백이 나간 쪽지"(record_id가 있는 메시지) 클릭 시 — 트레이너가 실제로
+    // 작성/전송한 피드백 내용을 추가 팝업으로 확인. findById로 지점 소속을 먼저 확인하고,
+    // 피드백 조회 자체도 record_id+trainer_id로 스코핑해 다른 트레이너의 피드백은 조회되지 않게 함.
+    @GetMapping("/{id}/messages/feedback/{recordId}")
+    public ApiResponse<Map<String, Object>> feedbackDetail(
+            @PathVariable String id,
+            @PathVariable Long recordId,
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Staff] GET /api/staff/{id}/messages/feedback/{recordId} - id={}, recordId={}", id, recordId);
+        if (staffMapper.findById(id, principal.getGymId()).isEmpty()) {
+            return ApiResponse.error("트레이너를 찾을 수 없습니다.");
+        }
+        Map<String, Object> header = conversationMapper.findFeedbackHeader(recordId, id);
+        if (header == null) {
+            return ApiResponse.error("아직 트레이너가 작성한 피드백이 없습니다.");
+        }
+        Map<String, Object> result = new java.util.LinkedHashMap<>(header);
+        result.put("exercises", conversationMapper.findFeedbackItems(recordId, id));
+        return ApiResponse.ok(result);
+    }
+
+    // ── 출근 현황 (조회 전용) ──────────────────────────────────────
+    // 2026-10-04: 관리자가 직접 출근/퇴근/기록삭제를 처리하던 기능을 제거함 — 트레이너
+    // 본인이 앱에서 켜고 끄는 근무 on/off 토글(lof-backend TrainerAttendanceService.
+    // checkIn/checkOut)이 이 테이블의 유일한 쓰기 경로가 되고, 관리자 페이지는 그 결과만
+    // 조회해서 보여준다(관리자가 별도로 기록을 만들거나 지워서 앱 쪽 상태와 어긋나던 문제 방지).
 
     @GetMapping("/attendance/today")
     public ApiResponse<List<StaffAttendance>> todayStatus(@AuthenticationPrincipal CrmUserDetails principal) {
@@ -211,37 +235,5 @@ public class StaffApiController {
         log.info("[Staff] GET /api/staff/attendance - start={}, end={}, staffId={}", start, end, staffId);
         return ApiResponse.ok(staffAttendanceMapper.findHistory(start, end, staffId.isEmpty() ? null : staffId,
                 principal.getGymId()));
-    }
-
-    @PostMapping("/attendance/checkin")
-    public ApiResponse<StaffAttendance> checkIn(@RequestBody Map<String, String> body,
-                                                @AuthenticationPrincipal CrmUserDetails principal) {
-        log.info("[Staff] POST /api/staff/attendance/checkin - userId={}", body.get("userId"));
-        StaffAttendance sa = new StaffAttendance();
-        sa.setUserId(body.get("userId"));
-        sa.setAttendDate(body.get("date") != null ? LocalDate.parse(body.get("date")) : LocalDate.now());
-        sa.setCheckIn(body.get("time") != null ? LocalTime.parse(body.get("time")) : LocalTime.now().withSecond(0).withNano(0));
-        sa.setMemo(body.get("memo"));
-        staffAttendanceMapper.insert(sa, principal.getGymId());
-        return ApiResponse.ok(sa);
-    }
-
-    @PatchMapping("/attendance/{id}/checkout")
-    public ApiResponse<Void> checkOut(@PathVariable Long id, @RequestBody(required = false) Map<String, String> body,
-                                      @AuthenticationPrincipal CrmUserDetails principal) {
-        log.info("[Staff] PATCH /api/staff/attendance/{}/checkout", id);
-        LocalTime time = (body != null && body.get("time") != null)
-                ? LocalTime.parse(body.get("time"))
-                : LocalTime.now().withSecond(0).withNano(0);
-        staffAttendanceMapper.updateCheckOut(id, time, principal.getGymId());
-        return ApiResponse.ok();
-    }
-
-    @DeleteMapping("/attendance/{id}")
-    public ApiResponse<Void> deleteAttendance(@PathVariable Long id,
-                                              @AuthenticationPrincipal CrmUserDetails principal) {
-        log.info("[Staff] DELETE /api/staff/attendance/{}", id);
-        staffAttendanceMapper.delete(id, principal.getGymId());
-        return ApiResponse.ok();
     }
 }

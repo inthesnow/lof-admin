@@ -125,13 +125,45 @@
     <select id="findMessagesByTrainer" resultType="map">
         SELECT cm.content AS content, cm.created_at AS createdAt,
                (cm.sender_id = mc.trainer_id) AS fromTrainer,
-               COALESCE(up.name, mc.member_id) AS memberName
+               COALESCE(up.name, mc.member_id) AS memberName,
+               cm.record_id AS recordId
           FROM chat_message cm
           JOIN message_conversation mc ON mc.id = cm.conversation_id
           LEFT JOIN user_profiles up ON up.user_id = mc.member_id
          WHERE mc.trainer_id = #{trainerUserId}
          ORDER BY cm.created_at DESC
          LIMIT #{limit}
+    </select>
+
+    <!-- 쪽지내역에서 "피드백이 나간 쪽지" 클릭 시 — 트레이너가 실제로 작성/전송한 피드백 내용.
+         trainer_id까지 같이 맞춰서, 이 트레이너 소관이 아닌 record_id를 들이밀어도 조회되지 않게 함. -->
+    <select id="findFeedbackHeader" resultType="map">
+        SELECT
+            f.overall      AS overall,
+            f.is_sent      AS isSent,
+            f.sent_at      AS sentAt,
+            r.workout_name AS workoutName,
+            r.record_date  AS recordDate,
+            s.`condition`  AS `condition`,
+            s.pain         AS pain,
+            s.intensity    AS intensity
+        FROM trainer_exercise_feedbacks f
+        JOIN exercise_records r ON r.id = f.record_id
+        LEFT JOIN exercise_feedback_surveys s ON s.record_id = f.record_id
+        WHERE f.record_id = #{recordId} AND f.trainer_id = #{trainerId}
+    </select>
+
+    <select id="findFeedbackItems" resultType="map">
+        SELECT
+            eri.id    AS itemId,
+            e.name_ko AS exerciseName,
+            i.content AS content
+        FROM trainer_exercise_feedback_items i
+        JOIN trainer_exercise_feedbacks f ON f.id = i.feedback_id
+        JOIN exercise_record_items eri ON eri.id = i.item_id
+        JOIN exercises e ON e.id = eri.exercise_id
+        WHERE f.record_id = #{recordId} AND f.trainer_id = #{trainerId}
+        ORDER BY eri.id ASC
     </select>
 
 </mapper>
