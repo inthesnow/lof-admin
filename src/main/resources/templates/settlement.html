@@ -9,70 +9,87 @@
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside th:replace="~{fragments/sidebar :: sidebar('settlement')}"></aside>
 
 <main class="main">
     <header class="main-header">
-        <div>
-            <h1 class="page-title">정산 내역</h1>
-            <div class="page-desc">본사(최고관리자)로부터 받은/받을 채널 통합 정산 내역 — 조회 전용</div>
+        <div class="header-left">
+            <button class="mobile-menu-btn" onclick="openSidebar()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <div>
+                <h1 class="page-title">정산 내역</h1>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px">본사(최고관리자)로부터 받은/받을 채널 통합 정산 내역 — 조회 전용</div>
+            </div>
         </div>
     </header>
 
-    <div class="page-body">
+    <!-- 요약 카드 -->
+    <div style="display:flex;gap:12px;padding:16px 24px;flex-wrap:wrap">
+        <div class="summary-card warning"><div class="sc-val" id="sc-pending">-</div><div class="sc-label">지급 대기</div></div>
+        <div class="summary-card success"><div class="sc-val" id="sc-paid">-</div><div class="sc-label">지급 완료</div></div>
+        <div class="summary-card"><div class="sc-val" id="sc-total">-</div><div class="sc-label">누적 지급액</div></div>
+    </div>
 
-        <div class="kpi-row">
-            <div class="kpi-card">
-                <div class="kpi-label">지급 대기</div>
-                <div class="kpi-value" id="sc-pending" style="color:var(--warning)">0</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">지급 완료</div>
-                <div class="kpi-value" id="sc-paid" style="color:var(--success)">0</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-label">누적 지급액</div>
-                <div class="kpi-value" id="sc-total">0원</div>
-            </div>
-        </div>
+    <div style="padding:4px 24px 0;font-size:13px;font-weight:600;color:var(--text-secondary)">월별 정산 내역</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+            <tr>
+                <th>정산기간</th>
+                <th>총매출</th>
+                <th>환불 등 조정액</th>
+                <th>지급액</th>
+                <th>상태</th>
+                <th>확정일시</th>
+                <th>지급일시</th>
+            </tr>
+            </thead>
+            <tbody id="settlementTbody">
+            </tbody>
+        </table>
+    </div>
 
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title">월별 정산 내역</span>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                    <tr>
-                        <th>정산기간</th>
-                        <th>총매출</th>
-                        <th>환불 등 조정액</th>
-                        <th>지급액</th>
-                        <th>상태</th>
-                        <th>확정일시</th>
-                        <th>지급일시</th>
-                    </tr>
-                    </thead>
-                    <tbody id="settlementTbody">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="panel">
-            <div class="panel-header">
-                <span class="panel-title">참고</span>
-            </div>
-            <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--text-secondary);line-height:1.9">
-                <li>이용권/PT/락커/운동복 등 현장(카운터) 결제분은 이미 이 지점이 직접 수금한 금액이라
-                    이 정산 내역에 포함되지 않습니다(매출 관리 화면에서 별도 확인 가능).</li>
-                <li>정산은 매월 20일 전월분을 기준으로 계산되며, 실제 지급(계좌이체)은 본사에서
-                    수동으로 처리합니다.</li>
-                <li>계산 방식이나 금액에 문의사항이 있으면 본사로 별도 문의해주세요.</li>
-            </ul>
-        </div>
+    <div class="note-box">
+        <div class="note-box-title">참고</div>
+        <ul>
+            <li>이용권/PT/락커/운동복 등 현장(카운터) 결제분은 이미 이 지점이 직접 수금한 금액이라
+                이 정산 내역에 포함되지 않습니다(매출 관리 화면에서 별도 확인 가능).</li>
+            <li>정산은 매월 20일 전월분을 기준으로 계산되며, 실제 지급(계좌이체)은 본사에서
+                수동으로 처리합니다.</li>
+            <li>계산 방식이나 금액에 문의사항이 있으면 본사로 별도 문의해주세요.</li>
+        </ul>
     </div>
 </main>
+
+<style>
+.summary-card {
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 22px; min-width: 110px; text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.summary-card.warning .sc-val { color: var(--warning); }
+.summary-card.success .sc-val { color: var(--success); }
+.sc-val   { font-size: 24px; font-weight: 700; color: var(--accent); }
+.sc-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.note-box {
+    margin: 20px 24px 24px;
+    padding: 16px 20px;
+    background: var(--surface-up);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+}
+.note-box-title {
+    font-size: 12px; font-weight: 700; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px;
+}
+.note-box ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.9; }
+
+.badge-muted { background: rgba(139,148,158,.12); color: var(--text-muted); }
+</style>
 
 <script>
 function formatWon(n) { return n.toLocaleString('ko-KR') + '원'; }
@@ -92,7 +109,7 @@ async function loadSettlement() {
             formatWon(paid.reduce((sum, b) => sum + b.finalAmount, 0));
 
         const statusLabel = { CONFIRMED: '지급대기', PAID: '지급완료', DRAFT: '계산중' };
-        const statusClass = { CONFIRMED: 'badge-error', PAID: 'badge-success', DRAFT: 'badge-muted' };
+        const statusClass = { CONFIRMED: 'badge-pending', PAID: 'badge-active', DRAFT: 'badge-muted' };
 
         const tbody = document.getElementById('settlementTbody');
         if (batches.length === 0) {
@@ -113,6 +130,15 @@ async function loadSettlement() {
     } catch (e) {
         console.error('정산 내역 로드 실패', e);
     }
+}
+
+function openSidebar() {
+    document.querySelector('.sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
 loadSettlement();
