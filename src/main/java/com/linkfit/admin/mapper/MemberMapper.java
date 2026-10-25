@@ -1,6 +1,7 @@
 package com.linkfit.admin.mapper;
 
 import com.linkfit.admin.domain.Member;
+import com.linkfit.admin.domain.MemberFilter;
 import com.linkfit.admin.domain.MemberFreeze;
 import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.domain.Membership;
@@ -15,17 +16,10 @@ import java.util.Optional;
 
 @Mapper
 public interface MemberMapper {
-    List<Member> findAll(@Param("keyword") String keyword, @Param("status") String status,
-                         @Param("tier") String tier, @Param("gymId") Long gymId,
-                         @Param("trainerIds") List<String> trainerIds,
-                         @Param("minDaysLeft") Integer minDaysLeft, @Param("maxDaysLeft") Integer maxDaysLeft,
-                         @Param("minPtRemaining") Integer minPtRemaining, @Param("minAbsentDays") Integer minAbsentDays,
+    List<Member> findAll(@Param("f") MemberFilter filter, @Param("gymId") Long gymId,
+                         @Param("orderBy") String orderByClause,
                          @Param("offset") int offset, @Param("size") int size);
-    long count(@Param("keyword") String keyword, @Param("status") String status,
-               @Param("tier") String tier, @Param("gymId") Long gymId,
-               @Param("trainerIds") List<String> trainerIds,
-               @Param("minDaysLeft") Integer minDaysLeft, @Param("maxDaysLeft") Integer maxDaysLeft,
-               @Param("minPtRemaining") Integer minPtRemaining, @Param("minAbsentDays") Integer minAbsentDays);
+    long count(@Param("f") MemberFilter filter, @Param("gymId") Long gymId);
     Optional<Member> findById(@Param("id") String id, @Param("gymId") Long gymId);
     boolean existsInGym(@Param("id") String id, @Param("gymId") Long gymId);
     boolean existsByNameAndPhone(@Param("name") String name, @Param("phone") String phone);

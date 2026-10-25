@@ -13,4 +13,5 @@ public interface LockerService {
     void deleteZone(Long zoneId, Long gymId);
     Map<String, Object> listLockers(Long zoneId, Long gymId);
     void assign(Long lockerId, Long gymId, Membership membership);
+    List<Map<String, Object>> listAvailable(Long gymId);
 }

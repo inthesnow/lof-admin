@@ -22,6 +22,11 @@
         <result property="tier"            column="tier"/>
     </resultMap>
 
+    <!-- membership_end/product_name 모두 PT를 제외한다 — PT는 기간이 아니라 횟수로 관리되는
+         상품이라 end_date를 등록일+3650일(무기한 placeholder)로 박아두는데, 이걸 포함해서
+         MAX(end_date)/ORDER BY end_date DESC로 고르면 PT를 한 번이라도 구매한 회원은 그 뒤에 새로
+         등록한 이용권이 영원히 "유효"로만 보여 재등록 대상에서 빠지는 버그가 있었다(2026-10-25,
+         MemberMapper.xml의 동일 패턴과 같은 원인). -->
     <sql id="baseJoin">
         SELECT r.id, r.member_id, r.gym_id, r.reason, r.status, r.assigned_to,
                r.memo, r.scheduled_at, r.resolved_at, r.created_at,
@@ -32,13 +37,13 @@
                me.end_date AS membership_end,
                (SELECT p.name FROM membership ms2
                   JOIN product p ON p.id = ms2.product_id
-                 WHERE ms2.user_id = r.member_id
+                 WHERE ms2.user_id = r.member_id AND ms2.type != 'PT'
                  ORDER BY ms2.end_date DESC LIMIT 1) AS product_name
           FROM crm_re_registration r
           LEFT JOIN user_profiles up ON up.user_id = r.member_id
           LEFT JOIN crm_users cu     ON cu.id       = r.assigned_to
           LEFT JOIN (
-              SELECT user_id, MAX(end_date) AS end_date FROM membership GROUP BY user_id
+              SELECT user_id, MAX(end_date) AS end_date FROM membership WHERE type != 'PT' GROUP BY user_id
           ) me ON me.user_id = r.member_id
     </sql>
 
@@ -76,7 +81,7 @@
         SELECT COUNT(*)
           FROM crm_re_registration r
           LEFT JOIN (
-              SELECT user_id, MAX(end_date) AS end_date FROM membership GROUP BY user_id
+              SELECT user_id, MAX(end_date) AS end_date FROM membership WHERE type != 'PT' GROUP BY user_id
           ) me ON me.user_id = r.member_id
          WHERE r.gym_id = #{gymId}
         <if test="status != null and status != ''">
@@ -96,7 +101,7 @@
             SUM(CASE WHEN me.end_date IS NULL OR me.end_date &lt; CURDATE() THEN 1 ELSE 0 END) AS expired
           FROM crm_re_registration r
           LEFT JOIN (
-              SELECT user_id, MAX(end_date) AS end_date FROM membership GROUP BY user_id
+              SELECT user_id, MAX(end_date) AS end_date FROM membership WHERE type != 'PT' GROUP BY user_id
           ) me ON me.user_id = r.member_id
          WHERE r.gym_id = #{gymId}
     </select>

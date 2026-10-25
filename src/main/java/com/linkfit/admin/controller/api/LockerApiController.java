@@ -72,6 +72,13 @@ public class LockerApiController {
         return ApiResponse.ok();
     }
 
+    // 회원상세 "이용권 등록"(개별/패키지) 모달의 락커 선택 드롭다운용 — 미배정 라커만 반환
+    @GetMapping("/available")
+    public ApiResponse<List<Map<String, Object>>> listAvailable(@AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Locker] GET /api/lockers/available");
+        return ApiResponse.ok(lockerService.listAvailable(principal.getGymId()));
+    }
+
     @GetMapping
     public ApiResponse<Map<String, Object>> list(@RequestParam Long zoneId,
                                                   @AuthenticationPrincipal CrmUserDetails principal) {

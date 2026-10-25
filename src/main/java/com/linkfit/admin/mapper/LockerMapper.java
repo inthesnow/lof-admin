@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Mapper
@@ -35,4 +36,7 @@ public interface LockerMapper {
     // 여러 구역에 같은 번호가 있을 수 있어 List로 받고, 서비스단에서 미배정(membershipId=null)인
     // 것 중 하나를 고른다.
     List<Locker> findAvailableByGymAndNumber(@Param("gymId") Long gymId, @Param("lockerNumber") int lockerNumber);
+
+    // 회원상세 "이용권 등록" 모달의 락커 선택 드롭다운용 — {id, zoneName, lockerNumber} 목록
+    List<Map<String, Object>> findAvailableByGym(@Param("gymId") Long gymId);
 }

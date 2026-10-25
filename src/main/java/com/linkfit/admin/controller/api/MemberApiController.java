@@ -5,6 +5,7 @@ import com.linkfit.admin.domain.CrmMemberNote;
 import com.linkfit.admin.domain.CrmMemberTag;
 import com.linkfit.admin.domain.CrmMessage;
 import com.linkfit.admin.domain.Member;
+import com.linkfit.admin.domain.MemberFilter;
 import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.domain.Staff;
 import com.linkfit.admin.domain.TicketLog;
@@ -18,6 +19,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -86,16 +88,50 @@ public class MemberApiController {
             @RequestParam(required = false) Integer maxDaysLeft,
             @RequestParam(required = false) Integer minPtRemaining,
             @RequestParam(required = false) Integer minAbsentDays,
+            @RequestParam(required = false) Boolean appInstalled,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate joinDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate joinDateTo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate membershipEndFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate membershipEndTo,
+            @RequestParam(required = false) Integer minUnpaidAmount,
+            @RequestParam(defaultValue = "false") boolean excludeTrainers,
+            @RequestParam(defaultValue = "") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] GET /api/members - keyword={}, status={}, trainerIds={}", keyword, status, trainerIds);
         Long gymId = principal.getGymId();
-        List<Member> members = memberService.findAll(keyword, status, tier, gymId, trainerIds,
-                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays, page, size);
-        long total = memberService.count(keyword, status, tier, gymId, trainerIds,
-                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays);
+        MemberFilter filter = buildFilter(keyword, status, tier, trainerIds, minDaysLeft, maxDaysLeft,
+                minPtRemaining, minAbsentDays, appInstalled, joinDateFrom, joinDateTo,
+                membershipEndFrom, membershipEndTo, minUnpaidAmount, excludeTrainers);
+        List<Member> members = memberService.findAll(filter, gymId, sortBy, sortDir, page, size);
+        long total = memberService.count(filter, gymId);
         return ApiResponse.ok(Map.of("members", members, "total", total, "page", page, "size", size));
+    }
+
+    private MemberFilter buildFilter(String keyword, String status, String tier, List<String> trainerIds,
+            Integer minDaysLeft, Integer maxDaysLeft, Integer minPtRemaining, Integer minAbsentDays,
+            Boolean appInstalled, LocalDate joinDateFrom, LocalDate joinDateTo,
+            LocalDate membershipEndFrom, LocalDate membershipEndTo, Integer minUnpaidAmount,
+            boolean excludeTrainers) {
+        MemberFilter filter = new MemberFilter();
+        filter.setKeyword(keyword);
+        filter.setStatus(status);
+        filter.setTier(tier);
+        filter.setTrainerIds(trainerIds);
+        filter.setMinDaysLeft(minDaysLeft);
+        filter.setMaxDaysLeft(maxDaysLeft);
+        filter.setMinPtRemaining(minPtRemaining);
+        filter.setMinAbsentDays(minAbsentDays);
+        filter.setAppInstalled(appInstalled);
+        filter.setJoinDateFrom(joinDateFrom);
+        filter.setJoinDateTo(joinDateTo);
+        filter.setMembershipEndFrom(membershipEndFrom);
+        filter.setMembershipEndTo(membershipEndTo);
+        filter.setMinUnpaidAmount(minUnpaidAmount);
+        filter.setExcludeTrainers(excludeTrainers);
+        return filter;
     }
 
     @GetMapping("/{id}")
@@ -115,7 +151,12 @@ public class MemberApiController {
                 || member.getPhone() == null || member.getPhone().isBlank()) {
             return ApiResponse.error("이름과 전화번호를 모두 입력해주세요.");
         }
-        if (memberService.existsByNameAndPhone(member.getName(), member.getPhone())) {
+        // existsByNameAndPhone은 up.contact(숫자만 저장)와 비교하는데, 여기 들어오는 member.getPhone()은
+        // 화면에서 하이픈을 자동으로 붙여 보낸 원본 값이라 정규화 전엔 절대 일치하지 않아 중복 검사가
+        // 항상 통과해버리는 버그가 있었음(save() 내부의 stripNonDigits는 이 검사 "이후"에 실행됨) —
+        // 같은 회원이 중복 등록되던 원인.
+        String normalizedPhone = member.getPhone().replaceAll("[^0-9]", "");
+        if (memberService.existsByNameAndPhone(member.getName(), normalizedPhone)) {
             return ApiResponse.error("동일한 이름과 전화번호의 회원이 이미 존재합니다.");
         }
         return ApiResponse.ok(memberService.save(member, principal.getGymId()));
@@ -210,7 +251,11 @@ public class MemberApiController {
                                            @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Member] POST /api/members/{id}/memberships - id={}", id);
         membership.setMemberId(id);
-        memberService.addMembership(membership, principal.getGymId());
+        try {
+            memberService.addMembership(membership, principal.getGymId());
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.error(e.getMessage());
+        }
         return ApiResponse.ok();
     }
 
@@ -350,8 +395,9 @@ public class MemberApiController {
             HttpServletResponse response,
             @AuthenticationPrincipal CrmUserDetails principal) throws IOException {
         log.info("[Member] GET /api/members/export - keyword={}, status={}", keyword, status);
-        List<Member> members = memberService.findAll(keyword, status, tier, principal.getGymId(), trainerIds,
-                null, null, null, null, 0, 100_000);
+        MemberFilter filter = buildFilter(keyword, status, tier, trainerIds,
+                null, null, null, null, null, null, null, null, null, null, true);
+        List<Member> members = memberService.findAll(filter, principal.getGymId(), "", "asc", 0, 100_000);
 
         String filename = "members-" + LocalDate.now() + ".xlsx";
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

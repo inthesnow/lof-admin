@@ -80,6 +80,11 @@ public class MyBatisLockerService implements LockerService {
     }
 
     @Override
+    public List<Map<String, Object>> listAvailable(Long gymId) {
+        return lockerMapper.findAvailableByGym(gymId);
+    }
+
+    @Override
     public Map<String, Object> listLockers(Long zoneId, Long gymId) {
         LockerZone zone = requireZoneInGym(zoneId, gymId);
         List<Locker> lockers = lockerMapper.findAllByZone(zoneId);

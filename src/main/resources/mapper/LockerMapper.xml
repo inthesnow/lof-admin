@@ -81,4 +81,17 @@
         WHERE lz.gym_id = #{gymId} AND l.locker_number = #{lockerNumber}
     </select>
 
+    <!-- 회원상세 "이용권 등록"(개별/패키지) 모달의 락커 선택 드롭다운용 — 미배정 라커만, 구역명 포함 -->
+    <select id="findAvailableByGym" resultType="map">
+        SELECT l.id, lz.name AS zoneName, l.locker_number AS lockerNumber
+        FROM locker l
+        JOIN locker_zone lz ON lz.id = l.zone_id
+        WHERE lz.gym_id = #{gymId}
+          AND NOT EXISTS (
+              SELECT 1 FROM membership m
+               WHERE m.locker_id = l.id AND m.type = 'LOCKER' AND m.status IS NULL
+          )
+        ORDER BY lz.display_order, l.locker_number
+    </select>
+
 </mapper>

@@ -26,6 +26,10 @@
         .filter-group { display: flex; flex-direction: column; gap: 4px; }
         .filter-label { font-size: 11px; color: var(--text-muted); }
         .range-input { width: 70px; text-align: center; }
+        .date-range-input { width: 134px; }
+        .sortable-th { cursor: pointer; user-select: none; }
+        .sortable-th:hover { color: var(--accent); }
+        .sort-icon { font-size: 10px; color: var(--accent); }
         .trainer-filter-wrap { position: relative; }
         .trainer-filter-count {
             display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 10px;
@@ -142,6 +146,11 @@
             <option value="REGULAR_FIT">레귤러</option>
             <option value="INTENSIVE_FIT">인텐시브</option>
         </select>
+        <select class="filter-select" id="appInstalledFilter" onchange="currentPage=0;loadMembers()">
+            <option value="">전체 앱설치</option>
+            <option value="true">설치함</option>
+            <option value="false">설치안함</option>
+        </select>
     </div>
 
     <!-- 상세 필터 -->
@@ -156,28 +165,9 @@
             </div>
             <div id="trainerFilterNames" class="trainer-filter-names" style="display:none"></div>
         </div>
-        <div class="filter-group">
-            <span class="filter-label">PT 잔여횟수 (이상)</span>
-            <input type="number" class="form-input range-input" id="minPtRemaining" placeholder="0" min="0" onkeyup="if(event.key==='Enter')loadMembers()">
-        </div>
-        <div class="filter-group">
-            <span class="filter-label">잔여일자</span>
-            <div style="display:flex;align-items:center;gap:4px">
-                <input type="number" class="form-input range-input" id="minDaysLeft" placeholder="0" onkeyup="if(event.key==='Enter')loadMembers()">
-                <span>~</span>
-                <input type="number" class="form-input range-input" id="maxDaysLeft" placeholder="100" onkeyup="if(event.key==='Enter')loadMembers()">
-                <span style="font-size:12px;color:var(--text-muted)">일</span>
-            </div>
-        </div>
-        <div class="filter-group">
-            <span class="filter-label">미출석기간 (이상)</span>
-            <div style="display:flex;align-items:center;gap:4px">
-                <input type="number" class="form-input range-input" id="minAbsentDays" placeholder="0" onkeyup="if(event.key==='Enter')loadMembers()">
-                <span style="font-size:12px;color:var(--text-muted)">일</span>
-            </div>
-        </div>
-        <button class="btn btn-primary" onclick="currentPage=0;loadMembers()">조회</button>
-        <button class="btn btn-secondary" onclick="resetExtraFilters()">필터 초기화</button>
+        <button type="button" class="btn btn-secondary" onclick="openAdvancedFilterModal()">
+            상세설정<span id="advFilterCount" class="trainer-filter-count" style="display:none"></span>
+        </button>
     </div>
 
     <div class="table-wrap">
@@ -187,11 +177,11 @@
                     <th>회원명</th>
                     <th>연락처</th>
                     <th>성별</th>
-                    <th>가입일</th>
-                    <th>앱설치유무</th>
-                    <th>회원권만료일(잔여일)</th>
+                    <th class="sortable-th" onclick="setSort('joinDate')">가입일 <span class="sort-icon" id="sortIcon-joinDate"></span></th>
+                    <th class="sortable-th" onclick="setSort('appInstalled')">앱설치유무 <span class="sort-icon" id="sortIcon-appInstalled"></span></th>
+                    <th class="sortable-th" onclick="setSort('membershipEnd')">회원권만료일(잔여일) <span class="sort-icon" id="sortIcon-membershipEnd"></span></th>
                     <th>이용중인상품(가격)</th>
-                    <th>미납금</th>
+                    <th class="sortable-th" onclick="setSort('unpaidAmount')">미납금 <span class="sort-icon" id="sortIcon-unpaidAmount"></span></th>
                     <th>담당트레이너</th>
                 </tr>
             </thead>
@@ -388,6 +378,60 @@
             <!-- 이용권 -->
             <div class="detail-pane" id="dpane-ms" style="display:none">
                 <div>
+                    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">구매 상품 구매</div>
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label class="form-label">상품 *</label>
+                            <select class="form-select" id="msProduct" onchange="onMsProductChange()">
+                                <option value="">상품을 선택하세요</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">금액 <span style="color:var(--text-muted);font-size:11px">(선택 시 자동)</span></label>
+                            <input type="number" class="form-input" id="msPrice" placeholder="0" min="0" readonly disabled>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">할인금액</label>
+                            <input type="number" class="form-input" id="msDiscount" placeholder="0" min="0" value="0"
+                                   onchange="syncMsPaidAmount()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">납부액 * <span style="color:var(--text-muted);font-size:11px">(할인 후 금액보다 적으면 미납금으로 표시)</span></label>
+                            <input type="number" class="form-input" id="msPaidAmount" placeholder="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">시작일 *</label>
+                            <input type="date" class="form-input" id="msStart">
+                        </div>
+                        <div class="form-group" id="msLockerGroup" style="display:none">
+                            <label class="form-label">배정할 라커 *</label>
+                            <select class="form-select" id="msLockerId"></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">결제수단</label>
+                            <div style="display:flex;gap:6px">
+                                <select class="form-select" id="msPaymentMethod" style="flex:1"></select>
+                                <button type="button" class="btn btn-secondary" style="white-space:nowrap" onclick="addPaymentMethod()">기타결제수단추가</button>
+                            </div>
+                        </div>
+                        <div class="form-group full">
+                            <span style="color:var(--text-muted);font-size:11px">구성(이용권/PT/락커/운동복)별로 각자의 기간에 따라 만료일이 자동 계산되어, 구성 수만큼 이용권이 각각 등록됩니다.</span>
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label">메모</label>
+                            <input type="text" class="form-input" id="msMemo" placeholder="메모 입력...">
+                        </div>
+                    </div>
+                    <div style="margin-top:12px;text-align:right">
+                        <button class="btn btn-primary" onclick="addMembership()">구매 상품 구매</button>
+                    </div>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:20px">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">PT 양도</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">PT는 특정 구매건이 아니라 이 회원의 PT 잔여 전체(구매+서비스)를 다른 회원에게 넘깁니다.</div>
+                    <button class="btn btn-secondary" onclick="openTransferModal(null, 'PT')">다른 회원에게 PT 양도</button>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:20px">
                     <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">개별 상품 부여</div>
                     <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">
                         구매 PT <b id="msPurchasedPt">-</b>회 · 서비스 PT <b id="msServicePt">-</b>회
@@ -414,6 +458,10 @@
                         <div class="form-group" id="indivSessionGroup" style="display:none">
                             <label class="form-label">횟수 *</label>
                             <input type="number" class="form-input" id="indivSessionCount" placeholder="예: 10" min="1" value="1">
+                        </div>
+                        <div class="form-group" id="indivLockerGroup" style="display:none">
+                            <label class="form-label">배정할 라커 *</label>
+                            <select class="form-select" id="indivLockerId"></select>
                         </div>
                         <div class="form-group" id="indivPriceGroup">
                             <label class="form-label">금액</label>
@@ -446,56 +494,6 @@
                     </div>
                     <div style="margin-top:12px;text-align:right">
                         <button class="btn btn-secondary" onclick="grantIndividualProduct()">개별 상품 부여</button>
-                    </div>
-                </div>
-                <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:20px">
-                    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">PT 양도</div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">PT는 특정 구매건이 아니라 이 회원의 PT 잔여 전체(구매+서비스)를 다른 회원에게 넘깁니다.</div>
-                    <button class="btn btn-secondary" onclick="openTransferModal(null, 'PT')">다른 회원에게 PT 양도</button>
-                </div>
-                <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:20px">
-                    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">구매 상품 구매</div>
-                    <div class="form-grid">
-                        <div class="form-group full">
-                            <label class="form-label">상품 *</label>
-                            <select class="form-select" id="msProduct" onchange="onMsProductChange()">
-                                <option value="">상품을 선택하세요</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">금액 <span style="color:var(--text-muted);font-size:11px">(선택 시 자동)</span></label>
-                            <input type="number" class="form-input" id="msPrice" placeholder="0" min="0" readonly disabled>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">할인금액</label>
-                            <input type="number" class="form-input" id="msDiscount" placeholder="0" min="0" value="0"
-                                   onchange="syncMsPaidAmount()">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">납부액 * <span style="color:var(--text-muted);font-size:11px">(할인 후 금액보다 적으면 미납금으로 표시)</span></label>
-                            <input type="number" class="form-input" id="msPaidAmount" placeholder="0" min="0">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">시작일 *</label>
-                            <input type="date" class="form-input" id="msStart">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">결제수단</label>
-                            <div style="display:flex;gap:6px">
-                                <select class="form-select" id="msPaymentMethod" style="flex:1"></select>
-                                <button type="button" class="btn btn-secondary" style="white-space:nowrap" onclick="addPaymentMethod()">기타결제수단추가</button>
-                            </div>
-                        </div>
-                        <div class="form-group full">
-                            <span style="color:var(--text-muted);font-size:11px">구성(이용권/PT/락커/운동복)별로 각자의 기간에 따라 만료일이 자동 계산되어, 구성 수만큼 이용권이 각각 등록됩니다.</span>
-                        </div>
-                        <div class="form-group full">
-                            <label class="form-label">메모</label>
-                            <input type="text" class="form-input" id="msMemo" placeholder="메모 입력...">
-                        </div>
-                    </div>
-                    <div style="margin-top:12px;text-align:right">
-                        <button class="btn btn-primary" onclick="addMembership()">구매 상품 구매</button>
                     </div>
                 </div>
             </div>
@@ -621,12 +619,93 @@
     </div>
 </div>
 
+<!-- 상세설정 모달 (PT잔여/잔여일자/미출석기간/가입일/회원권만료일/미납금) -->
+<div class="modal-overlay" id="advancedFilterModal">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+            <span class="modal-title">상세 필터</span>
+            <button class="modal-close" onclick="closeAdvancedFilterModal()">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">PT 잔여횟수 (이상)</label>
+                    <input type="number" class="form-input" id="minPtRemaining" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">미출석기간 (이상, 일)</label>
+                    <input type="number" class="form-input" id="minAbsentDays" placeholder="0" min="0">
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">잔여일자 (일)</label>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <input type="number" class="form-input" id="minDaysLeft" placeholder="0" style="flex:1">
+                        <span>~</span>
+                        <input type="number" class="form-input" id="maxDaysLeft" placeholder="100" style="flex:1">
+                    </div>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">가입일</label>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <input type="date" class="form-input" id="joinDateFrom" style="flex:1">
+                        <span>~</span>
+                        <input type="date" class="form-input" id="joinDateTo" style="flex:1">
+                    </div>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">회원권만료일</label>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <input type="date" class="form-input" id="membershipEndFrom" style="flex:1">
+                        <span>~</span>
+                        <input type="date" class="form-input" id="membershipEndTo" style="flex:1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">미납금 (이상)</label>
+                    <input type="number" class="form-input" id="minUnpaidAmount" placeholder="0" min="0">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="resetExtraFilters()">초기화</button>
+            <button class="btn btn-primary" onclick="applyAdvancedFilter()">적용</button>
+        </div>
+    </div>
+</div>
+
 <script>
 let currentPage = 0;
 const pageSize = 10;
 let searchTimer = null;
 let selectedTrainerIds = [];
 let trainerList = [];
+
+// ── 정렬 상태 ────────────────────────────────────────────────
+let sortBy = '';
+let sortDir = 'asc';
+const sortableCols = ['joinDate', 'appInstalled', 'membershipEnd', 'unpaidAmount'];
+
+function setSort(col) {
+    if (sortBy === col) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortBy = col;
+        sortDir = 'asc';
+    }
+    currentPage = 0;
+    updateSortIcons();
+    loadMembers();
+}
+
+function updateSortIcons() {
+    sortableCols.forEach(col => {
+        const el = document.getElementById('sortIcon-' + col);
+        if (!el) return;
+        el.textContent = col === sortBy ? (sortDir === 'asc' ? '▲' : '▼') : '';
+    });
+}
 
 const statusLabel = { ACTIVE: '유효', SUSPENDED: '정지', FROZEN: '휴면', WITHDRAWN: '탈퇴' };
 const statusBadge = { ACTIVE: 'badge-active', SUSPENDED: 'badge-suspended', FROZEN: 'badge-frozen', WITHDRAWN: 'badge-muted' };
@@ -641,15 +720,48 @@ function debounceSearch() {
     searchTimer = setTimeout(() => { currentPage = 0; loadMembers(); }, 350);
 }
 
+// "상세설정" 모달 안의 필터(PT잔여/잔여일자/미출석기간/가입일/회원권만료일/미납금)만 초기화한다 —
+// 담당 트레이너·앱설치·상태·구독권은 모달 밖의 상시 노출 필터라 여기서 건드리지 않는다.
 function resetExtraFilters() {
-    selectedTrainerIds = [];
-    updateTrainerCountBadge();
     document.getElementById('minPtRemaining').value = '';
     document.getElementById('minDaysLeft').value = '';
     document.getElementById('maxDaysLeft').value = '';
     document.getElementById('minAbsentDays').value = '';
+    document.getElementById('joinDateFrom').value = '';
+    document.getElementById('joinDateTo').value = '';
+    document.getElementById('membershipEndFrom').value = '';
+    document.getElementById('membershipEndTo').value = '';
+    document.getElementById('minUnpaidAmount').value = '';
+    sortBy = '';
+    sortDir = 'asc';
+    updateSortIcons();
+    updateAdvFilterBadge();
+    closeAdvancedFilterModal();
     currentPage = 0;
     loadMembers();
+}
+
+// ── 상세설정 모달 ────────────────────────────────────────────
+const advFilterIds = ['minPtRemaining', 'minDaysLeft', 'maxDaysLeft', 'minAbsentDays',
+    'joinDateFrom', 'joinDateTo', 'membershipEndFrom', 'membershipEndTo', 'minUnpaidAmount'];
+
+function openAdvancedFilterModal() {
+    document.getElementById('advancedFilterModal').classList.add('open');
+}
+function closeAdvancedFilterModal() {
+    document.getElementById('advancedFilterModal').classList.remove('open');
+}
+function applyAdvancedFilter() {
+    updateAdvFilterBadge();
+    closeAdvancedFilterModal();
+    currentPage = 0;
+    loadMembers();
+}
+function updateAdvFilterBadge() {
+    const n = advFilterIds.filter(id => document.getElementById(id).value !== '').length;
+    const badge = document.getElementById('advFilterCount');
+    badge.textContent = n ? ` ${n}` : '';
+    badge.style.display = n ? '' : 'none';
 }
 
 // ── 담당 트레이너 필터 (다중 선택) ────────────────────────────
@@ -748,20 +860,33 @@ function trainerQuery() {
 }
 
 async function loadMembers() {
-    const keyword = document.getElementById('searchInput').value;
-    const status  = document.getElementById('statusFilter').value;
-    const tier    = document.getElementById('tierFilter').value;
-    const minPt   = document.getElementById('minPtRemaining').value;
-    const minDL   = document.getElementById('minDaysLeft').value;
-    const maxDL   = document.getElementById('maxDaysLeft').value;
-    const minAbs  = document.getElementById('minAbsentDays').value;
+    const keyword   = document.getElementById('searchInput').value;
+    const status    = document.getElementById('statusFilter').value;
+    const tier      = document.getElementById('tierFilter').value;
+    const minPt     = document.getElementById('minPtRemaining').value;
+    const minDL     = document.getElementById('minDaysLeft').value;
+    const maxDL     = document.getElementById('maxDaysLeft').value;
+    const minAbs    = document.getElementById('minAbsentDays').value;
+    const appInst   = document.getElementById('appInstalledFilter').value;
+    const jdFrom    = document.getElementById('joinDateFrom').value;
+    const jdTo      = document.getElementById('joinDateTo').value;
+    const meFrom    = document.getElementById('membershipEndFrom').value;
+    const meTo      = document.getElementById('membershipEndTo').value;
+    const minUnpaid = document.getElementById('minUnpaidAmount').value;
 
-    let url = `/api/members?keyword=${encodeURIComponent(keyword)}&status=${status}&tier=${tier}&page=${currentPage}&size=${pageSize}`;
+    let url = `/api/members?keyword=${encodeURIComponent(keyword)}&status=${status}&tier=${tier}&excludeTrainers=true&page=${currentPage}&size=${pageSize}`;
     url += trainerQuery();
-    if (minPt  !== '') url += `&minPtRemaining=${encodeURIComponent(minPt)}`;
-    if (minDL  !== '') url += `&minDaysLeft=${encodeURIComponent(minDL)}`;
-    if (maxDL  !== '') url += `&maxDaysLeft=${encodeURIComponent(maxDL)}`;
-    if (minAbs !== '') url += `&minAbsentDays=${encodeURIComponent(minAbs)}`;
+    if (minPt     !== '') url += `&minPtRemaining=${encodeURIComponent(minPt)}`;
+    if (minDL     !== '') url += `&minDaysLeft=${encodeURIComponent(minDL)}`;
+    if (maxDL     !== '') url += `&maxDaysLeft=${encodeURIComponent(maxDL)}`;
+    if (minAbs    !== '') url += `&minAbsentDays=${encodeURIComponent(minAbs)}`;
+    if (appInst   !== '') url += `&appInstalled=${appInst}`;
+    if (jdFrom    !== '') url += `&joinDateFrom=${jdFrom}`;
+    if (jdTo      !== '') url += `&joinDateTo=${jdTo}`;
+    if (meFrom    !== '') url += `&membershipEndFrom=${meFrom}`;
+    if (meTo      !== '') url += `&membershipEndTo=${meTo}`;
+    if (minUnpaid !== '') url += `&minUnpaidAmount=${encodeURIComponent(minUnpaid)}`;
+    if (sortBy    !== '') url += `&sortBy=${sortBy}&sortDir=${sortDir}`;
 
     const res = await fetch(url);
     const json = await res.json();
@@ -1079,10 +1204,28 @@ function renderProductSelect() {
 function onMsProductChange() {
     const id = document.getElementById('msProduct').value;
     const p = productCatalog.find(x => String(x.id) === id);
+    document.getElementById('msLockerGroup').style.display = (p && p.lockerEnabled) ? '' : 'none';
     if (!p) return;
     document.getElementById('msPrice').value = p.price || 0;
     document.getElementById('msDiscount').value = 0;
     syncMsPaidAmount();
+}
+
+// 회원상세 "이용권 등록"(개별/패키지) 모달의 락커 선택 드롭다운 — 미배정 라커만 표시
+let availableLockers = [];
+
+async function loadAvailableLockers() {
+    try {
+        const res  = await fetch('/api/lockers/available');
+        const json = await res.json();
+        availableLockers = json.data || [];
+    } catch (e) { availableLockers = []; }
+    const optionsHtml = availableLockers.length
+        ? '<option value="">선택하세요</option>' + availableLockers.map(l =>
+            `<option value="${l.id}">${escHtml(l.zoneName)} ${l.lockerNumber}번</option>`).join('')
+        : '<option value="">배정 가능한 라커가 없습니다</option>';
+    document.getElementById('indivLockerId').innerHTML = optionsHtml;
+    document.getElementById('msLockerId').innerHTML = optionsHtml;
 }
 
 function syncMsPaidAmount() {
@@ -1131,6 +1274,7 @@ async function loadMembershipList() {
 async function loadMembershipForm() {
     await loadProductCatalog();
     renderProductSelect();
+    await loadAvailableLockers();
     await loadPaymentMethods();
     renderPaymentMethodSelect();
     renderPaymentMethodSelect(null, 'indivPaymentMethod');
@@ -1166,6 +1310,7 @@ function onIndivTypeChange() {
     document.getElementById('indivMonthsGroup').style.display  = isPt ? 'none' : '';
     document.getElementById('indivDaysGroup').style.display    = isPt ? 'none' : '';
     document.getElementById('indivSessionGroup').style.display = isPt ? '' : 'none';
+    document.getElementById('indivLockerGroup').style.display  = type === 'LOCKER' ? '' : 'none';
     document.getElementById('indivPriceGroup').style.display    = isService ? 'none' : '';
     document.getElementById('indivDiscountGroup').style.display = isService ? 'none' : '';
     document.getElementById('indivPaidGroup').style.display     = isService ? 'none' : '';
@@ -1209,6 +1354,11 @@ async function grantIndividualProduct() {
         paymentMethod: document.getElementById('indivPaymentMethod').value,
         memo,
     };
+    if (type === 'LOCKER') {
+        const lockerId = document.getElementById('indivLockerId').value;
+        if (!lockerId) { alert('배정할 라커를 선택해주세요.'); return; }
+        body.lockerId = parseInt(lockerId, 10);
+    }
     if (type === 'PT') {
         const sessionCount = parseInt(document.getElementById('indivSessionCount').value, 10);
         if (isNaN(sessionCount) || sessionCount <= 0) { alert('PT 횟수를 올바르게 입력해주세요.'); return; }
@@ -1439,6 +1589,13 @@ async function addMembership() {
     const memo  = document.getElementById('msMemo').value.trim();
 
     const body = { packageId: parseInt(selectedId), startDate, price, discountAmount, paidAmount, paymentMethod, memo };
+
+    const selectedPackage = productCatalog.find(x => String(x.id) === selectedId);
+    if (selectedPackage && selectedPackage.lockerEnabled) {
+        const lockerId = document.getElementById('msLockerId').value;
+        if (!lockerId) { alert('이 상품에는 락커가 포함되어 있습니다. 배정할 라커를 선택해주세요.'); return; }
+        body.lockerId = parseInt(lockerId, 10);
+    }
 
     const res  = await fetch(`/api/members/${detailMemberId}/memberships`, {
         method: 'POST', headers: csrfHeaders(), body: JSON.stringify(body)

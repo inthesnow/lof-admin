@@ -2,12 +2,15 @@ package com.linkfit.admin.service.mybatis;
 
 import com.linkfit.admin.domain.CrmSale;
 import com.linkfit.admin.domain.Member;
+import com.linkfit.admin.domain.MemberFilter;
 import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.domain.Membership;
 import com.linkfit.admin.domain.ProductPackage;
 import com.linkfit.admin.domain.Sale;
 import com.linkfit.admin.domain.TicketLog;
+import com.linkfit.admin.domain.Locker;
 import com.linkfit.admin.mapper.CrmSalesMapper;
+import com.linkfit.admin.mapper.LockerMapper;
 import com.linkfit.admin.mapper.MemberMapper;
 import com.linkfit.admin.mapper.SaleMapper;
 import com.linkfit.admin.mapper.SettlementLedgerMapper;
@@ -34,15 +37,32 @@ public class MyBatisMemberService implements MemberService {
     private final SaleMapper saleMapper;
     private final CrmSalesMapper crmSalesMapper;
     private final SettlementLedgerMapper settlementLedgerMapper;
+    private final LockerMapper lockerMapper;
 
     public MyBatisMemberService(MemberMapper memberMapper, ProductPackageService productPackageService,
                                  SaleMapper saleMapper, CrmSalesMapper crmSalesMapper,
-                                 SettlementLedgerMapper settlementLedgerMapper) {
+                                 SettlementLedgerMapper settlementLedgerMapper, LockerMapper lockerMapper) {
         this.crmSalesMapper = crmSalesMapper;
         this.memberMapper = memberMapper;
         this.productPackageService = productPackageService;
         this.saleMapper = saleMapper;
         this.settlementLedgerMapper = settlementLedgerMapper;
+        this.lockerMapper = lockerMapper;
+    }
+
+    // 락커 구성이 포함된 이용권 등록(개별/패키지 공통) 시 실제 배정 가능한지 검증 — 이게 빠져있어서
+    // type=LOCKER로 등록해도 locker_id가 항상 NULL로 저장되고(결제는 기록되지만 실제 라커 배정은
+    // 전혀 안 일어남) /lockers 화면에서 전부 "미배정"으로 보이던 버그가 있었음(2026-10-23,
+    // 운영 데이터에서 12건 전부 locker_id NULL로 재현·확인).
+    private void validateLockerAvailable(Long lockerId, Long gymId) {
+        Locker locker = lockerMapper.findById(lockerId)
+                .orElseThrow(() -> new IllegalArgumentException("라커를 찾을 수 없습니다."));
+        if (!locker.getGymId().equals(gymId)) {
+            throw new IllegalArgumentException("라커를 찾을 수 없습니다.");
+        }
+        if (locker.getMembershipId() != null) {
+            throw new IllegalArgumentException("이미 배정된 라커입니다. 다른 라커를 선택해주세요.");
+        }
     }
 
     @Override
@@ -51,18 +71,31 @@ public class MyBatisMemberService implements MemberService {
     }
 
     @Override
-    public List<Member> findAll(String keyword, String status, String tier, Long gymId, List<String> trainerIds,
-                                 Integer minDaysLeft, Integer maxDaysLeft, Integer minPtRemaining, Integer minAbsentDays,
-                                 int page, int size) {
-        return memberMapper.findAll(keyword, status, tier, gymId, trainerIds,
-                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays, page * size, size);
+    public List<Member> findAll(MemberFilter filter, Long gymId, String sortBy, String sortDir, int page, int size) {
+        return memberMapper.findAll(filter, gymId, buildOrderByClause(sortBy, sortDir), page * size, size);
     }
 
     @Override
-    public long count(String keyword, String status, String tier, Long gymId, List<String> trainerIds,
-                       Integer minDaysLeft, Integer maxDaysLeft, Integer minPtRemaining, Integer minAbsentDays) {
-        return memberMapper.count(keyword, status, tier, gymId, trainerIds,
-                minDaysLeft, maxDaysLeft, minPtRemaining, minAbsentDays);
+    public long count(MemberFilter filter, Long gymId) {
+        return memberMapper.count(filter, gymId);
+    }
+
+    // sortBy/sortDir은 화면에서 자유 입력으로 받는 값이라 SQL에 직접 끼워 넣을 수 없음(인젝션 위험) —
+    // 정해진 컬럼 집합으로만 매핑하고, 그 외 값은 기존 기본 정렬(유효회원 우선 + 이름순, 3-1-14)로 폴백.
+    private String buildOrderByClause(String sortBy, String sortDir) {
+        String col = switch (sortBy == null ? "" : sortBy) {
+            case "joinDate" -> "join_date";
+            case "membershipEnd" -> "membership_end";
+            case "unpaidAmount" -> "unpaid_amount";
+            case "appInstalled" -> "app_installed";
+            default -> null;
+        };
+        if (col == null) {
+            return "EXISTS (SELECT 1 FROM membership ms WHERE ms.user_id = u.user_id "
+                    + "AND ms.status IS NULL AND ms.end_date >= CURDATE()) DESC, up.name ASC";
+        }
+        String dir = "desc".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        return col + " IS NULL, " + col + " " + dir + ", up.name ASC";
     }
 
     @Override
@@ -221,6 +254,12 @@ public class MyBatisMemberService implements MemberService {
                     : buildComponent(type, start, membership.getDurationMonths(), membership.getDurationDays());
             membership.setEndDate(c.endDate());
             membership.setRegType(computeRegType(membership.getMemberId(), hasMembershipOrPt, start));
+            if ("LOCKER".equals(type)) {
+                if (membership.getLockerId() == null) {
+                    throw new IllegalArgumentException("배정할 라커를 선택해주세요.");
+                }
+                validateLockerAvailable(membership.getLockerId(), gymId);
+            }
             memberMapper.insertMembership(membership, gymId);
             if ("PT".equals(type) && membership.getSessionCount() != null && membership.getSessionCount() != 0) {
                 memberMapper.adjustPtSessions(membership.getMemberId(), membership.getSessionCount(), gymId);
@@ -278,6 +317,13 @@ public class MyBatisMemberService implements MemberService {
             row.setMemo(membership.getMemo());
             if ("PT".equals(c.type())) {
                 row.setSessionCount(pkg.getPtSessionCount());
+            }
+            if ("LOCKER".equals(c.type())) {
+                if (membership.getLockerId() == null) {
+                    throw new IllegalArgumentException("이 상품에는 락커가 포함되어 있습니다. 배정할 라커를 선택해주세요.");
+                }
+                validateLockerAvailable(membership.getLockerId(), gymId);
+                row.setLockerId(membership.getLockerId());
             }
             memberMapper.insertMembership(row, gymId);
             // PT 구성이 있으면 실제 PT 잔여 세션(user_profiles.pt_sessions_left)을 함께 충전한다.

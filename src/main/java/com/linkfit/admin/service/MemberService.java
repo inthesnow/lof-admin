@@ -1,6 +1,7 @@
 package com.linkfit.admin.service;
 
 import com.linkfit.admin.domain.Member;
+import com.linkfit.admin.domain.MemberFilter;
 import com.linkfit.admin.domain.MemberTicket;
 import com.linkfit.admin.domain.Membership;
 import com.linkfit.admin.domain.TicketLog;
@@ -10,11 +11,8 @@ import java.util.Optional;
 
 public interface MemberService {
     Map<String, Object> summaryCounts(Long gymId);
-    List<Member> findAll(String keyword, String status, String tier, Long gymId, List<String> trainerIds,
-                          Integer minDaysLeft, Integer maxDaysLeft, Integer minPtRemaining, Integer minAbsentDays,
-                          int page, int size);
-    long count(String keyword, String status, String tier, Long gymId, List<String> trainerIds,
-               Integer minDaysLeft, Integer maxDaysLeft, Integer minPtRemaining, Integer minAbsentDays);
+    List<Member> findAll(MemberFilter filter, Long gymId, String sortBy, String sortDir, int page, int size);
+    long count(MemberFilter filter, Long gymId);
     Optional<Member> findById(String id, Long gymId);
     boolean existsByNameAndPhone(String name, String phone);
     Member save(Member member, Long gymId);

@@ -37,20 +37,24 @@
              ELSE 'SUSPENDED' END
     </sql>
 
+    <!-- "대표 상품"(이용중인상품/회원권만료일/미납금) 후보에서 PT는 제외한다 — PT는 기간이 아니라
+         횟수로 관리되는 상품이라 end_date를 등록일+3650일(무기한 placeholder)로 박아두는데, 이걸
+         포함해서 ORDER BY end_date DESC로 고르면 PT를 한 번이라도 구매한 회원은 그 뒤에 새로
+         등록한 이용권/운동복/락커가 영원히 이 컬럼에 반영되지 않는 버그가 있었다(2026-10-25). -->
     <sql id="memberSelect">
         SELECT u.user_id AS id, u.email, u.role,
                up.name, up.contact AS phone, up.gender, up.birth_date, up.member_type,
                up.tier, up.trainer_id, tp.name AS trainer_name, up.pt_sessions_left, up.service_pt_sessions_left,
                <include refid="statusCase"/> AS status,
                CASE WHEN up.join_date_unknown = 1 THEN NULL ELSE DATE(u.created_at) END AS join_date,
-               (SELECT start_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1) AS membership_start,
-               (SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1) AS membership_end,
+               (SELECT start_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) AS membership_start,
+               (SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) AS membership_end,
                (SELECT COALESCE(p.name, pkg.name) FROM membership ms
                  LEFT JOIN product p ON p.id = ms.product_id
                  LEFT JOIN product_package pkg ON pkg.id = ms.package_id
-                 WHERE ms.user_id = u.user_id AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1) AS current_product_name,
-               (SELECT ms.price - ms.discount_amount FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1) AS current_product_price,
-               (SELECT (ms.price - ms.discount_amount) - ms.paid_amount FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1) AS unpaid_amount,
+                 WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) AS current_product_name,
+               (SELECT ms.price - ms.discount_amount FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) AS current_product_price,
+               (SELECT (ms.price - ms.discount_amount) - ms.paid_amount FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) AS unpaid_amount,
                NULL AS memo,
                EXISTS (
                    SELECT 1 FROM user_auth ua2
@@ -70,40 +74,71 @@
     </sql>
 
     <sql id="extraFilters">
-        <if test="trainerIds != null and trainerIds.size() > 0">
+        <if test="f.trainerIds != null and f.trainerIds.size() > 0">
             AND up.trainer_id IN
-            <foreach collection="trainerIds" item="tid" open="(" separator="," close=")">#{tid}</foreach>
+            <foreach collection="f.trainerIds" item="tid" open="(" separator="," close=")">#{tid}</foreach>
         </if>
-        <if test="minDaysLeft != null">
-            AND DATEDIFF((SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1), CURDATE()) &gt;= #{minDaysLeft}
+        <if test="f.minDaysLeft != null">
+            AND DATEDIFF((SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1), CURDATE()) &gt;= #{f.minDaysLeft}
         </if>
-        <if test="maxDaysLeft != null">
-            AND DATEDIFF((SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL ORDER BY ms.end_date DESC LIMIT 1), CURDATE()) &lt;= #{maxDaysLeft}
+        <if test="f.maxDaysLeft != null">
+            AND DATEDIFF((SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1), CURDATE()) &lt;= #{f.maxDaysLeft}
         </if>
-        <if test="minPtRemaining != null">
-            AND up.pt_sessions_left &gt;= #{minPtRemaining}
+        <if test="f.minPtRemaining != null">
+            AND up.pt_sessions_left &gt;= #{f.minPtRemaining}
         </if>
-        <if test="minAbsentDays != null">
-            AND (la.last_attend IS NULL OR DATEDIFF(CURDATE(), la.last_attend) &gt;= #{minAbsentDays})
+        <if test="f.minAbsentDays != null">
+            AND (la.last_attend IS NULL OR DATEDIFF(CURDATE(), la.last_attend) &gt;= #{f.minAbsentDays})
         </if>
+        <!-- 앱설치유무/가입일/회원권만료일/미납금 — memberSelect의 SELECT 별칭(app_installed/join_date/
+             membership_end/unpaid_amount)과 동일한 식을 그대로 반복한다. WHERE절은 SELECT 별칭을
+             참조할 수 없어(MySQL 제약) 부득이하게 중복 — periodFilter류와 동일한 기존 관례. -->
+        <if test="f.appInstalled != null">
+            AND (EXISTS (
+                SELECT 1 FROM user_auth ua2
+                JOIN user_profiles up2 ON up2.user_id = ua2.user_id
+                WHERE up2.name = up.name
+                  AND up.contact IS NOT NULL AND up.contact != ''
+                  AND REPLACE(REPLACE(up2.contact, '-', ''), ' ', '') = REPLACE(REPLACE(up.contact, '-', ''), ' ', '')
+            )) = #{f.appInstalled}
+        </if>
+        <if test="f.joinDateFrom != null">
+            AND (CASE WHEN up.join_date_unknown = 1 THEN NULL ELSE DATE(u.created_at) END) &gt;= #{f.joinDateFrom}
+        </if>
+        <if test="f.joinDateTo != null">
+            AND (CASE WHEN up.join_date_unknown = 1 THEN NULL ELSE DATE(u.created_at) END) &lt;= #{f.joinDateTo}
+        </if>
+        <if test="f.membershipEndFrom != null">
+            AND (SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) &gt;= #{f.membershipEndFrom}
+        </if>
+        <if test="f.membershipEndTo != null">
+            AND (SELECT end_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) &lt;= #{f.membershipEndTo}
+        </if>
+        <if test="f.minUnpaidAmount != null">
+            AND (SELECT (ms.price - ms.discount_amount) - ms.paid_amount FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) &gt;= #{f.minUnpaidAmount}
+        </if>
+    </sql>
+
+    <sql id="commonWhere">
+        <if test="f.excludeTrainers">
+            AND u.role = 'MEMBER'
+        </if>
+        <if test="f.keyword != null and f.keyword != ''">
+            AND (up.name LIKE CONCAT('%', #{f.keyword}, '%') OR up.contact LIKE CONCAT('%', #{f.keyword}, '%'))
+        </if>
+        <if test="f.status != null and f.status != ''">
+            AND <include refid="statusCase"/> = #{f.status}
+        </if>
+        <if test="f.tier != null and f.tier != ''">
+            AND up.tier = #{f.tier}
+        </if>
+        <include refid="extraFilters"/>
     </sql>
 
     <select id="findAll" resultMap="memberResultMap">
         <include refid="memberSelect"/>
-        <if test="keyword != null and keyword != ''">
-            AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
-        </if>
-        <if test="status != null and status != ''">
-            AND <include refid="statusCase"/> = #{status}
-        </if>
-        <if test="tier != null and tier != ''">
-            AND up.tier = #{tier}
-        </if>
-        <include refid="extraFilters"/>
-        ORDER BY
-            EXISTS (SELECT 1 FROM membership ms WHERE ms.user_id = u.user_id
-                     AND ms.status IS NULL AND ms.end_date >= CURDATE()) DESC,
-            up.name ASC
+        <include refid="commonWhere"/>
+        ORDER BY ${orderBy}
         LIMIT #{size} OFFSET #{offset}
     </select>
 
@@ -116,16 +151,7 @@
             JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
         </if>
         WHERE u.role IN ('MEMBER', 'TRAINER')
-        <if test="keyword != null and keyword != ''">
-            AND (up.name LIKE CONCAT('%', #{keyword}, '%') OR up.contact LIKE CONCAT('%', #{keyword}, '%'))
-        </if>
-        <if test="status != null and status != ''">
-            AND <include refid="statusCase"/> = #{status}
-        </if>
-        <if test="tier != null and tier != ''">
-            AND up.tier = #{tier}
-        </if>
-        <include refid="extraFilters"/>
+        <include refid="commonWhere"/>
     </select>
 
     <select id="findById" resultMap="memberResultMap">
@@ -390,7 +416,7 @@
             ) THEN 1 ELSE 0 END) AS expiring
         FROM users u
         JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
-        WHERE u.role IN ('MEMBER', 'TRAINER')
+        WHERE u.role = 'MEMBER'
     </select>
 
     <select id="findTickets" resultType="MemberTicket">
