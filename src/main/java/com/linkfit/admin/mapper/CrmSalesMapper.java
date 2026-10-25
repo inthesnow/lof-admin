@@ -22,6 +22,7 @@ public interface CrmSalesMapper {
                @Param("endDate") String endDate);
 
     void insert(CrmSale sale);
+    int update(CrmSale sale);
     int delete(@Param("id") String id, @Param("gymId") Long gymId);
 
     // 월간 합계 by 유형

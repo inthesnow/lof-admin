@@ -96,6 +96,21 @@ public class CrmSalesApiController {
         return ApiResponse.ok();
     }
 
+    @PutMapping("/{id}")
+    public ApiResponse<Void> update(@PathVariable String id, @RequestBody CrmSale sale,
+                                     @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[CrmSales] PUT /api/crm-sales/{id} - id={}", id);
+        sale.setId(id);
+        sale.setGymId(gymId(principal));
+        if (sale.getSaleDate() == null || sale.getSaleDate().isEmpty()) {
+            sale.setSaleDate(LocalDate.now().toString());
+        }
+        if (mapper.update(sale) == 0) {
+            return ApiResponse.error("매출 내역을 찾을 수 없습니다.");
+        }
+        return ApiResponse.ok();
+    }
+
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable String id,
                                      @AuthenticationPrincipal CrmUserDetails principal) {
@@ -156,19 +171,20 @@ public class CrmSalesApiController {
 
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("매출 내역");
-            String[] headers = { "날짜", "회원명", "매출유형", "등록유형", "트레이너", "금액", "메모" };
+            String[] headers = { "날짜", "회원명", "매출유형", "등록유형", "트레이너", "금액", "결제수단", "메모" };
             Row hRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) hRow.createCell(i).setCellValue(headers[i]);
             int rowIdx = 1;
             for (CrmSale s : items) {
                 Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(s.getSaleDate()     != null ? s.getSaleDate()     : "");
-                row.createCell(1).setCellValue(s.getMemberName()   != null ? s.getMemberName()   : "");
-                row.createCell(2).setCellValue(s.getSalesType()    != null ? s.getSalesType()    : "");
-                row.createCell(3).setCellValue(s.getRegType()      != null ? s.getRegType()      : "");
-                row.createCell(4).setCellValue(s.getTrainerName()  != null ? s.getTrainerName()  : "");
-                row.createCell(5).setCellValue(s.getAmount()       != null ? s.getAmount().doubleValue() : 0);
-                row.createCell(6).setCellValue(s.getNote()         != null ? s.getNote()         : "");
+                row.createCell(0).setCellValue(s.getSaleDate()      != null ? s.getSaleDate()      : "");
+                row.createCell(1).setCellValue(s.getMemberName()    != null ? s.getMemberName()    : "");
+                row.createCell(2).setCellValue(s.getSalesType()     != null ? s.getSalesType()     : "");
+                row.createCell(3).setCellValue(s.getRegType()       != null ? s.getRegType()       : "");
+                row.createCell(4).setCellValue(s.getTrainerName()   != null ? s.getTrainerName()   : "");
+                row.createCell(5).setCellValue(s.getAmount()        != null ? s.getAmount().doubleValue() : 0);
+                row.createCell(6).setCellValue(s.getPaymentMethod() != null ? s.getPaymentMethod() : "");
+                row.createCell(7).setCellValue(s.getNote()          != null ? s.getNote()          : "");
             }
             wb.write(response.getOutputStream());
         }

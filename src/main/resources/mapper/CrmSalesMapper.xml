@@ -12,7 +12,8 @@
         <result property="regType"     column="reg_type"/>
         <result property="trainerId"   column="trainer_id"/>
         <result property="trainerName" column="trainer_name"/>
-        <result property="amount"      column="amount"/>
+        <result property="amount"        column="amount"/>
+        <result property="paymentMethod" column="payment_method"/>
         <result property="saleDate"    column="sale_date"/>
         <result property="note"        column="note"/>
         <result property="createdAt"   column="created_at"/>
@@ -46,9 +47,22 @@
     </select>
 
     <insert id="insert" parameterType="com.linkfit.admin.domain.CrmSale">
-        INSERT INTO crm_sales (id, gym_id, member_id, sales_type, reg_type, trainer_id, amount, sale_date, note, created_at)
-        VALUES (#{id}, #{gymId}, #{memberId}, #{salesType}, #{regType}, #{trainerId}, #{amount}, #{saleDate}, #{note}, NOW())
+        INSERT INTO crm_sales (id, gym_id, member_id, sales_type, reg_type, trainer_id, amount, payment_method, sale_date, note, created_at)
+        VALUES (#{id}, #{gymId}, #{memberId}, #{salesType}, #{regType}, #{trainerId}, #{amount}, #{paymentMethod}, #{saleDate}, #{note}, NOW())
     </insert>
+
+    <update id="update" parameterType="com.linkfit.admin.domain.CrmSale">
+        UPDATE crm_sales
+           SET member_id      = #{memberId},
+               sales_type     = #{salesType},
+               reg_type       = #{regType},
+               trainer_id     = #{trainerId},
+               amount         = #{amount},
+               payment_method = #{paymentMethod},
+               sale_date      = #{saleDate},
+               note           = #{note}
+         WHERE id = #{id} AND gym_id = #{gymId}
+    </update>
 
     <delete id="delete">
         DELETE FROM crm_sales WHERE id = #{id} AND gym_id = #{gymId}

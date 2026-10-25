@@ -75,12 +75,13 @@
                     <th>등록 구분</th>
                     <th>담당 트레이너</th>
                     <th>금액</th>
+                    <th>결제수단</th>
                     <th>메모</th>
                     <th>관리</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
-                <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
+                <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">로딩 중...</td></tr>
             </tbody>
         </table>
     </div>
@@ -91,7 +92,7 @@
 <div class="modal-overlay" id="createModal">
     <div class="modal" style="max-width:480px">
         <div class="modal-header">
-            <span class="modal-title">매출 등록</span>
+            <span class="modal-title" id="createModalTitle">매출 등록</span>
             <button class="modal-close" onclick="closeCreate()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
             </button>
@@ -129,6 +130,13 @@
                     <input type="date" class="form-input" id="cSaleDate">
                 </div>
                 <div class="form-group">
+                    <label class="form-label">결제수단 <span style="color:var(--text-muted);font-size:11px">(선택)</span></label>
+                    <div style="display:flex;gap:6px">
+                        <select class="form-select" id="cPaymentMethod" style="flex:1"></select>
+                        <button type="button" class="btn btn-secondary" style="white-space:nowrap" onclick="addPaymentMethod()">기타결제수단추가</button>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label class="form-label">담당 트레이너 ID <span style="color:var(--text-muted);font-size:11px">(선택)</span></label>
                     <input type="text" class="form-input" id="cTrainerId" placeholder="crm_users.id">
                 </div>
@@ -140,7 +148,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeCreate()">취소</button>
-            <button class="btn btn-primary" onclick="saveCreate()">저장</button>
+            <button class="btn btn-primary" id="createSaveBtn" onclick="saveCreate()">저장</button>
         </div>
     </div>
 </div>
@@ -177,6 +185,36 @@
 let currentPage = 0;
 const pageSize  = 20;
 let currentMonth = new Date().toISOString().substring(0, 7);
+let currentItems = [];
+let editingSaleId = null;
+let paymentMethodCatalog = [];
+
+async function loadPaymentMethods() {
+    try {
+        const res  = await fetch('/api/payment-methods');
+        const json = await res.json();
+        paymentMethodCatalog = json.data || [];
+    } catch (e) {}
+}
+
+function renderPaymentMethodSelect(selectedName) {
+    const sel = document.getElementById('cPaymentMethod');
+    sel.innerHTML = '<option value="">선택 안 함</option>' +
+        paymentMethodCatalog.map(pm => `<option value="${escHtml(pm.name)}">${escHtml(pm.name)}</option>`).join('');
+    sel.value = selectedName || '';
+}
+
+async function addPaymentMethod() {
+    const name = prompt('추가할 결제수단 이름을 입력해주세요.');
+    if (!name || !name.trim()) return;
+    const res  = await fetch('/api/payment-methods', {
+        method: 'POST', headers: csrfHeaders(), body: JSON.stringify({ name: name.trim() })
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || (json && json.success === false)) { alert((json && json.message) || '결제수단 추가에 실패했습니다.'); return; }
+    await loadPaymentMethods();
+    renderPaymentMethodSelect(name.trim());
+}
 
 function csrfHeaders(e) { return Object.assign({'Content-Type':'application/json'}, e); }
 
@@ -226,13 +264,14 @@ async function loadList() {
     const endStr = end.toISOString().substring(0, 10);
     const res  = await fetch(`/api/crm-sales?salesType=${salesType}&startDate=${start}&endDate=${endStr}&page=${currentPage}&size=${pageSize}`);
     const json = await res.json();
-    renderTable(json.data?.items, json.data?.total);
+    currentItems = json.data?.items || [];
+    renderTable(currentItems, json.data?.total);
 }
 
 function renderTable(items, total) {
     const tbody = document.getElementById('tableBody');
     if (!items || !items.length) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">매출 데이터가 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">매출 데이터가 없습니다.</td></tr>`;
         renderPagination(0); return;
     }
     tbody.innerHTML = items.map(s => `
@@ -243,8 +282,11 @@ function renderTable(items, total) {
             <td><span class="badge badge-pending" style="font-size:11px">${regLabel[s.regType]||'-'}</span></td>
             <td>${s.trainerName || '<span style="color:var(--text-muted)">-</span>'}</td>
             <td style="font-weight:600;color:var(--success)">${fmt(s.amount)}</td>
+            <td style="font-size:12px;color:var(--text-secondary)">${escHtml(s.paymentMethod || '') || '-'}</td>
             <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:12px">${escHtml(s.note||'')}</td>
             <td>
+                <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;margin-right:4px"
+                        onclick="openEdit('${s.id}')">수정</button>
                 <button class="btn btn-danger" style="padding:4px 8px;font-size:11px"
                         onclick="deleteSale('${s.id}')">삭제</button>
             </td>
@@ -267,30 +309,60 @@ async function deleteSale(id) {
     loadSummary(); loadList();
 }
 
-function openCreate() {
-    document.getElementById('cSaleDate').value = new Date().toISOString().substring(0,10);
+async function openCreate() {
+    editingSaleId = null;
+    document.getElementById('createModalTitle').textContent = '매출 등록';
+    document.getElementById('cMemberId').value   = '';
+    document.getElementById('cSalesType').value  = 'membership';
+    document.getElementById('cRegType').value    = 'new';
+    document.getElementById('cAmount').value     = '';
+    document.getElementById('cSaleDate').value   = new Date().toISOString().substring(0,10);
+    document.getElementById('cTrainerId').value  = '';
+    document.getElementById('cNote').value       = '';
+    if (!paymentMethodCatalog.length) await loadPaymentMethods();
+    renderPaymentMethodSelect('');
     document.getElementById('createModal').classList.add('open');
 }
-function closeCreate() { document.getElementById('createModal').classList.remove('open'); }
+
+async function openEdit(id) {
+    const s = currentItems.find(i => String(i.id) === String(id));
+    if (!s) return;
+    editingSaleId = id;
+    document.getElementById('createModalTitle').textContent = '매출 수정';
+    document.getElementById('cMemberId').value   = s.memberId || '';
+    document.getElementById('cSalesType').value  = s.salesType || 'membership';
+    document.getElementById('cRegType').value    = s.regType || 'new';
+    document.getElementById('cAmount').value     = s.amount != null ? s.amount : '';
+    document.getElementById('cSaleDate').value   = s.saleDate || '';
+    document.getElementById('cTrainerId').value  = s.trainerId || '';
+    document.getElementById('cNote').value       = s.note || '';
+    if (!paymentMethodCatalog.length) await loadPaymentMethods();
+    renderPaymentMethodSelect(s.paymentMethod || '');
+    document.getElementById('createModal').classList.add('open');
+}
+
+function closeCreate() { document.getElementById('createModal').classList.remove('open'); editingSaleId = null; }
 
 async function saveCreate() {
     const memberId  = document.getElementById('cMemberId').value.trim();
     const amount    = document.getElementById('cAmount').value;
     const saleDate  = document.getElementById('cSaleDate').value;
     if (!memberId || !amount) { alert('회원 ID와 금액은 필수입니다.'); return; }
-    const res = await fetch('/api/crm-sales', {
-        method:'POST', headers:csrfHeaders(),
-        body: JSON.stringify({
-            memberId,
-            salesType: document.getElementById('cSalesType').value,
-            regType:   document.getElementById('cRegType').value,
-            trainerId: document.getElementById('cTrainerId').value || null,
-            amount:    parseFloat(amount),
-            saleDate,
-            note:      document.getElementById('cNote').value
-        })
+    const body = JSON.stringify({
+        memberId,
+        salesType: document.getElementById('cSalesType').value,
+        regType:   document.getElementById('cRegType').value,
+        trainerId: document.getElementById('cTrainerId').value || null,
+        amount:    parseFloat(amount),
+        paymentMethod: document.getElementById('cPaymentMethod').value || null,
+        saleDate,
+        note:      document.getElementById('cNote').value
     });
-    if (!res.ok) { alert('저장에 실패했습니다.'); return; }
+    const res = editingSaleId
+        ? await fetch(`/api/crm-sales/${editingSaleId}`, { method:'PUT', headers:csrfHeaders(), body })
+        : await fetch('/api/crm-sales', { method:'POST', headers:csrfHeaders(), body });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || (json && json.success === false)) { alert((json && json.message) || '저장에 실패했습니다.'); return; }
     closeCreate(); loadSummary(); loadList();
 }
 
@@ -329,6 +401,7 @@ function closeSidebar() { document.querySelector('.sidebar').classList.remove('o
 updateMonthLabel();
 loadSummary();
 loadList();
+loadPaymentMethods();
 </script>
 </body>
 </html>

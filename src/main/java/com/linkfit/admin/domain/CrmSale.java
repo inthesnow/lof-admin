@@ -12,6 +12,7 @@ public class CrmSale {
     private String trainerId;
     private String trainerName;
     private BigDecimal amount;
+    private String paymentMethod;
     private String saleDate;
     private String note;
     private String createdAt;
@@ -36,6 +37,8 @@ public class CrmSale {
     public void setTrainerName(String trainerName) { this.trainerName = trainerName; }
     public BigDecimal getAmount() { return amount; }
     public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
     public String getSaleDate() { return saleDate; }
     public void setSaleDate(String saleDate) { this.saleDate = saleDate; }
     public String getNote() { return note; }
