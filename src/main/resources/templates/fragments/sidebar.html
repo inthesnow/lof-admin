@@ -83,6 +83,11 @@
             <span class="nav-badge" id="inboxUnread" style="display:none"></span>
         </a>
 
+        <a th:href="@{/messages}"        th:classappend="${activePage == 'messages'}        ? ' active'" class="nav-item" data-category="messages">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            공지/이벤트 발송
+        </a>
+
         <a th:href="@{/cs}"              th:classappend="${activePage == 'cs'}              ? ' active'" class="nav-item" data-category="cs">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
             CS 관리
@@ -90,7 +95,7 @@
 
         <a th:href="@{/announcements}"   th:classappend="${activePage == 'announcements'}   ? ' active'" class="nav-item" data-category="announcements">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 9h-2V5h2v6zm0 4h-2v-2h2v2z"/></svg>
-            알림 / 공지
+            알림 / 공지 (내부 기록용)
         </a>
 
         <span class="nav-section-label">운영</span>

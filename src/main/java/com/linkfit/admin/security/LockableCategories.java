@@ -19,6 +19,7 @@ public final class LockableCategories {
             Map.entry("feedback",        List.of("/feedback", "/api/feedback")),
             Map.entry("consults",        List.of("/consults", "/api/consults")),
             Map.entry("inbox",           List.of("/inbox", "/api/inbox")),
+            Map.entry("messages",        List.of("/messages", "/api/messages")),
             Map.entry("cs",              List.of("/cs", "/api/cs")),
             Map.entry("announcements",   List.of("/announcements", "/api/announcements")),
             Map.entry("staff",           List.of("/staff", "/api/staff")),
