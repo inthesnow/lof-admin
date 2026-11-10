@@ -286,6 +286,9 @@ public class MyBatisMemberImportService implements MemberImportService {
         memberMapper.insertMembership(m, gymId);
         if ("PT".equals(type) && m.getSessionCount() != null && m.getSessionCount() != 0) {
             memberMapper.adjustPtSessions(memberId, m.getSessionCount(), gymId);
+            if (m.getSessionCount() > 0) {
+                memberMapper.markPtMemberType(memberId);
+            }
         }
         messages.add(alreadyExpired
                 ? "이용권(" + typeLabel + ") 등록 완료 (이용종료일 미기재 — 이미 만료된 회원으로 분류)"

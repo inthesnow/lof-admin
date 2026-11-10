@@ -259,6 +259,15 @@
         ON DUPLICATE KEY UPDATE member_type = #{memberType}
     </insert>
 
+    <select id="hasPtSessions" resultType="boolean">
+        SELECT (COALESCE(pt_sessions_left, 0) + COALESCE(service_pt_sessions_left, 0)) > 0
+        FROM user_profiles WHERE user_id = #{memberId}
+    </select>
+
+    <update id="markPtMemberType">
+        UPDATE trainer_members SET member_type = 'PT' WHERE member_id = #{memberId} AND member_type &lt;&gt; 'PT'
+    </update>
+
     <update id="withdraw">
         UPDATE users u
         JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1
@@ -457,6 +466,22 @@
         INSERT INTO member_tickets (user_id, ticket_type, remaining, gym_id)
         VALUES (#{userId}, #{ticketType}, GREATEST(0, #{amount}), #{gymId})
         ON DUPLICATE KEY UPDATE remaining = GREATEST(0, remaining + #{amount})
+    </insert>
+
+    <!-- 구독 등급별 월 지급량 — 코드 하드코딩 대신 이 테이블을 정본으로 읽는다(2026-11-10) -->
+    <select id="findPlanTickets" resultType="map">
+        SELECT feedback_monthly_count AS feedback,
+               photo_monthly_count    AS photo,
+               video_monthly_count    AS video,
+               onepoint_monthly_count AS onepoint
+          FROM subscription_plans WHERE plan_code = #{planCode}
+    </select>
+
+    <!-- 절대값 덮어쓰기. paid_remaining(단품 유료 구매분)은 건드리지 않는다. -->
+    <insert id="setTicketAbsolute">
+        INSERT INTO member_tickets (user_id, ticket_type, remaining, gym_id)
+        VALUES (#{userId}, #{ticketType}, GREATEST(0, #{amount}), #{gymId})
+        ON DUPLICATE KEY UPDATE remaining = GREATEST(0, #{amount})
     </insert>
 
     <insert id="insertTicketLog">

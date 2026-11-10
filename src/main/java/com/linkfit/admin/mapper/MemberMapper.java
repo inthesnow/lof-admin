@@ -42,6 +42,26 @@ public interface MemberMapper {
     void deleteTrainerMembersByMember(@Param("memberId") String memberId);
     void insertTrainerMember(@Param("trainerId") String trainerId, @Param("memberId") String memberId,
                               @Param("memberType") String memberType);
+
+    // PT 세션을 한 번도 안 가져본 회원이 트레이너에 먼저 배정되면 trainer_members.member_type이
+    // ONE_POINT로 기본값 저장되는데, 그 뒤에 PT를 등록해도 이 컬럼은 따로 안 건드려서 트레이너
+    // 앱에서는 계속 "원포인트 회원"으로 보이는 버그가 있었음(2026-11-01) — 트레이너 최초 배정 시
+    // 기본값을 정할 때도 실제 PT 보유 여부를 확인하도록, PT를 지급하는 시점에도 이미 배정된
+    // trainer_members 행을 PT로 동기화하도록 아래 2개를 추가.
+    boolean hasPtSessions(@Param("memberId") String memberId);
+    void markPtMemberType(@Param("memberId") String memberId);
+
+    // CRM에서 구독 등급을 "부여"할 때 그 등급의 월 지급량대로 티켓을 채우기 위함(2026-11-10).
+    // 지급량은 코드에 또 하드코딩하지 않고 subscription_plans 테이블을 읽는다 — 같은 값이
+    // IapVerifyService/linkonfit PaymentService에 이미 중복 하드코딩돼 있어 4번째 복사본을
+    // 만들지 않기 위함(값은 전수 대조해 일치 확인함).
+    Map<String, Object> findPlanTickets(@Param("planCode") String planCode);
+
+    // 등급 지급은 "이번 달 한도"를 세팅하는 개념이라 증분(upsertTicket)이 아니라 절대값으로
+    // 덮어쓴다(IAP의 setSubscriptionTickets와 동일 의미). 단품 유료 구매분(paid_remaining)은
+    // 정산 원장과 연결된 별도 컬럼이라 절대 건드리지 않는다.
+    void setTicketAbsolute(@Param("userId") String userId, @Param("ticketType") String ticketType,
+                            @Param("amount") int amount, @Param("gymId") Long gymId);
     int withdraw(@Param("id") String id, @Param("gymId") Long gymId);
     void insertFreeze(@Param("memberId") String memberId, @Param("freezeStart") String freezeStart,
                       @Param("freezeEnd") String freezeEnd, @Param("reason") String reason);

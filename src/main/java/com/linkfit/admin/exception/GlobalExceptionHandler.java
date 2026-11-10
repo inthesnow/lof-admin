@@ -42,7 +42,15 @@ public class GlobalExceptionHandler {
         return "error/500";
     }
 
+    /// `/api/**` 요청은 Accept 헤더와 무관하게 항상 JSON으로 응답해야 한다.
+    /// 화면들의 `csrfHeaders()`가 Content-Type만 넣고 Accept는 안 보내서, 브라우저 기본
+    /// Accept(text/html...)로 나가는 탓에 이 판정이 항상 false가 됐다 — 그 결과 API 호출에서
+    /// 예외가 나면 500 대신 Thymeleaf `error/500` 뷰가 **HTTP 200 + HTML**로 내려가고,
+    /// 프론트의 `await res.json()`이 파싱 실패로 예외를 던져 alert조차 못 뜨고 아무 일도
+    /// 안 일어난 것처럼 보였다("저장은 된 것 같은데 적용이 안 됨" 증상의 공통 원인, 2026-11-08).
     private boolean isJsonRequest(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (uri != null && uri.startsWith("/api/")) return true;
         String accept = request.getHeader("Accept");
         return accept != null && accept.contains("application/json");
     }

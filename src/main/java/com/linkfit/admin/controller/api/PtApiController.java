@@ -108,6 +108,9 @@ public class PtApiController {
         } else {
             return ApiResponse.error("알 수 없는 대상입니다.");
         }
+        if (delta > 0) {
+            memberMapper.markPtMemberType(memberId);
+        }
         return ApiResponse.ok();
     }
 

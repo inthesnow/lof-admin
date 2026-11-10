@@ -149,9 +149,46 @@ public class MyBatisMemberService implements MemberService {
         memberMapper.updateStatus(id, "ACTIVE".equals(status) ? 1 : 0, gymId);
     }
 
+    // user_profiles.tier 저장값 → subscription_plans.plan_code
+    private static final Map<String, String> TIER_TO_PLAN = Map.of(
+            "LIGHT_FIT", "LIGHT",
+            "REGULAR_FIT", "REGULAR",
+            "INTENSIVE_FIT", "INTENSIVE");
+
+    // CRM에서 구독 등급을 바꾸면 등급 표시만 바뀌고 사진/영상/원포인트 티켓은 전혀 지급되지
+    // 않던 문제 수정(2026-11-10, 버그리포트 04번). 지급 로직이 IAP 실결제 경로
+    // (IapVerifyService.setSubscriptionTickets)에만 있어서, 관리자가 "인텐시브핏 부여"를 해도
+    // 사진 0회·영상 0회로 남아 "영상 피드백 이용권 없음"이 떴다.
+    // - 지급량은 subscription_plans를 읽는다(코드 하드코딩 추가 안 함).
+    // - "이번 달 한도" 개념이라 증분이 아니라 절대값으로 세팅(IAP와 동일 의미).
+    // - FREE_FEEDBACK(등급무관 월 2장)과 paid_remaining(단품 구매분)은 건드리지 않는다.
     @Override
+    @Transactional
     public void updateTier(String id, String tier, Long gymId) {
         memberMapper.updateTier(id, tier, gymId);
+        grantSubscriptionTickets(id, tier, gymId);
+    }
+
+    private void grantSubscriptionTickets(String id, String tier, Long gymId) {
+        String planCode = TIER_TO_PLAN.get(tier);
+        if (planCode == null) {
+            // BASIC(또는 알 수 없는 값) — 구독 지급분 개념이 없는 등급이다. 기존 잔량을 임의로
+            // 회수하면 이미 제공한 서비스를 뺏는 셈이라, 하향 시 회수는 하지 않는다(정책 확인 대상).
+            return;
+        }
+        Map<String, Object> plan = memberMapper.findPlanTickets(planCode);
+        if (plan == null) return;
+        setPlanTicket(id, "FEEDBACK",  plan.get("feedback"), gymId);
+        setPlanTicket(id, "PHOTO",     plan.get("photo"),    gymId);
+        setPlanTicket(id, "VIDEO",     plan.get("video"),    gymId);
+        setPlanTicket(id, "ONE_POINT", plan.get("onepoint"), gymId);
+        memberMapper.insertTicketLog(id, "FEEDBACK", "CHARGE",
+                "구독 등급 변경(" + tier + ") 지급분 반영");
+    }
+
+    private void setPlanTicket(String id, String ticketType, Object raw, Long gymId) {
+        int amount = (raw instanceof Number n) ? n.intValue() : 0;
+        memberMapper.setTicketAbsolute(id, ticketType, amount, gymId);
     }
 
     @Override
@@ -174,7 +211,9 @@ public class MyBatisMemberService implements MemberService {
         memberMapper.updateAssignedTrainer(id, trainerId, gymId);
         String memberType = memberMapper.findTrainerMemberType(id);
         if (memberType == null) {
-            memberType = "ONE_POINT";
+            // 트레이너가 처음 배정되는 회원 — 이미 PT 세션을 보유 중이면(예: PT부터 먼저 등록하고
+            // 트레이너는 나중에 배정하는 경우) ONE_POINT로 잘못 고정되지 않도록 실제 보유량을 확인.
+            memberType = memberMapper.hasPtSessions(id) ? "PT" : "ONE_POINT";
         }
         memberMapper.deleteTrainerMembersByMember(id);
         memberMapper.insertTrainerMember(trainerId, id, memberType);
@@ -263,6 +302,9 @@ public class MyBatisMemberService implements MemberService {
             memberMapper.insertMembership(membership, gymId);
             if ("PT".equals(type) && membership.getSessionCount() != null && membership.getSessionCount() != 0) {
                 memberMapper.adjustPtSessions(membership.getMemberId(), membership.getSessionCount(), gymId);
+                if (membership.getSessionCount() > 0) {
+                    memberMapper.markPtMemberType(membership.getMemberId());
+                }
             }
             String productName = membership.getProductName() != null
                     ? membership.getProductName() : INDIVIDUAL_TYPE_LABEL.getOrDefault(type, type);
@@ -330,6 +372,9 @@ public class MyBatisMemberService implements MemberService {
             // 이 크레딧이 빠져있으면 결제는 기록되지만 앱에서 실제로 쓸 수 있는 PT 횟수가 늘지 않는다.
             if ("PT".equals(c.type()) && pkg.getPtSessionCount() != null && pkg.getPtSessionCount() != 0) {
                 memberMapper.adjustPtSessions(membership.getMemberId(), pkg.getPtSessionCount(), gymId);
+                if (pkg.getPtSessionCount() > 0) {
+                    memberMapper.markPtMemberType(membership.getMemberId());
+                }
             }
             if (isAnchor) {
                 recordSale(row, anchor.type(), pkg.getName(), gymId);
@@ -500,6 +545,7 @@ public class MyBatisMemberService implements MemberService {
             memberMapper.adjustServicePtSessions(sourceMemberId, -service, gymId);
             memberMapper.adjustServicePtSessions(targetMemberId, service, gymId);
         }
+        memberMapper.markPtMemberType(targetMemberId);
     }
 
     @Override
