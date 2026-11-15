@@ -77,6 +77,12 @@
             notice     = #{setting.notice}
     </insert>
 
+    <!-- 빈 값이 들어와 기존 지점명을 지우는 일이 없도록 NULL/공백이면 갱신하지 않는다. -->
+    <update id="syncGymName">
+        UPDATE gym SET name = #{name}
+         WHERE id = #{gymId} AND #{name} IS NOT NULL AND TRIM(#{name}) &lt;&gt; ''
+    </update>
+
     <update id="updateOpenStatus">
         UPDATE gym_setting SET is_open = #{isOpen} WHERE gym_id = #{gymId}
     </update>

@@ -61,6 +61,8 @@ public class SettingApiController {
                                    @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Setting] PUT /api/settings/gym");
         gymSettingMapper.upsert(setting, principal.getGymId());
+        // 포탈·회원 쪽지가 읽는 gym.name까지 같은 값으로 맞춘다 (crm-8).
+        gymSettingMapper.syncGymName(setting.getGymName(), principal.getGymId());
         return ApiResponse.ok();
     }
 
