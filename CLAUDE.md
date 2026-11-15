@@ -202,14 +202,18 @@ activePage 값: `dashboard` / `members` / `staff` / `classes` / `attendance` / `
 
 ## ⚠️ 알려진 이슈 (2026-07-15 검토 기준)
 
-### 1. CRM 테이블 17개 — ✅ 로컬 DB 적용 완료, 운영(prod) DB는 아직 미적용
+### 1. CRM 테이블 17개 — ✅ 로컬 DB 적용 완료, 운영(prod) DB도 적용 확인됨(2026-11-04 재확인)
 `docs/sql.md`에 CRM 전용 테이블(`crm_*`) 18개 DDL이 작성돼 있었는데, 로컬 `linkfit` DB엔
 `crm_users` 1개만 실제로 존재하는 상태였다 (문서엔 "적용 완료"로 잘못 기록돼 있었음).
 2026-07-15에 dry-run으로 충돌 여부를 검증(문제 없음 확인)한 뒤 **로컬 DB에 나머지 17개를 실제로 적용**했다
 (90개 → 107개 테이블). 회원 담당 트레이너 지정, CRM 메모/태그, 피드백 요청·티켓, 재등록 관리, CRM 매출,
 CS 티켓, 공지사항, CRM 쪽지함, 일별 통계 배치 등은 이제 로컬에서 정상 동작할 것으로 예상된다
 (실제 기능 동작 재검증은 아직 안 함).
-**운영 DB는 아직 미적용 — 공유 DB이므로 배포 일정과 조율 후 별도 적용 필요.**
+~~**운영 DB는 아직 미적용**~~ — 2026-11-04에 운영 DB 덤프(2026-10-22 기준)를 직접 조회해
+재확인한 결과 `crm_*` 테이블 19개가 이미 존재함. 이 노트가 작성된 이후 어느 시점(별도 세션/수동
+배포로 추정, 이 CLAUDE.md에 기록이 안 남음)에 이미 운영에도 적용된 것으로 보임 — 더 이상 할 일
+없음. (단, 이 재확인 작업 중 CRM 쪽 다른 세부 항목 — 매니저/직원 role, 재등록 메모 테이블 —
+은 실제로 여전히 운영 미적용 상태였음, 아래 "### 3-1-25" 참고.)
 상세 내역은 `docs/db.md`의 2026-07-15 항목들 참고.
 
 ### 2. 역할 기반 인가(Authorization) 미구현
@@ -810,6 +814,152 @@ placeholder)로 박아두므로, **PT를 한 번이라도 구매한 회원은 �
   동일 데이터로 직접 SQL 실행해 PT 제외 시 `2026-11-25`, 포함 시 `2036-10-22`로 달라지는 것을
   대조 확인. 검증 후 테스트로 추가한 멤버십 2건 삭제 + `pt_sessions_left` 원복. `./gradlew test` 통과.
 - **주의**: 이 수정도 3-1-22와 마찬가지로 로컬에만 적용되어 있고 커밋/배포 전 상태다.
+
+### 3-1-24. PT 등록해도 트레이너 앱에서 "원포인트 회원"으로 보이던 버그 수정 (2026-11-01)
+"관리자에서 PT횟수를 넣어놨는데 앱 트레이너 모드에선 원포인트권을 받은 걸로 나온다"는 리포트로
+조사. `pt_sessions_left`/`service_pt_sessions_left`(실제 PT 잔여) 자체는 등록 시점에 항상 정확히
+충전되고 있었음 — 문제는 트레이너 앱의 "내 회원" 화면이 이 값을 직접 보지 않고
+**`trainer_members.member_type`**(ENUM 'PT'/'ONE_POINT', 트레이너-회원 담당관계의 유형 분류)를
+따로 보고 있는데, 이 컬럼이 **트레이너가 처음 배정되는 시점에만** 결정되고 그 뒤로는 절대
+갱신되지 않는 구조였다는 것. 회원이 PT를 등록받기 "전에" 트레이너가 먼저 배정되면(가장 흔한
+순서 — 가입 직후 트레이너부터 배정되는 경우가 많음) 이 컬럼이 `'ONE_POINT'`로 기본값 저장되고,
+나중에 관리자가 실제 PT 세션을 등록/지급해도 이 컬럼은 영원히 그대로 남아 트레이너 앱에서는
+계속 "원포인트 회원"으로 보임. 운영 DB 덤프(`linkfit_prod_check`)에서 실제로 이 상태인 회원
+2명(`k970602m`: PT 70+서비스 300, `cksgnlwo`: PT 80 — 둘 다 `member_type='ONE_POINT'`)을 찾아
+재현 확인.
+- **PT 지급 시점에 동기화**: `MemberMapper`에 `hasPtSessions`(실제 보유량 확인)/`markPtMemberType`
+  (해당 회원의 `trainer_members` 행을 `'PT'`로 전환, 이미 PT면 no-op) 신규 추가. PT를 지급하는
+  모든 경로에서 양수(지급) 방향일 때만 `markPtMemberType` 호출 — 음수(회수/이전 출발지)일 때는
+  건드리지 않아 "한 번 PT가 되면 세션이 0으로 내려가도 PT 분류를 유지"하는 기존 설계
+  (`updateAssignedTrainer`가 기존 분류를 보존하던 방식과 동일한 철학)를 그대로 따름.
+  - `MyBatisMemberService.addMembership()` 개별/패키지 PT 분기 2곳.
+  - `PtApiController.adjustSessions()`(`PUT /api/pt/members/{id}/sessions`, SERVICE/PURCHASED
+    공통) — `delta > 0`일 때만.
+  - `MyBatisMemberService.transferPtSessions()` — PT 잔여 풀을 넘겨받는 대상 회원 쪽.
+  - `MyBatisMemberImportService`(엑셀 일괄등록 PT 행) — `sessionCount > 0`일 때만.
+- **트레이너 최초 배정 시점의 기본값도 수정**: `updateAssignedTrainer()`가 기존
+  `trainer_members` 행이 없을 때 무조건 `'ONE_POINT'`로 기본값을 주던 걸, `hasPtSessions()`로
+  실제 PT 보유 여부를 먼저 확인하도록 변경(PT부터 먼저 등록하고 트레이너를 나중에 배정하는
+  순서에서도 틀리지 않게). lof-backend의 동일 패턴(`TrainerService.assignTrainerByMember()`,
+  회원이 앱에서 직접 트레이너를 선택하는 경로)도 같은 방식으로 수정 — 자세한 내용은 lof-backend
+  CLAUDE.md 참고.
+- **이미 잘못 저장된 기존 데이터 백필**: `docs/sql/trainer_members_pt_backfill_20261101.sql` —
+  `pt_sessions_left + service_pt_sessions_left > 0`인데 `member_type != 'PT'`인 행을 전부
+  `'PT'`로 교정. 운영 덤프 복사본에 실행해 위 2명이 정확히 `PT`로 교정되는 것까지 확인(아직
+  운영 DB 실제 적용은 안 함 — 코드 배포와 함께 실행 필요).
+- 검증: 로컬 DB에서 `jisoo_kim`의 `trainer_members.member_type`을 일부러 `'ONE_POINT'`로
+  뒤집어둔 뒤, 실제 관리자 로그인 세션으로 `PUT /api/pt/members/jisoo_kim/sessions`
+  (`{target:'PURCHASED', delta:5}`)를 호출 → `member_type`이 즉시 `'PT'`로 전환되는 것 확인.
+  이어서 `delta:-5`(회수)로 되돌려도 `member_type`은 `'PT'`로 유지(sticky 동작 의도대로)되는
+  것까지 확인 후 `pt_sessions_left`를 원래 값(30)으로 정확히 복원. `./gradlew test` 통과.
+- **주의**: 이 수정도 로컬에만 적용되어 있고 커밋/배포 전 상태다 — 백필 SQL은 운영 DB에
+  아직 실행 안 함(2026-11-04에 `PROD_DEPLOY_20261104.sql`로 다른 미적용분과 묶음, 아래
+  3-1-25 참고).
+
+### 3-1-25. "지금 적용 필요한 SQL 파일 정리" — 운영 미적용 현황 재점검 (2026-11-04)
+그동안 CLAUDE.md 곳곳에 "로컬 적용 완료·운영 미적용"으로 적어뒀던 항목들을, 운영 DB 덤프
+(`linkfit_prod_check`, 2026-10-22 기준)에 직접 쿼리를 날려 하나씩 재확인했다 — 기록이 꽤
+오래전부터 쌓여있어서 그사이 실제로는 (다른 세션/수동 작업으로) 이미 반영됐는데 이 문서만
+안 갱신된 경우가 많았음.
+- **이미 적용된 것으로 확인됨(더 갱신할 필요 없음)**: CRM 테이블 17개(위 "알려진 이슈 1번"
+  갱신함), `PROD_DEPLOY_gym_scoping_20260825.sql`(gym_id 스코핑 전체, 14개 테이블 전부
+  확인), `crm_user_trainer_employment_20260825.sql`(hire_date/work_status/resignation_date),
+  `user_profiles_join_date_unknown_20260826.sql`, `gym_holiday_unique_key_fix_20260825.sql`,
+  `crm_user_must_change_password_20260821.sql`, `maria/lof-admin/settlement_schema_20260928.sql`
+  (settlement_ledger.product_id VARCHAR(100)), `maria/lof-admin/crm_users_legacy_admin_role_fix_
+  20260929.sql`, `maria/lof-backend/member_tickets_paid_remaining_20260928.sql`
+  (member_tickets.paid_remaining), lof-backend의 exercises description `\n` 이스케이프 수정.
+- **실제로 아직 운영 미적용으로 확인된 것**(`docs/sql/PROD_DEPLOY_20261104.sql`로 한 파일에
+  모음 — 전부 재실행 안전):
+  1. `crm_user_manager_employee_role_20260824.sql` — `crm_users.role` ENUM에 manager/employee가
+     없어서 매니저/직원 계정 생성(2026-08-24 배포분)이 운영에서 동작 불가능한 상태.
+  2. `crm_reregistration_notes_20260825.sql` — 테이블 자체가 없어서 "만료 및 예정 회원 관리"
+     메모 기능이 운영에서 전부 에러.
+  3. `trainer_members_pt_backfill_20261101.sql`(3-1-24) — 실제로 PT 세션을 70~300회 보유한
+     운영 회원 2명이 여전히 ONE_POINT로 잘못 분류된 상태인 것까지 재확인.
+  4. (선택/파괴적, 급하지 않음) `drop_legacy_message_tables_20260826.sql` — 죽은
+     `message`/`message_recipient` 테이블이 운영에 아직 남아있음. 코드는 이미 2026-08-26에
+     전부 제거돼 참조하는 곳이 없어 장애 요인은 아님 — `PROD_DEPLOY_20261104.sql`엔 주석
+     처리해 넣어뒀고, 원할 때 그 두 줄만 따로 실행하면 됨.
+  각 항목은 `linkfit_prod_check`에 실제로 실행해 재실행해도 에러/중복이 없는 것(idempotent)과
+  최종 스키마가 의도대로 나오는 것(role enum, 테이블 존재, `trainer_members.member_type='PT'`
+  2건 전환)까지 확인.
+- **아직 실제 운영 DB엔 적용하지 않음** — 백업 먼저 뜨고 트래픽 적은 시간대에 실행할 것. 이
+  재점검은 2026-10-22 덤프 기준이라, 그 이후 운영에 추가로 뭔가 반영됐다면 이 목록이 다시
+  어긋날 수 있음(실행 전 `docs/sql/PROD_DEPLOY_20261104.sql` 상단 쿼리로 먼저 현황 재확인 권장).
+
+### 3-1-26. 상품 부여 500 에러 — 운영 컬럼 누락 + 500이 200으로 내려가던 문제 (2026-11-08)
+운영에서 "관리자페이지 → 회원에게 상품 부여" 시
+`Unknown column 'payment_method' in 'field list'`(`CrmSalesMapper.insert`)로 500 발생.
+`recordSale()`이 트랜잭션 안에서 실패해 **상품 부여 전체가 롤백**되고 있었다.
+- **원인 1 — 운영 DB 컬럼 누락**: `crm_sales.payment_method`(2026-10-25 "CRM 매출 결제수단"
+  배포분이 쓰는 컬럼)가 운영에 없었음. 커밋 당시엔 "운영 스키마 동기화 먼저 확인" 이라고 남겨뒀는데,
+  2026-11-04에 `PROD_DEPLOY_20261104.sql`을 만들 때 **CLAUDE.md에 "미적용"으로 적힌 항목만
+  훑어서** 이 항목을 빠뜨린 게 직접 원인.
+  → 재발 방지로 이번엔 문서가 아니라 **`information_schema`로 로컬 `linkfit` vs 운영 덤프의
+  전체 컬럼(1019 vs 1077개)을 전수 비교**했다. 그 결과 실제 코드가 쓰는데 운영에 없는 컬럼은
+  3개뿐이었음 — `crm_sales.payment_method`, **`product.duration_days`, `product.session_count`**
+  (뒤 2개는 `ProductMapper.insert/update`가 써서 **상품 관리(/products) 등록·수정도 운영에서
+  이미 같은 원인으로 깨져 있던 상태** — 아직 리포트는 없었지만 함께 수정). 나머지 차이는
+  로컬 백업 테이블(`exercises_backup_local_*`)과 미사용 잔재(`onepoint_requests.note` —
+  매퍼는 운영에도 있는 `notes`를 쓴다)뿐이라 대상 아님.
+  → `docs/sql/PROD_DEPLOY_20261108_missing_columns.sql`(재실행 안전, information_schema 체크 기반).
+    운영 덤프 사본에 2회 연속 실행해 결과 스키마가 로컬과 완전히 일치하는 것까지 확인.
+- **원인 2 — 500이 HTTP 200으로 내려가던 버그(이게 더 중요)**: `GlobalExceptionHandler.
+  isJsonRequest()`가 `Accept` 헤더에 `application/json`이 있는지로만 판정했는데, 화면들의
+  `csrfHeaders()`는 `Content-Type`만 넣고 `Accept`는 안 보낸다(브라우저 기본 Accept는
+  `text/html...`). 그래서 **`/api/**` 호출에서 예외가 나면 500 대신 Thymeleaf `error/500` 뷰가
+  HTTP 200 + HTML로 내려가고**, 프론트의 `await res.json()`이 HTML 파싱 실패로 예외를 던져
+  `alert()`조차 못 뜨고 **아무 일도 안 일어난 것처럼** 보였다. 이번 로그에도
+  `ERROR [500] POST /api/members/.../memberships` 바로 아래 `ACCESS [←] ... → 200`이 함께 찍혀 있음.
+  이게 이 세션에서 반복적으로 추적했던 "저장은 된 것 같은데 적용이 안 됨" 증상 상당수의 공통 원인.
+  → `isJsonRequest()`가 `/api/`로 시작하는 URI면 Accept와 무관하게 JSON으로 응답하도록 수정.
+    (화면 경로는 기존처럼 에러 페이지 렌더링 유지 — 동작 변화 없음.)
+- 검증: 로컬에서 `crm_sales.payment_method`를 임시로 rename해 **운영과 동일한 에러를 그대로
+  재현**한 뒤, Accept 헤더 없이(=브라우저 fetch와 동일) 상품 부여를 호출 → 수정 전이라면 200+HTML이
+  내려갈 자리에 `HTTP 500` + `{"success":false,"message":"서버 오류가 발생했습니다."}`(JSON)가
+  정확히 내려오는 것 확인. 컬럼 원복 후 같은 요청이 `200 {"success":true}`로 정상 성공하는 것까지
+  확인. 검증으로 만든 membership/sale/crm_sales/settlement_ledger 행은 전부 삭제(원복 시 rename을
+  써서 기존 18행 데이터 유실 없음 확인). `./gradlew test` 통과.
+- **운영 적용 순서**: 컬럼 추가 SQL(`PROD_DEPLOY_20261108_missing_columns.sql`)을 **먼저** 실행해야
+  상품 부여가 바로 정상화된다. 핸들러 수정은 코드 배포가 필요한 별개 항목(에러를 숨기지 않게 하는
+  개선이라 SQL보다 급하진 않음).
+
+### 3-1-27. 실무자 버그리포트 대응 + 운영 배포 (2026-11-10)
+`링크온핏_개발자전달_통합버그리포트.md`(11/09, 15건) 대조 작업. 운영 서버 SSH 접근이 열려
+실제 운영 DB/로그로 검증했다.
+- **리포트 01·02(PT·회원권 배정 중단) = 3-1-26의 `crm_sales.payment_method` 누락**이었음.
+  `addMembership()`이 PT/회원권/락커/운동복을 전부 같은 경로로 처리하며 끝에서 `recordSale()`를
+  타므로 **모든 상품 배정이 동시 차단**됐고, "오류 응답 미확보"도 아래 핸들러 버그 때문이었다.
+  11/10 08:22 운영 DB 컬럼 추가로 해소 → `addMembership()`이 실행하는 SQL 7개를 운영에서
+  트랜잭션 재생 후 ROLLBACK해 전부 통과하는 것 재검수 완료(잔재 0건).
+- **리포트 04 — CRM 구독등급 부여 시 티켓 미지급(수정함)**: `updateTier()`가
+  `user_profiles.tier`만 UPDATE하고 티켓을 전혀 지급하지 않았다. 지급 로직
+  (`setSubscriptionTickets`)이 **IAP 실결제 경로에만** 있어서, 관리자가 "인텐시브핏 부여"를 해도
+  사진 0·영상 0으로 남아 "영상 피드백 이용권 없음"이 떴다.
+  → `updateTier()`에서 등급의 월 지급량대로 FEEDBACK/PHOTO/VIDEO/ONE_POINT를 세팅.
+  **지급량은 코드에 4번째 하드코딩을 추가하지 않고 `subscription_plans` 테이블을 읽는다**
+  (IapVerifyService/linkonfit PaymentService에 이미 중복돼 있던 값과 전수 대조해 일치 확인 —
+  오래 남아있던 "subscription_plans를 아무도 안 본다"는 기술부채를 이 경로에서는 해소).
+  "이번 달 한도" 개념이라 증분이 아니라 **절대값**으로 세팅(IAP와 동일 의미), `FREE_FEEDBACK`
+  (등급무관 월 2장)과 `paid_remaining`(단품 유료분, 정산 원장 연결)은 건드리지 않음.
+  검증: 인텐시브핏→사진10·영상4·피드백100·원포인트1, 레귤러핏→사진4·영상1·피드백14로 등급별로
+  정확히 다르게 지급되는 것과 BASIC 하향 시 회수하지 않는 것까지 실제 API 호출로 확인 후 원복.
+  - **확정 필요한 정책 2가지**: ① 등급 하향/BASIC 전환 시 기존 잔량을 회수할지(현재는 회수 안 함 —
+    이미 제공한 서비스를 뺏지 않는 쪽) ② 같은 등급을 다시 저장할 때 이미 쓴 잔량이 한도로
+    복원되는 게 맞는지(현재는 절대값이라 복원됨 — 월 리셋과 동일 동작).
+- **C24 재등록 요약 NPE(수정함)**: 3-1-25 전수 점검에서 발견. `GROUP BY` 없는 `SUM` 집계가
+  대상 0건이면 전 컬럼 NULL 행이 나오고 **MyBatis는 그런 행을 Map이 아니라 null로 매핑**한다 →
+  재등록 데이터가 아직 없는 지점에서 이 요약 카드가 500. null 가드 추가.
+  (같은 패턴을 전 매퍼에서 정적 스캔해 5개를 위험군으로 추렸지만, 빈 지점 LF02로 라이브 테스트한
+  결과 대시보드 3개는 정상이었다 — 정적 분석이 과다 탐지였고 실측이 정확했음.)
+- **운영 배포 완료(11/10 11:33)**: `GlobalExceptionHandler` JSON 응답 수정(3-1-26) + 위 2건 +
+  PT 분류 동기화(3-1-24)를 커밋(`66836f6`)·푸시 후 jar 교체·재시작. 기존 jar는
+  `/opt/lof-admin/lof-admin.jar.bak_20261110_113317`로 백업. 배포 jar 체크섬이 로컬 빌드와
+  일치하는 것, 클래스에 `/api/` 분기와 신규 쿼리가 들어있는 것, 전 서비스 active, 배포 후 신규
+  에러 0건까지 확인. `./gradlew test` 통과.
+  - **⚠️ 운영 DB 적용은 여전히 별도**: `PROD_DEPLOY_20261108_missing_columns.sql`은 적용 완료,
+    `PROD_DEPLOY_20261104.sql`의 잔여 항목(레거시 message 테이블 DROP)은 미적용(급하지 않음).
 
 ### 3-1-16. 내부 쪽지함(inbox.html) — 단체쪽지 발송 + 새 메시지 회원 이름검색 (2026-08-27)
 - **단체쪽지 보내기**: 헤더에 버튼 추가, 성별(전체/남자/여자)·이용상태(전체/유효/만료) 두 필터를
