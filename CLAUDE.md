@@ -1,5 +1,14 @@
 # LINK_Fit Admin — CLAUDE.md
 
+> **📁 과거 마이그레이션 SQL 파일에 대하여 (2026-11-16)**
+> 아래 본문이 파일명으로 인용하는 `docs/sql/*.sql` 중 **운영 적용이 끝난 것은 삭제**했습니다.
+> 내용은 git 히스토리에 그대로 있습니다 —
+> `git log --all --diff-filter=D --name-only -- 'docs/sql/*'` 로 찾고
+> `git show <commit>:docs/sql/<파일명>` 으로 열람하세요.
+> `docs/sql/`에 **남아 있는 파일은 아직 운영 미적용**이라는 뜻입니다. (`docs/sql/README.md` 참고)
+
+
+
 헬스장 관리자 웹 어드민 프로젝트. LINK_Fit 앱의 백오피스로, 회원/직원/수업/출석/상담/매출/상품/메시지/CRM/피드백 등을 통합 관리한다.
 
 ---
