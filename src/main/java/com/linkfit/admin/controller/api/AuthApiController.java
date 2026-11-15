@@ -34,6 +34,9 @@ public class AuthApiController {
     private final CrmUserService crmUserService;
     private final UserAuthMapper userAuthMapper;
     private final JwtUtil jwtUtil;
+
+    @Value("${app.jwt.expiration}")
+    private long jwtExpirationMs;
     private final PasswordEncoder passwordEncoder;
     private final String cookieName;
 
@@ -95,7 +98,9 @@ public class AuthApiController {
         Cookie cookie = new Cookie(cookieName, token);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
-        cookie.setMaxAge(86400);    // 24h
+        // 쿠키 수명은 JWT 만료와 같게 맞춘다 — 따로 적어두면 한쪽만 바꿨을 때
+        // "쿠키는 살아있는데 토큰은 만료"라 매번 로그인 화면으로 튕긴다(2026-11-15).
+        cookie.setMaxAge((int) (jwtExpirationMs / 1000));
         response.addCookie(cookie);
 
         return ApiResponse.ok(Map.of(

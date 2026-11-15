@@ -18,7 +18,7 @@ mybatis:
 app:
   jwt:
     secret: "linkfit-crm-jwt-secret-key-must-be-at-least-32-characters-long-2026"
-    expiration: 86400000       # 24h (ms)
+    expiration: 43200000       # 12h (ms) — 2026-11-15 팀 결정
     refresh-expiration: 604800000  # 7d (ms)
     cookie-name: crm_token
   cors:
