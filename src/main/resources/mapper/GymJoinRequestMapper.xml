@@ -30,9 +30,20 @@
     <select id="findAll" resultMap="requestMap">
         <include refid="baseJoin"/>
          WHERE ug.gym_id = #{gymId}
-        <if test="status != null and status != ''">
-           AND ug.status = #{status}
-        </if>
+        <!--
+          'NOT_INSTALLED'는 user_gym.status에 없는 가상 상태다(2026-11-15 crm-5) —
+          승인은 됐지만 앱에 가입(user_auth 행 생성)한 적 없는 회원만 추린다.
+          엑셀 내보내기도 같은 status 문자열을 그대로 넘겨 자동으로 동일하게 동작한다.
+        -->
+        <choose>
+          <when test="status == 'NOT_INSTALLED'">
+             AND ug.status = 'APPROVED'
+             AND NOT EXISTS (SELECT 1 FROM user_auth ua WHERE ua.user_id = ug.user_id)
+          </when>
+          <when test="status != null and status != ''">
+             AND ug.status = #{status}
+          </when>
+        </choose>
          ORDER BY ug.joined_at DESC
          LIMIT #{size} OFFSET #{offset}
     </select>
@@ -40,9 +51,20 @@
     <select id="count" resultType="long">
         SELECT COUNT(*) FROM user_gym ug
          WHERE ug.gym_id = #{gymId}
-        <if test="status != null and status != ''">
-           AND ug.status = #{status}
-        </if>
+        <!--
+          'NOT_INSTALLED'는 user_gym.status에 없는 가상 상태다(2026-11-15 crm-5) —
+          승인은 됐지만 앱에 가입(user_auth 행 생성)한 적 없는 회원만 추린다.
+          엑셀 내보내기도 같은 status 문자열을 그대로 넘겨 자동으로 동일하게 동작한다.
+        -->
+        <choose>
+          <when test="status == 'NOT_INSTALLED'">
+             AND ug.status = 'APPROVED'
+             AND NOT EXISTS (SELECT 1 FROM user_auth ua WHERE ua.user_id = ug.user_id)
+          </when>
+          <when test="status != null and status != ''">
+             AND ug.status = #{status}
+          </when>
+        </choose>
     </select>
 
     <select id="countApprovedAppUsers" resultType="long">
