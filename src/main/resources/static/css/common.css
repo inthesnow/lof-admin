@@ -693,3 +693,23 @@ tbody td:first-child { color: var(--text-primary); font-weight: 500; }
 @media (min-width: 769px) {
     .mobile-menu-btn { display: none; }
 }
+
+/* ── 금액 입력 필드: 입력박스 뒤에 "원" 고정 (2026-11-14 회의 리포트 crm-7) ──
+   <div class="input-won"><input class="form-input" type="number" ...></div>
+   숫자 입력칸만 대상이며, 접미사는 pointer-events:none 이라 클릭/포커스를 막지 않는다. */
+.input-won { position: relative; display: block; }
+.input-won > .form-input { padding-right: 34px; }
+.input-won::after {
+    content: '원';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 13px;
+    pointer-events: none;
+}
+/* number 타입의 스피너가 "원"과 겹치지 않도록 숨긴다 */
+.input-won > input[type=number]::-webkit-outer-spin-button,
+.input-won > input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.input-won > input[type=number] { -moz-appearance: textfield; appearance: textfield; }
