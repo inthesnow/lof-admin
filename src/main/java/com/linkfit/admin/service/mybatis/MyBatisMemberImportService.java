@@ -3,9 +3,12 @@ package com.linkfit.admin.service.mybatis;
 import com.linkfit.admin.domain.Locker;
 import com.linkfit.admin.domain.Member;
 import com.linkfit.admin.domain.Membership;
+import com.linkfit.admin.domain.Staff;
 import com.linkfit.admin.mapper.LockerMapper;
 import com.linkfit.admin.mapper.MemberMapper;
 import com.linkfit.admin.service.MemberImportService;
+import com.linkfit.admin.service.MemberService;
+import com.linkfit.admin.service.StaffService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.xssf.usermodel.XSSFDataValidationHelper;
@@ -64,10 +67,16 @@ public class MyBatisMemberImportService implements MemberImportService {
 
     private final MemberMapper memberMapper;
     private final LockerMapper lockerMapper;
+    // 담당 트레이너 자동 배정(crm-1)에만 사용 — 이름 매칭과 실제 배정은 기존 서비스를 그대로 재사용한다.
+    private final StaffService staffService;
+    private final MemberService memberService;
 
-    public MyBatisMemberImportService(MemberMapper memberMapper, LockerMapper lockerMapper) {
+    public MyBatisMemberImportService(MemberMapper memberMapper, LockerMapper lockerMapper,
+                                      StaffService staffService, MemberService memberService) {
         this.memberMapper = memberMapper;
         this.lockerMapper = lockerMapper;
+        this.staffService = staffService;
+        this.memberService = memberService;
     }
 
     @Override
@@ -209,6 +218,12 @@ public class MyBatisMemberImportService implements MemberImportService {
                         messages.add("이용권 등록 중 오류가 발생해 건너뛰었습니다: " + e.getMessage());
                     }
                     try {
+                        assignTrainer(row, formatter, memberId, gymId, messages);
+                    } catch (Exception e) {
+                        log.error("[MemberImport] {}행 트레이너 배정 실패", excelRowNumber, e);
+                        messages.add("담당 트레이너 배정 중 오류가 발생해 건너뛰었습니다: " + e.getMessage());
+                    }
+                    try {
                         importLocker(row, formatter, memberId, gymId, messages);
                     } catch (Exception e) {
                         log.error("[MemberImport] {}행 락커 배정 실패", excelRowNumber, e);
@@ -294,10 +309,41 @@ public class MyBatisMemberImportService implements MemberImportService {
                 ? "이용권(" + typeLabel + ") 등록 완료 (이용종료일 미기재 — 이미 만료된 회원으로 분류)"
                 : "이용권(" + typeLabel + ") 등록 완료");
 
+    }
+
+    /**
+     * 담당 트레이너 배정(2026-11-15 회의 리포트 crm-1).
+     *
+     * 엑셀의 트레이너 '이름'을 이 지점 트레이너와 매칭해 바로 배정한다.
+     *
+     * 아직 앱에 가입하지 않은 회원도 이 시점에 `user_profiles` 행이 이미 만들어져 있고,
+     * 나중에 그 사람이 같은 전화번호로 앱 가입을 하면 lof-backend의
+     * `UserService`가 `repointProfileForMerge`로 **프로필 행을 통째로 새 user_id에 옮긴다** —
+     * 담당 트레이너도 그대로 승계되므로 별도의 사전배정 테이블이 필요 없다.
+     * (전화번호 매칭은 그 병합 로직이 이미 담당한다.)
+     *
+     * 동명이인이 있으면 임의로 고르지 않고 건너뛴다 — 잘못 배정하는 것보다 안내가 낫다.
+     */
+    private void assignTrainer(Row row, DataFormatter formatter, String memberId,
+                               Long gymId, List<String> messages) {
         String trainerName = str(row, 14, formatter);
-        if (trainerName != null && !trainerName.isBlank()) {
-            messages.add("담당 트레이너('" + trainerName + "')는 자동 매칭되지 않습니다 — 상세정보에서 직접 지정해주세요.");
+        if (trainerName == null || trainerName.isBlank()) return;
+        String wanted = trainerName.trim();
+
+        List<Staff> matched = staffService.findTrainerOptions(gymId).stream()
+                .filter(t -> t.getName() != null && wanted.equals(t.getName().trim()))
+                .toList();
+
+        if (matched.isEmpty()) {
+            messages.add("담당 트레이너('" + wanted + "')를 이 지점에서 찾지 못해 배정하지 않았습니다.");
+            return;
         }
+        if (matched.size() > 1) {
+            messages.add("담당 트레이너('" + wanted + "')가 이 지점에 여러 명이라 자동 배정하지 않았습니다 — 상세정보에서 직접 지정해주세요.");
+            return;
+        }
+        memberService.updateAssignedTrainer(memberId, matched.get(0).getId(), gymId);
+        messages.add("담당 트레이너('" + wanted + "') 배정 완료");
     }
 
     private void importLocker(Row row, DataFormatter formatter, String memberId, Long gymId, List<String> messages) {

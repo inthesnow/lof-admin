@@ -32,12 +32,14 @@ class MyBatisMemberImportServiceTest {
 
     @Mock MemberMapper memberMapper;
     @Mock LockerMapper lockerMapper;
+    @Mock com.linkfit.admin.service.StaffService staffService;
+    @Mock com.linkfit.admin.service.MemberService memberService;
 
     MyBatisMemberImportService service;
 
     @BeforeEach
     void setUp() {
-        service = new MyBatisMemberImportService(memberMapper, lockerMapper);
+        service = new MyBatisMemberImportService(memberMapper, lockerMapper, staffService, memberService);
     }
 
     private byte[] buildWorkbook(String[] dataRow) throws Exception {
