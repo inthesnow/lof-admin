@@ -16,6 +16,7 @@
         <result property="membershipEnd" column="membership_end"/>
         <result property="memberType"    column="member_type"/>
         <result property="tier"          column="tier"/>
+        <result property="profileImageUrl" column="profile_image_url"/>
         <result property="memo"          column="memo"/>
         <result property="role"          column="role"/>
         <result property="trainerId"     column="trainer_id"/>
@@ -45,6 +46,18 @@
         SELECT u.user_id AS id, u.email, u.role,
                up.name, up.contact AS phone, up.gender, up.birth_date, up.member_type,
                up.tier, up.trainer_id, tp.name AS trainer_name, up.pt_sessions_left, up.service_pt_sessions_left,
+               <!--
+                 프로필 사진(2026-11-15). user_profiles.profile_image_url은 앱 서버가 내부 IP로
+                 저장해둬서(https://172.31.x.x:17577/...) 관리자페이지 브라우저에서는 열리지 않는다.
+                 경로는 그대로 두고 호스트만 공개 도메인으로 바꿔 내려준다.
+               -->
+               CASE
+                   WHEN up.profile_image_url IS NULL OR up.profile_image_url = '' THEN NULL
+                   WHEN up.profile_image_url LIKE 'https://172.%' OR up.profile_image_url LIKE 'http://172.%'
+                       THEN CONCAT('https://api.linkonfit.co.kr/',
+                                   SUBSTRING_INDEX(up.profile_image_url, '/', -3))
+                   ELSE up.profile_image_url
+               END AS profile_image_url,
                <include refid="statusCase"/> AS status,
                CASE WHEN up.join_date_unknown = 1 THEN NULL ELSE DATE(u.created_at) END AS join_date,
                (SELECT start_date FROM membership ms WHERE ms.user_id = u.user_id AND ms.status IS NULL AND ms.type != 'PT' ORDER BY ms.end_date DESC LIMIT 1) AS membership_start,

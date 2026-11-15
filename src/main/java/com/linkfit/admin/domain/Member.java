@@ -19,6 +19,12 @@ public class Member {
     private LocalDate membershipEnd;
     private String memo;
     private String memberType;   // PT, OT
+    /**
+     * 회원이 앱에서 지정한 프로필 사진 URL.
+     * DB엔 내부 IP(https://172.31.x.x:17577/...)로 저장돼 있어 브라우저에서 직접 못 여므로
+     * 매퍼에서 공개 도메인으로 치환해 내려준다(2026-11-15).
+     */
+    private String profileImageUrl;
     private String tier;         // BASIC, LIGHT_FIT, REGULAR_FIT, INTENSIVE_FIT
     private String role;         // MEMBER, TRAINER
     private String trainerId;
@@ -56,6 +62,9 @@ public class Member {
     public void setMemo(String memo) { this.memo = memo; }
     public String getMemberType() { return memberType; }
     public void setMemberType(String memberType) { this.memberType = memberType; }
+    public String getProfileImageUrl() { return profileImageUrl; }
+    public void setProfileImageUrl(String profileImageUrl) { this.profileImageUrl = profileImageUrl; }
+
     public String getTier() { return tier; }
     public void setTier(String tier) { this.tier = tier; }
     public String getRole() { return role; }

@@ -47,6 +47,92 @@
         .trainer-filter-actions { display: flex; justify-content: flex-end; gap: 6px; padding: 8px 12px 4px; border-top: 1px solid var(--border); margin-top: 4px; }
         .trainer-filter-names { font-size: 11px; color: var(--text-secondary); max-width: 200px; line-height: 1.4; }
 
+
+        /* ── 회원 상세 — 2026-11-15 시안 재구성 ── */
+        .dm-head { display:flex; align-items:flex-start; gap:16px; padding:4px 0 18px; }
+        .dm-avatar {
+            width:72px; height:72px; border-radius:50%; object-fit:cover; flex-shrink:0;
+            background:var(--surface-up); border:1px solid var(--border);
+        }
+        .dm-avatar-fallback {
+            width:72px; height:72px; border-radius:50%; flex-shrink:0;
+            background:var(--surface-up); border:1px solid var(--border);
+            display:flex; align-items:center; justify-content:center;
+            font-size:24px; font-weight:700; color:var(--text-muted);
+        }
+        .dm-ident { flex:1; min-width:0; }
+        .dm-name { font-size:20px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+        .dm-badge {
+            font-size:11px; font-weight:600; padding:2px 8px; border-radius:10px;
+            background:var(--surface-up); color:var(--text-secondary);
+        }
+        .dm-sub { font-size:13px; color:var(--text-secondary); margin-top:4px; line-height:1.6; }
+
+        /* ⋮ 메뉴 */
+        .dm-kebab { position:relative; }
+        .dm-kebab-btn {
+            width:30px; height:30px; border:1px solid var(--border); border-radius:6px;
+            background:var(--surface); cursor:pointer; color:var(--text-secondary);
+            display:flex; align-items:center; justify-content:center; font-size:16px; line-height:1;
+        }
+        .dm-kebab-btn:hover { background:var(--surface-up); }
+        .dm-menu {
+            position:absolute; right:0; top:34px; min-width:140px; z-index:30;
+            background:var(--surface); border:1px solid var(--border); border-radius:8px;
+            box-shadow:0 6px 20px rgba(0,0,0,.12); padding:4px 0; display:none;
+        }
+        .dm-menu.open { display:block; }
+        .dm-menu button {
+            display:block; width:100%; text-align:left; background:none; border:none;
+            padding:9px 14px; font-size:13px; color:var(--text-primary); cursor:pointer;
+        }
+        .dm-menu button:hover { background:var(--surface-up); }
+        .dm-menu button.danger { color:var(--error); }
+
+        /* 메모 박스 */
+        .dm-memo {
+            border:1px solid var(--border); border-radius:8px; padding:12px 14px;
+            font-size:13px; color:var(--text-secondary); line-height:1.7; white-space:pre-wrap;
+            min-height:46px;
+        }
+        .dm-memo-label { font-size:12px; font-weight:600; color:var(--text-primary); margin-bottom:6px; }
+
+        /* 한 줄 요약 */
+        .dm-meta {
+            display:flex; flex-wrap:wrap; gap:18px; padding:12px 0;
+            border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+            margin:14px 0; font-size:12px; color:var(--text-secondary);
+        }
+        /* KPI 3칸 */
+        .dm-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+        .dm-kpi { border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--surface); }
+        .dm-kpi-label { font-size:12px; color:var(--text-secondary); margin-bottom:6px; }
+        .dm-kpi-value { font-size:20px; font-weight:700; color:var(--text-primary); }
+        .dm-kpi-note  { font-size:11px; color:var(--text-muted); margin-left:6px; font-weight:400; }
+
+        /* 상품 카드 */
+        .dm-subtabs { display:flex; gap:14px; margin-bottom:12px; }
+        .dm-subtab {
+            background:none; border:none; padding:4px 0; cursor:pointer; font-size:13px;
+            font-weight:600; color:var(--text-muted); border-bottom:2px solid transparent;
+        }
+        .dm-subtab.active { color:var(--text-primary); border-bottom-color:var(--text-primary); }
+        .dm-prod {
+            border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;
+            position:relative;
+        }
+        .dm-prod-head { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .dm-prod-dot { width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+        .dm-prod-dot.off { background:var(--text-muted); }
+        .dm-prod-name { font-size:14px; font-weight:700; color:var(--text-primary); }
+        .dm-prod-tag {
+            font-size:11px; font-weight:600; padding:2px 7px; border-radius:4px;
+            background:var(--accent); color:#fff;
+        }
+        .dm-prod-row { display:flex; gap:10px; font-size:13px; color:var(--text-secondary); line-height:1.9; }
+        .dm-prod-row .k { min-width:52px; font-weight:600; color:var(--text-primary); }
+        .dm-foot { display:flex; justify-content:flex-end; gap:8px; padding-top:16px; border-top:1px solid var(--border); }
+
         /* ── 회원 상세정보창 ── */
         .detail-tabs { display: flex; border-bottom: 1px solid var(--border); margin: -20px -20px 16px; padding: 0 20px; }
         .detail-tab {
@@ -314,13 +400,82 @@
             </button>
         </div>
         <div class="modal-body">
+            <!-- ── 프로필 헤더 (2026-11-15 시안) ────────────────────────── -->
+            <div class="dm-head">
+                <img id="dmAvatar" class="dm-avatar" alt="" style="display:none">
+                <div id="dmAvatarFallback" class="dm-avatar-fallback">–</div>
+                <div class="dm-ident">
+                    <div class="dm-name">
+                        <span id="dmName">–</span>
+                        <span class="dm-badge" id="dmGenderBadge" style="display:none"></span>
+                    </div>
+                    <div class="dm-sub">
+                        <div id="dmBirth">–</div>
+                        <div id="dmPhone">–</div>
+                    </div>
+                </div>
+                <!-- 상세 편집은 ⋮ 메뉴로 들어간다(시안) — 각 항목은 기존 탭을 그대로 연다. -->
+                <div class="dm-kebab">
+                    <button class="dm-kebab-btn" onclick="toggleDmMenu(event,'dmMenuMain')">⋮</button>
+                    <div class="dm-menu" id="dmMenuMain">
+                        <button onclick="switchDetailTab('info')">기본정보</button>
+                        <button onclick="switchDetailTab('ms')">이용권</button>
+                        <button onclick="switchDetailTab('ticket')">티켓</button>
+                        <button onclick="switchDetailTab('trainer')">담당 트레이너</button>
+                        <button onclick="switchDetailTab('msg')">쪽지</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 메모 -->
+            <div class="dm-memo-label">메모</div>
+            <div class="dm-memo" id="dmMemo">–</div>
+
+            <!-- 한 줄 요약 -->
+            <div class="dm-meta">
+                <span>최근 방문: <b id="dmLastVisit">-</b></span>
+                <span>누적방문횟수: <b id="dmVisitCount">0회</b></span>
+                <span id="dmExpiryMeta">만료 -</span>
+                <span>누적결제금액: <b id="dmPaidMeta">0원</b></span>
+            </div>
+
+            <!-- KPI 3칸 -->
+            <div class="dm-kpis">
+                <div class="dm-kpi">
+                    <div class="dm-kpi-label">총 결제 금액</div>
+                    <div class="dm-kpi-value" id="dmKpiPaid">0원</div>
+                </div>
+                <div class="dm-kpi">
+                    <div class="dm-kpi-label">남은 이용 기간</div>
+                    <div class="dm-kpi-value"><span id="dmKpiDays">-</span><span class="dm-kpi-note" id="dmKpiExpiry"></span></div>
+                </div>
+                <div class="dm-kpi">
+                    <div class="dm-kpi-label">방문 횟수</div>
+                    <div class="dm-kpi-value"><span id="dmKpiVisit">0회</span><span class="dm-kpi-note" id="dmKpiVisitNote"></span></div>
+                </div>
+            </div>
+
             <div class="detail-tabs">
-                <button class="detail-tab active" id="dtab-info"      onclick="switchDetailTab('info')">기본정보</button>
-                <button class="detail-tab"        id="dtab-ms"        onclick="switchDetailTab('ms')">이용권</button>
-                <button class="detail-tab"        id="dtab-ticket"    onclick="switchDetailTab('ticket')">티켓</button>
-                <button class="detail-tab"        id="dtab-trainer"   onclick="switchDetailTab('trainer')">담당 트레이너</button>
-                <button class="detail-tab"        id="dtab-memo"      onclick="switchDetailTab('memo')">메모</button>
-                <button class="detail-tab"        id="dtab-msg"       onclick="switchDetailTab('msg')">쪽지</button>
+                <button class="detail-tab active" id="dtab-prod"       onclick="switchDetailTab('prod')">상품</button>
+                <button class="detail-tab"        id="dtab-info"       onclick="switchDetailTab('info')">기본정보</button>
+                <button class="detail-tab"        id="dtab-ms"         onclick="switchDetailTab('ms')">이용권</button>
+                <button class="detail-tab"        id="dtab-ticket"     onclick="switchDetailTab('ticket')">티켓</button>
+                <button class="detail-tab"        id="dtab-trainer"    onclick="switchDetailTab('trainer')">담당 트레이너</button>
+                <button class="detail-tab"        id="dtab-memo"       onclick="switchDetailTab('memo')">노트</button>
+                <button class="detail-tab"        id="dtab-msg"        onclick="switchDetailTab('msg')">쪽지</button>
+            </div>
+
+            <!-- 상품 (시안의 기본 탭) -->
+            <div class="detail-pane" id="dpane-prod">
+                <div class="dm-subtabs">
+                    <button class="dm-subtab active" id="dsub-active" onclick="switchProdSub('active')">이용중인 상품</button>
+                    <button class="dm-subtab"        id="dsub-past"   onclick="switchProdSub('past')">지난 상품</button>
+                </div>
+                <div id="dmProdList"><div style="color:var(--text-muted);font-size:13px">로딩 중...</div></div>
+                <div class="dm-foot">
+                    <button class="btn btn-secondary" onclick="switchDetailTab('ticket')">결제링크 전송하기</button>
+                    <button class="btn btn-primary"   onclick="switchDetailTab('ms')">상품 배정하기</button>
+                </div>
             </div>
 
             <!-- 기본정보 -->
@@ -388,7 +543,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">금액 <span style="color:var(--text-muted);font-size:11px">(선택 시 자동)</span></label>
-                            <input type="number" class="form-input" id="msPrice" placeholder="0" min="0" readonly disabled>
+                            <div class="input-won"><input type="number" class="form-input" id="msPrice" placeholder="0" min="0" readonly disabled></div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">할인금액</label>
@@ -397,7 +552,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">납부액 * <span style="color:var(--text-muted);font-size:11px">(할인 후 금액보다 적으면 미납금으로 표시)</span></label>
-                            <input type="number" class="form-input" id="msPaidAmount" placeholder="0" min="0">
+                            <div class="input-won"><input type="number" class="form-input" id="msPaidAmount" placeholder="0" min="0"></div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">시작일 *</label>
@@ -465,7 +620,7 @@
                         </div>
                         <div class="form-group" id="indivPriceGroup">
                             <label class="form-label">금액</label>
-                            <input type="number" class="form-input" id="indivPrice" placeholder="0" min="0" value="0">
+                            <div class="input-won"><input type="number" class="form-input" id="indivPrice" placeholder="0" min="0" value="0"></div>
                         </div>
                         <div class="form-group" id="indivDiscountGroup">
                             <label class="form-label">할인금액</label>
@@ -966,12 +1121,16 @@ async function saveMember() {
     const name  = document.getElementById('mName').value.trim();
     const phone = document.getElementById('mPhone').value.trim();
     if (!name || !phone) { alert('이름과 전화번호를 입력해주세요.'); return; }
+    // 성별이 비어 있으면 DB enum에 빈 값이 들어가 저장 단계에서 에러가 났다 —
+    // 서버 에러 대신 어느 값이 빠졌는지 알려준다(2026-11-14 회의 리포트 crm-4).
+    const gender = document.getElementById('mGender').value;
+    if (!gender) { alert('성별을 선택해주세요.'); document.getElementById('mGender').focus(); return; }
     const email = document.getElementById('mEmail').value.trim();
     const body = {
         name,
         phone,
         email:      email || null,
-        gender:     document.getElementById('mGender').value,
+        gender,
         birthDate:  document.getElementById('mBirthDate').value || null,
         memberType: document.getElementById('mMemberType').value || null,
         tier:       document.getElementById('mTier').value,
@@ -1124,7 +1283,7 @@ if (openId) openDetailModal(openId, openTab);
 async function openDetailModal(id, tab) {
     detailMemberId = id;
     document.getElementById('detailModal').classList.add('open');
-    switchDetailTab(tab || 'info');
+    switchDetailTab(tab || 'prod');
 
     const res  = await fetch(`/api/members/${id}`);
     const json = await res.json();
@@ -1138,8 +1297,25 @@ async function openDetailModal(id, tab) {
     document.getElementById('dBirthDate').value   = m.birthDate || '';
     document.getElementById('dMemberType').value  = m.memberType || '';
     document.getElementById('dTier').value        = m.tier || 'BASIC';
+    renderDetailHeader(m);
     renderPtSessionInfo();
+    loadMemberNotesIntoHeader();
     loadMembershipList();
+}
+
+/** 헤더 메모 박스 — 노트 탭의 최신 메모를 요약해서 보여준다 */
+async function loadMemberNotesIntoHeader() {
+    const box = document.getElementById('dmMemo');
+    try {
+        const res  = await fetch(`/api/members/${detailMemberId}/notes`);
+        const json = await res.json();
+        const notes = json.data || [];
+        box.textContent = notes.length
+            ? notes.slice(0, 3).map(n => n.content).join('\n')
+            : '등록된 메모가 없습니다.';
+    } catch (e) {
+        box.textContent = '메모를 불러오지 못했습니다.';
+    }
 }
 
 function closeDetailModal() {
@@ -1150,10 +1326,11 @@ function closeDetailModal() {
 }
 
 function switchDetailTab(tab) {
-    ['info','ms','ticket','trainer','memo','msg'].forEach(t => {
+    ['prod','info','ms','ticket','trainer','memo','msg'].forEach(t => {
         document.getElementById('dtab-' + t).classList.toggle('active', t === tab);
         document.getElementById('dpane-' + t).style.display = t === tab ? '' : 'none';
     });
+    if (tab === 'prod')    renderProdCards();
     if (tab === 'info')    loadMembershipList();
     if (tab === 'ms')      loadMembershipForm();
     if (tab === 'ticket')  refreshTicketCounts();
@@ -1165,10 +1342,12 @@ function switchDetailTab(tab) {
 async function saveDetailInfo() {
     const name = document.getElementById('dName').value.trim();
     if (!name) { alert('이름을 입력해주세요.'); return; }
+    const gender = document.getElementById('dGender').value;
+    if (!gender) { alert('성별을 선택해주세요.'); document.getElementById('dGender').focus(); return; }
     const body = {
         name,
         phone:      document.getElementById('dPhone').value,
-        gender:     document.getElementById('dGender').value,
+        gender,
         birthDate:  document.getElementById('dBirthDate').value || null,
         memberType: document.getElementById('dMemberType').value || null,
         tier:       document.getElementById('dTier').value,
@@ -1267,7 +1446,10 @@ async function addPaymentMethod() {
 async function loadMembershipList() {
     const res  = await fetch(`/api/members/${detailMemberId}/memberships`);
     const json = await res.json();
-    renderMembershipList(json.data || []);
+    detailMembershipCache = json.data || [];
+    renderMembershipList(detailMembershipCache);
+    renderDetailStats(detailMembershipCache);
+    renderProdCards();
 }
 
 // 이용권 탭: 등록 폼(개별 상품 부여 / 구매 상품 구매)에 필요한 데이터 로드 + 초기화
@@ -1391,6 +1573,175 @@ async function grantIndividualProduct() {
 const componentLabel = { MEMBERSHIP: '이용권', PT: 'PT', OT: 'OT', GROUP: '그룹수업', LOCKER: '락커', ITEM: '운동복' };
 const regTypeLabel = { NEW: '신규', RE: '재등록', RE_INFLOW: '재유입', SINGLE_ITEM: '단품결제', TRANSFER: '양도' };
 const regTypeColor = { NEW: 'var(--accent)', RE: 'var(--success)', RE_INFLOW: 'var(--warning)', SINGLE_ITEM: 'var(--text-muted)', TRANSFER: '#8B5CF6' };
+
+
+// ── 회원 상세 시안(2026-11-15) ────────────────────────────────────────
+// 헤더(프로필 사진/이름/연락처), 요약 지표, 상품 카드 렌더링.
+// 기존 탭/기능은 그대로 두고 표시 계층만 새로 얹었다.
+
+let prodSubTab = 'active';
+let detailMembershipCache = [];
+
+function toggleDmMenu(ev, id) {
+    ev.stopPropagation();
+    const el = document.getElementById(id);
+    const wasOpen = el.classList.contains('open');
+    document.querySelectorAll('.dm-menu.open').forEach(m => m.classList.remove('open'));
+    if (!wasOpen) el.classList.add('open');
+}
+// 바깥을 누르면 열린 메뉴를 닫는다
+document.addEventListener('click', () => {
+    document.querySelectorAll('.dm-menu.open').forEach(m => m.classList.remove('open'));
+});
+
+function switchProdSub(which) {
+    prodSubTab = which;
+    document.getElementById('dsub-active').classList.toggle('active', which === 'active');
+    document.getElementById('dsub-past').classList.toggle('active', which === 'past');
+    renderProdCards();
+}
+
+/** 헤더 + 요약 지표 채우기 */
+function renderDetailHeader(m) {
+    const name = m.name || m.id || '-';
+    document.getElementById('dmName').textContent = name;
+
+    const genderLabel = { 남자: '남', 여자: '여', M: '남', F: '여' };
+    const gb = document.getElementById('dmGenderBadge');
+    if (m.gender) { gb.textContent = genderLabel[m.gender] || m.gender; gb.style.display = ''; }
+    else gb.style.display = 'none';
+
+    document.getElementById('dmBirth').textContent = m.birthDate || '-';
+    document.getElementById('dmPhone').textContent = formatPhone(m.phone) || '-';
+
+    // 프로필 사진 — 회원이 앱에서 지정한 이미지. 없거나 로드 실패하면 이니셜로 대체.
+    const img = document.getElementById('dmAvatar');
+    const fb  = document.getElementById('dmAvatarFallback');
+    fb.textContent = name.charAt(0) || '-';
+    if (m.profileImageUrl) {
+        img.src = m.profileImageUrl;
+        img.style.display = '';
+        fb.style.display = 'none';
+        img.onerror = () => { img.style.display = 'none'; fb.style.display = ''; };
+    } else {
+        img.style.display = 'none';
+        fb.style.display = '';
+    }
+
+    // 남은 이용 기간 — 목록과 동일한 기준(membershipEnd)
+    const today = new Date();
+    let daysLeft = null;
+    if (m.membershipEnd) {
+        daysLeft = Math.ceil((new Date(m.membershipEnd) - today) / 86400000);
+    }
+    document.getElementById('dmKpiDays').textContent   = daysLeft == null ? '-' : `${daysLeft}일`;
+    document.getElementById('dmKpiExpiry').textContent = m.membershipEnd || '';
+    document.getElementById('dmExpiryMeta').innerHTML  = daysLeft == null
+        ? '만료 -'
+        : `만료 <b>${daysLeft}일</b> (만료일: ${m.membershipEnd})`;
+}
+
+/** 이용권 합계로 결제/방문 지표 채우기 */
+function renderDetailStats(list) {
+    const paid  = list.reduce((sum, r) => sum + (r.paidAmount || 0), 0);
+    const count = new Set(list.map(r => r.packageId != null ? 'p' + r.packageId : 's' + r.id)).size;
+    document.getElementById('dmKpiPaid').textContent  = paid.toLocaleString() + '원';
+    document.getElementById('dmPaidMeta').textContent = `${paid.toLocaleString()}원 (결제 건수: ${count}건)`;
+}
+
+/** 상품 탭 카드 — 이용중/지난 상품 */
+function renderProdCards() {
+    const el = document.getElementById('dmProdList');
+    const today = new Date().toISOString().slice(0, 10);
+
+    // 상품 구매 단위(packageId)로 묶는다 — 기존 이용권 목록과 동일한 그룹핑 규칙
+    const groups = new Map();
+    detailMembershipCache.forEach(ms => {
+        const key = ms.packageId != null ? ('pkg_' + ms.packageId) : ('single_' + ms.id);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(ms);
+    });
+
+    const cards = Array.from(groups.values()).filter(rows => {
+        // 구성요소 중 하나라도 유효하면 '이용중'
+        const alive = rows.some(r => r.status !== 'TRANSFERRED' && r.endDate && r.endDate >= today);
+        return prodSubTab === 'active' ? alive : !alive;
+    });
+
+    if (!cards.length) {
+        el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:14px 0">${
+            prodSubTab === 'active' ? '이용중인 상품이 없습니다.' : '지난 상품이 없습니다.'}</div>`;
+        return;
+    }
+
+    el.innerHTML = cards.map(rows => {
+        const first = rows[0];
+        const productName = first.packageName || first.productName || componentLabel[first.type] || first.type;
+        const alive = rows.some(r => r.status !== 'TRANSFERRED' && r.endDate && r.endDate >= today);
+        const regType = (rows.find(r => r.regType) || {}).regType;
+        const tag = regType ? `<span class="dm-prod-tag">${regTypeLabel[regType] || regType}</span>` : '';
+
+        const lines = rows.map(ms => {
+            const label = componentLabel[ms.type] || ms.type;
+            const left = ms.endDate
+                ? Math.ceil((new Date(ms.endDate) - new Date()) / 86400000)
+                : null;
+            const leftStr = ms.status === 'TRANSFERRED'
+                ? '양도됨'
+                : (left == null ? '-' : (left >= 0 ? `잔여 ${left}일` : '만료'));
+            return `<div class="dm-prod-row">
+                        <span class="k">${escHtml(label)}</span>
+                        <span>${leftStr}</span>
+                        <span style="color:var(--text-muted)">(${ms.startDate || '-'} ~ ${ms.endDate || '-'})</span>
+                    </div>`;
+        }).join('');
+
+        const menuId = 'dmProdMenu_' + (first.packageId != null ? 'p' + first.packageId : 's' + first.id);
+        const firstAdjustable = rows.find(r => r.status !== 'TRANSFERRED') || first;
+        const removeAll = first.packageId != null
+            ? `deleteEntireProduct(${first.packageId}, '${escHtml(productName).replace(/'/g, '')}')`
+            : `deleteMembership(${first.id})`;
+        const transferable = rows.find(r => r.type !== 'PT' && r.status !== 'TRANSFERRED');
+
+        return `
+        <div class="dm-prod">
+            <div class="dm-kebab" style="position:absolute;right:10px;top:10px">
+                <button class="dm-kebab-btn" onclick="toggleDmMenu(event,'${menuId}')">⋮</button>
+                <div class="dm-menu" id="${menuId}">
+                    <button onclick="promptAdjustPeriod(${firstAdjustable.id}, 1)">기간 연장</button>
+                    <button onclick="promptAdjustPeriod(${firstAdjustable.id}, -1)">기간 단축</button>
+                    ${transferable ? `<button onclick="openTransferModal(${transferable.id}, '${escHtml(componentLabel[transferable.type] || transferable.type)}')">회원권 양도</button>` : ''}
+                    <button class="danger" onclick="${removeAll}">상품 회수</button>
+                </div>
+            </div>
+            <div class="dm-prod-head">
+                <span class="dm-prod-dot${alive ? '' : ' off'}"></span>
+                <span class="dm-prod-name">${escHtml(productName)}</span>
+                ${tag}
+            </div>
+            ${lines}
+        </div>`;
+    }).join('');
+}
+
+/** ⋮ 메뉴의 기간 연장/단축 — 기존 adjustPeriod가 입력칸을 읽으므로 값을 물어서 넣어준다 */
+function promptAdjustPeriod(msId, sign) {
+    const raw = prompt(sign > 0 ? '연장할 일수를 입력하세요' : '단축할 일수를 입력하세요', '30');
+    if (raw == null) return;
+    const days = parseInt(raw, 10);
+    if (!Number.isFinite(days) || days <= 0) { alert('1 이상의 숫자를 입력해주세요.'); return; }
+    let el = document.getElementById('msAdjDays_' + msId);
+    if (!el) {   // 상품 탭에는 입력칸이 없으므로 임시로 만들어 기존 로직을 재사용
+        el = document.createElement('input');
+        el.id = 'msAdjDays_' + msId;
+        el.style.display = 'none';
+        document.body.appendChild(el);
+    }
+    el.value = days;
+    const m = document.getElementById('msAdjMonths_' + msId);
+    if (m) m.value = '';
+    adjustPeriod(msId, sign);
+}
 
 function renderMembershipList(list) {
     const el = document.getElementById('membershipList');
