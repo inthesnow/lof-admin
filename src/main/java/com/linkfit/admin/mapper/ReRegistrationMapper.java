@@ -16,13 +16,23 @@ public interface ReRegistrationMapper {
                                   @Param("reason") String reason,
                                   @Param("expiryStatus") String expiryStatus,
                                   @Param("startDate") String startDate, @Param("endDate") String endDate,
+                                  @Param("expiryMonth") String expiryMonth,
                                   @Param("offset") int offset, @Param("size") int size);
     long count(@Param("gymId") Long gymId, @Param("status") String status, @Param("reason") String reason,
                @Param("expiryStatus") String expiryStatus,
-               @Param("startDate") String startDate, @Param("endDate") String endDate);
+               @Param("startDate") String startDate, @Param("endDate") String endDate,
+               @Param("expiryMonth") String expiryMonth);
 
-    // 대상자/등록완료/만료 — 실제 회원권 만료일(membership.end_date) 기준 집계
-    Map<String, Object> summaryByMembership(@Param("gymId") Long gymId);
+    // 대상자/예정자/만료 — 실제 회원권 만료일(membership.end_date) 기준 집계.
+    // 목록과 동일한 필터를 받아 요약 숫자가 화면과 어긋나지 않게 한다(2026-11-15).
+    Map<String, Object> summaryByMembership(@Param("gymId") Long gymId, @Param("status") String status,
+                                            @Param("reason") String reason,
+                                            @Param("expiryStatus") String expiryStatus,
+                                            @Param("startDate") String startDate, @Param("endDate") String endDate,
+                                            @Param("expiryMonth") String expiryMonth);
+
+    /** 만료월 드롭다운 — 실제 데이터가 있는 'YYYY-MM' 목록 */
+    List<String> findExpiryMonths(@Param("gymId") Long gymId);
 
     Optional<ReRegistration> findById(@Param("id") String id, @Param("gymId") Long gymId);
 

@@ -40,14 +40,15 @@ public class ReRegistrationApiController {
             @RequestParam(required = false) String expiryStatus,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String expiryMonth,
             @RequestParam(defaultValue = "0")  int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[ReRegistration] GET /api/reregistration - status={}, reason={}, expiryStatus={}, startDate={}, endDate={}",
                 status, reason, expiryStatus, startDate, endDate);
         Long gymId = principal.getGymId();
-        List<ReRegistration> list = service.findAll(gymId, status, reason, expiryStatus, startDate, endDate, page, size);
-        long total = service.count(gymId, status, reason, expiryStatus, startDate, endDate);
+        List<ReRegistration> list = service.findAll(gymId, status, reason, expiryStatus, startDate, endDate, expiryMonth, page, size);
+        long total = service.count(gymId, status, reason, expiryStatus, startDate, endDate, expiryMonth);
         return ApiResponse.ok(Map.of("items", list, "total", total, "page", page, "size", size));
     }
 
@@ -58,11 +59,12 @@ public class ReRegistrationApiController {
             @RequestParam(required = false) String expiryStatus,
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String expiryMonth,
             HttpServletResponse response,
             @AuthenticationPrincipal CrmUserDetails principal) throws IOException {
         log.info("[ReRegistration] GET /api/reregistration/export - expiryStatus={}", expiryStatus);
         Long gymId = principal.getGymId();
-        List<ReRegistration> list = service.findAll(gymId, status, reason, expiryStatus, startDate, endDate, 0, 100_000);
+        List<ReRegistration> list = service.findAll(gymId, status, reason, expiryStatus, startDate, endDate, expiryMonth, 0, 100_000);
 
         String filename = "reregistration-" + LocalDate.now() + ".xlsx";
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -152,8 +154,21 @@ public class ReRegistrationApiController {
 
     @GetMapping("/membership-summary")
     public ApiResponse<Map<String, Object>> membershipSummary(
+            @RequestParam(defaultValue = "") String status,
+            @RequestParam(defaultValue = "") String reason,
+            @RequestParam(required = false) String expiryStatus,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String expiryMonth,
             @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[ReRegistration] GET /api/reregistration/membership-summary");
-        return ApiResponse.ok(service.membershipSummary(principal.getGymId()));
+        return ApiResponse.ok(service.membershipSummary(principal.getGymId(), status, reason, expiryStatus, startDate, endDate, expiryMonth));
+    }
+
+    /** 만료월 필터 드롭다운 채우기 */
+    @GetMapping("/expiry-months")
+    public ApiResponse<java.util.List<String>> expiryMonths(
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        return ApiResponse.ok(service.findExpiryMonths(principal.getGymId()));
     }
 }

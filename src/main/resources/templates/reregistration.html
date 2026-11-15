@@ -53,6 +53,11 @@
             <input type="date" class="form-input" id="endDate" onchange="currentPage=0;loadList()">
             <button class="btn btn-secondary" onclick="currentPage=0;loadList()">조회</button>
         </div>
+        <!-- 만료월 기준 분류 + 필터 초기화 (2026-11-15 회의 리포트 crm-2) -->
+        <select class="filter-select" id="expiryMonthFilter" onchange="currentPage=0;loadList()">
+            <option value="">전체 만료월</option>
+        </select>
+        <button class="btn btn-secondary" onclick="resetFilters()">필터 초기화</button>
     </div>
 
     <div class="table-wrap">
@@ -205,8 +210,49 @@ function expiryBadge(r) {
          + `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${info.detail}</div>`;
 }
 
+/** 현재 화면 필터값 → 쿼리스트링 (목록·요약·내보내기가 같은 조건을 쓰도록 한곳에서 만든다) */
+function currentFilterParams() {
+    const params = new URLSearchParams();
+    const expiryStatus = document.getElementById('expiryFilter').value;
+    const startDate    = document.getElementById('startDate').value;
+    const endDate      = document.getElementById('endDate').value;
+    const expiryMonth  = document.getElementById('expiryMonthFilter').value;
+    if (expiryStatus !== '') params.set('expiryStatus', expiryStatus);
+    if (startDate !== '')    params.set('startDate', startDate);
+    if (endDate !== '')      params.set('endDate', endDate);
+    if (expiryMonth !== '')  params.set('expiryMonth', expiryMonth);
+    return params;
+}
+
+function resetFilters() {
+    document.getElementById('expiryFilter').value = '';
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('expiryMonthFilter').value = '';
+    currentPage = 0;
+    loadList();
+    loadSummary();
+}
+
+/** 만료월 드롭다운 — 실제 데이터가 있는 달만 채운다 */
+async function loadExpiryMonths() {
+    const res  = await fetch('/api/reregistration/expiry-months');
+    const json = await res.json();
+    if (!json.success) return;
+    const sel = document.getElementById('expiryMonthFilter');
+    (json.data || []).forEach(ym => {
+        const [y, m] = ym.split('-');
+        const opt = document.createElement('option');
+        opt.value = ym;
+        opt.textContent = `${y}년 ${Number(m)}월 만료`;
+        sel.appendChild(opt);
+    });
+}
+
 async function loadSummary() {
-    const res  = await fetch('/api/reregistration/membership-summary');
+    // 요약 카드도 목록과 같은 필터를 적용한다 — 예전엔 조건 없이 지점 전체를 세어서
+    // 필터를 걸어도 숫자가 그대로였다(2026-11-14 회의 리포트 crm-2).
+    const res  = await fetch(`/api/reregistration/membership-summary?${currentFilterParams()}`);
     const json = await res.json();
     if (!json.success) return;
     const d = json.data;
@@ -216,29 +262,19 @@ async function loadSummary() {
 }
 
 function exportList() {
-    const expiryStatus = document.getElementById('expiryFilter').value;
-    const startDate     = document.getElementById('startDate').value;
-    const endDate        = document.getElementById('endDate').value;
-    const params = new URLSearchParams();
-    if (expiryStatus !== '') params.set('expiryStatus', expiryStatus);
-    if (startDate !== '')    params.set('startDate', startDate);
-    if (endDate !== '')      params.set('endDate', endDate);
-    window.location.href = `/api/reregistration/export?${params}`;
+    window.location.href = `/api/reregistration/export?${currentFilterParams()}`;
 }
 
 async function loadList() {
-    const expiryStatus = document.getElementById('expiryFilter').value;
-    const startDate     = document.getElementById('startDate').value;
-    const endDate        = document.getElementById('endDate').value;
-    let url = `/api/reregistration?page=${currentPage}&size=${pageSize}`;
-    if (expiryStatus !== '') url += `&expiryStatus=${encodeURIComponent(expiryStatus)}`;
-    if (startDate !== '')    url += `&startDate=${encodeURIComponent(startDate)}`;
-    if (endDate !== '')      url += `&endDate=${encodeURIComponent(endDate)}`;
-    const res  = await fetch(url);
+    const params = currentFilterParams();
+    params.set('page', currentPage);
+    params.set('size', pageSize);
+    const res  = await fetch(`/api/reregistration?${params}`);
     const json = await res.json();
     if (!json.success) return;
     currentItems = json.data.items || [];
     renderTable(currentItems, json.data.total);
+    loadSummary();   // 필터가 바뀌면 요약도 함께 갱신
 }
 
 function renderTable(items, total) {
@@ -371,8 +407,8 @@ function closeSidebar() {
     document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
-loadSummary();
-loadList();
+loadExpiryMonths();
+loadList();   // loadList()가 끝에서 loadSummary()를 호출한다
 </script>
 </body>
 </html>

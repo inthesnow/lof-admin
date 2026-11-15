@@ -26,22 +26,23 @@ public class MyBatisReRegistrationService implements ReRegistrationService {
 
     @Override
     public List<ReRegistration> findAll(Long gymId, String status, String reason,
-                                         String expiryStatus, String startDate, String endDate, int page, int size) {
-        return mapper.findAll(gymId, status, reason, expiryStatus, startDate, endDate, page * size, size);
+                                         String expiryStatus, String startDate, String endDate, String expiryMonth, int page, int size) {
+        return mapper.findAll(gymId, status, reason, expiryStatus, startDate, endDate, expiryMonth, page * size, size);
     }
 
     @Override
-    public long count(Long gymId, String status, String reason, String expiryStatus, String startDate, String endDate) {
-        return mapper.count(gymId, status, reason, expiryStatus, startDate, endDate);
+    public long count(Long gymId, String status, String reason, String expiryStatus, String startDate, String endDate, String expiryMonth) {
+        return mapper.count(gymId, status, reason, expiryStatus, startDate, endDate, expiryMonth);
     }
 
     @Override
-    public Map<String, Object> membershipSummary(Long gymId) {
+    public Map<String, Object> membershipSummary(Long gymId, String status, String reason,
+            String expiryStatus, String startDate, String endDate, String expiryMonth) {
         // summaryByMembership은 GROUP BY 없는 SUM 집계라 대상 행이 0건이면 전 컬럼이 NULL인
         // 행 1개가 나오고, MyBatis는 그런 행을 Map이 아니라 null로 매핑한다 — 그래서 재등록
         // 데이터가 아직 없는 지점(신규 지점 또는 06:00 자동분류 배치 실행 전)에서 이 요약 카드가
         // NPE로 500을 내고 있었다(2026-11-10 전수 점검에서 발견).
-        Map<String, Object> raw = mapper.summaryByMembership(gymId);
+        Map<String, Object> raw = mapper.summaryByMembership(gymId, status, reason, expiryStatus, startDate, endDate, expiryMonth);
         if (raw == null) raw = Map.of();
         int expiring = toInt(raw.get("expiring"));
         int expired  = toInt(raw.get("expired"));
@@ -120,5 +121,10 @@ public class MyBatisReRegistrationService implements ReRegistrationService {
         r.setReason(reason);
         r.setStatus("pending");
         return r;
+    }
+
+    @Override
+    public java.util.List<String> findExpiryMonths(Long gymId) {
+        return mapper.findExpiryMonths(gymId);
     }
 }
