@@ -18,7 +18,7 @@
             <button class="mobile-menu-btn" onclick="openSidebar()">
                 <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
-            <h1 class="page-title">내부 쪽지함</h1>
+            <h1 class="page-title">쪽지</h1>
         </div>
         <div class="header-right" style="gap:8px">
             <button class="btn btn-secondary" onclick="markAllRead()" style="font-size:12px">모두 읽음</button>
@@ -32,6 +32,16 @@
             </button>
         </div>
     </header>
+
+    <!--
+      쪽지 메뉴 안의 탭(2026-11-15 crm-9). 사이드바는 '쪽지' 하나이고,
+      상담 쪽지(회원↔헬스장)와 공지 쪽지(공지/이벤트 일괄 발송)를 여기서 나눈다.
+    -->
+    <div class="msg-tabs">
+        <a th:href="@{/inbox}"    class="msg-tab active">상담 쪽지</a>
+        <a th:href="@{/messages}" class="msg-tab">공지 쪽지</a>
+    </div>
+
 
     <!-- 탭 -->
     <div class="sub-tabs" style="padding:0 24px;border-bottom:1px solid var(--border)">
@@ -495,5 +505,16 @@ document.getElementById('replyBtn').style.display = 'none';
 loadUnreadThreads();
 loadUnread();
 </script>
+
+<style>
+/* 쪽지 메뉴 탭 (crm-9) */
+.msg-tabs { display:flex; gap:4px; padding:12px 24px 0; border-bottom:1px solid var(--border); }
+.msg-tab {
+    padding:10px 18px; font-size:14px; font-weight:600; color:var(--text-secondary);
+    text-decoration:none; border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.msg-tab:hover  { color:var(--text-primary); }
+.msg-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+</style>
 </body>
 </html>

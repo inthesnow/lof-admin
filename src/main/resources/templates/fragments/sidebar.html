@@ -77,15 +77,17 @@
             상담 관리
         </a>
 
-        <a th:href="@{/inbox}"           th:classappend="${activePage == 'inbox'}           ? ' active'" class="nav-item" data-category="inbox">
+        <!--
+          쪽지 메뉴 통합(2026-11-15 회의 리포트 crm-9). 예전엔 '쪽지함'(회원 상담 쪽지)과
+          '공지/이벤트 발송'이 사이드바에 따로 있어 어디서 뭘 보내는지 헷갈렸다.
+          메뉴는 '쪽지' 하나로 두고, 안에서 상담/공지 탭으로 나눈다.
+        -->
+        <a th:href="@{/inbox}"
+           th:classappend="${activePage == 'inbox' or activePage == 'messages'} ? ' active'"
+           class="nav-item" data-category="inbox">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-            쪽지함
+            쪽지
             <span class="nav-badge" id="inboxUnread" style="display:none"></span>
-        </a>
-
-        <a th:href="@{/messages}"        th:classappend="${activePage == 'messages'}        ? ' active'" class="nav-item" data-category="messages">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-            공지/이벤트 발송
         </a>
 
         <a th:href="@{/cs}"              th:classappend="${activePage == 'cs'}              ? ' active'" class="nav-item" data-category="cs">
