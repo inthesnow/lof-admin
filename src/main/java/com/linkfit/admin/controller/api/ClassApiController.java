@@ -44,14 +44,16 @@ public class ClassApiController {
     public ApiResponse<Map<String, Object>> list(
             @RequestParam(defaultValue = "") String type,
             @RequestParam(defaultValue = "") String date,
+            // 빈 문자열이면 이 지점 전체 트레이너 (기본값 '전체', 2026-11-15 crm-10)
+            @RequestParam(defaultValue = "") String trainerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal CrmUserDetails principal) {
-        log.info("[Class] GET /api/classes - type={}, date={}", type, date);
+        log.info("[Class] GET /api/classes - type={}, date={}, trainerId={}", type, date, trainerId);
         Long gymId = principal.getGymId();
         return ApiResponse.ok(Map.of(
-            "classes", classService.findAll(type, date, page, size, gymId),
-            "total", classService.count(type, date, gymId)
+            "classes", classService.findAll(type, date, trainerId, page, size, gymId),
+            "total", classService.count(type, date, trainerId, gymId)
         ));
     }
 
@@ -137,6 +139,23 @@ public class ClassApiController {
             @RequestParam(required = false) String toDate,
             @AuthenticationPrincipal CrmUserDetails principal) {
         log.info("[Class] GET /api/classes/schedules/trainer/{trainerId} - trainerId={}, fromDate={}, toDate={}",
+                trainerId, fromDate, toDate);
+        return ApiResponse.ok(trainerScheduleMapper.findByTrainer(trainerId, fromDate, toDate, principal.getGymId()));
+    }
+
+    /**
+     * 개인 스케줄 주별 조회 — 트레이너 미지정이면 이 지점 전체(2026-11-15).
+     *
+     * `/schedules`(월 단위)와 `/schedules/trainer/{id}`(트레이너 필수)가 이미 있어
+     * 둘 다 건드리지 않고 기간+선택적 트레이너 조합용 경로를 따로 둔다.
+     */
+    @GetMapping("/schedules/range")
+    public ApiResponse<List<TrainerSchedule>> schedulesByRange(
+            @RequestParam(required = false) String trainerId,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @AuthenticationPrincipal CrmUserDetails principal) {
+        log.info("[Class] GET /api/classes/schedules/range - trainerId={}, fromDate={}, toDate={}",
                 trainerId, fromDate, toDate);
         return ApiResponse.ok(trainerScheduleMapper.findByTrainer(trainerId, fromDate, toDate, principal.getGymId()));
     }

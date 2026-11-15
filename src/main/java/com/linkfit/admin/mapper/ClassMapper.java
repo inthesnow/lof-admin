@@ -11,9 +11,11 @@ import java.util.Optional;
 @Mapper
 public interface ClassMapper {
     List<ClassSession> findAll(@Param("type") String type, @Param("date") String date,
+                               @Param("trainerId") String trainerId,
                                @Param("offset") int offset, @Param("size") int size,
                                @Param("gymId") Long gymId);
-    long count(@Param("type") String type, @Param("date") String date, @Param("gymId") Long gymId);
+    long count(@Param("type") String type, @Param("date") String date,
+               @Param("trainerId") String trainerId, @Param("gymId") Long gymId);
     Optional<ClassSession> findById(@Param("id") Long id, @Param("gymId") Long gymId);
     void insert(@Param("session") ClassSession session, @Param("gymId") Long gymId);
     void update(@Param("session") ClassSession session, @Param("gymId") Long gymId);

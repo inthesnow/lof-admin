@@ -45,8 +45,14 @@
     <!-- 트레이너 개인 스케줄 조회 (캘린더 대신 목록으로 확인) -->
     <select id="findByTrainer" resultMap="scheduleResultMap">
         <include refid="scheduleSelect"/>
-        WHERE ts.trainer_id = #{trainerId}
-          AND ts.gym_id = #{gymId}
+        <!--
+          trainerId가 비어 있으면 이 지점 전체 트레이너의 일정을 돌려준다
+          ("트레이너 필터 = 전체", 2026-11-15 요청). gym_id 스코핑은 항상 유지한다.
+        -->
+        WHERE ts.gym_id = #{gymId}
+        <if test="trainerId != null and trainerId != ''">
+          AND ts.trainer_id = #{trainerId}
+        </if>
         <if test="fromDate != null and fromDate != ''">
             AND ts.schedule_date &gt;= #{fromDate}
         </if>

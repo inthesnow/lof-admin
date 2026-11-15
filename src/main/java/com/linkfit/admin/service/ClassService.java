@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ClassService {
-    List<ClassSession> findAll(String type, String date, int page, int size, Long gymId);
-    long count(String type, String date, Long gymId);
+    List<ClassSession> findAll(String type, String date, String trainerId, int page, int size, Long gymId);
+    long count(String type, String date, String trainerId, Long gymId);
     Optional<ClassSession> findById(Long id, Long gymId);
     ClassSession save(ClassSession session, Long gymId);
     ClassSession update(Long id, ClassSession session, Long gymId);

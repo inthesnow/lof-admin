@@ -147,12 +147,65 @@
         .capacity-bar  { width:60px; height:5px; border-radius:3px; background:var(--border); overflow:hidden; display:inline-block; vertical-align:middle; margin-right:5px; }
         .capacity-fill { height:100%; background:var(--accent); border-radius:3px; }
 
+
+        /* ── 개인 스케줄 주별 시간축 캘린더 (2026-11-15) ──
+           앱 트레이너 모드의 스케줄 화면과 같은 구조: 세로축이 시간(1시간 단위),
+           가로축이 7일이고 일정은 실제 시작시각/길이에 맞춰 배치된다.
+           헤더를 스크롤 컨테이너 안에 sticky로 두는 이유 — 헤더와 본문을 별도
+           grid로 나누면 세로 스크롤바 폭만큼 열이 어긋난다. */
+        .tg-scroll {
+            border:1px solid var(--border); border-radius:10px; background:var(--surface);
+            max-height:620px; overflow:auto;
+        }
+        .tg-grid { display:grid; grid-template-columns:58px repeat(7,1fr); position:relative; }
+        .tg-hcell {
+            position:sticky; top:0; z-index:3;
+            padding:7px 4px; text-align:center; font-size:12px; font-weight:600;
+            color:var(--text-primary); background:var(--surface-up);
+            border-bottom:1px solid var(--border); border-left:1px solid var(--border);
+        }
+        .tg-hcell:first-child { border-left:none; z-index:4; }
+        .tg-hcell.sat { color:var(--accent); }
+        .tg-hcell.sun { color:var(--error); }
+        .tg-hcell.today { background:#E3EEFC; }
+        .tg-hcell .sub { display:block; font-size:11px; font-weight:500; color:var(--text-secondary); margin-top:1px; }
+        .tg-timecol { border-right:1px solid var(--border); background:var(--surface); }
+        .tg-hour {
+            height:48px; box-sizing:border-box; border-bottom:1px solid var(--border);
+            font-size:11px; color:var(--text-muted); text-align:right; padding:2px 6px 0 0;
+        }
+        .tg-col { position:relative; border-left:1px solid var(--border); }
+        .tg-col.today { background:rgba(9,105,218,.035); }
+        .tg-slot { height:48px; box-sizing:border-box; border-bottom:1px solid var(--border); }
+        .tg-ev {
+            position:absolute; box-sizing:border-box; overflow:hidden;
+            border-radius:4px; padding:2px 5px; font-size:10.5px; line-height:1.32;
+            color:#fff; background:var(--accent); border:1px solid rgba(255,255,255,.5);
+        }
+        .tg-ev.op { background:var(--success); }
+        .tg-ev .t { font-weight:700; }
+        .tg-ev .m { font-weight:600; }
+        .tg-ev .tr { opacity:.85; }
+        /* 30분 이하 일정은 3줄이 안 들어가 글자가 잘린다 — 한 줄로 압축(전체 내용은 tooltip) */
+        .tg-ev.short { padding:1px 5px; white-space:nowrap; text-overflow:ellipsis; }
+        .tg-ev.short .t { display:inline; }
+        .tg-ev.short .m { display:inline; font-weight:500; }
+        .tg-ev.short .tr { display:none; }
+        /* 오늘의 현재 시각 표시선 */
+        .tg-now { position:absolute; left:0; right:0; height:2px; background:var(--error); z-index:2; }
+        .tg-now::before {
+            content:''; position:absolute; left:-4px; top:-3px;
+            width:8px; height:8px; border-radius:50%; background:var(--error);
+        }
+
         /* ── 개인 스케줄 ── */
         .schedule-filter-bar {
             display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
             padding: 20px 24px 16px;
         }
         .schedule-empty { text-align:center; padding:60px 20px; color:var(--text-muted); font-size:13px; }
+        /* 주차 이동 버튼은 가로 한 줄로 — attn-filter-group(세로 정렬)을 쓰면 버튼이 쌓인다 */
+        .sched-weeknav { display:flex; align-items:center; gap:8px; }
         .sched-item {
             display: flex; align-items: center; gap: 14px;
             padding: 14px 20px; border-bottom: 1px solid var(--border);
@@ -204,7 +257,11 @@
             </button>
         </div>
         <div class="header-right" id="headerActions-classes" style="display:none">
-            <input type="date" class="form-input" id="dateFilter" style="width:150px" onchange="loadClasses()">
+            <!-- 기본값 '전체' — 고르지 않아도 지점 전체 수업이 보인다 (2026-11-15 crm-10) -->
+            <select class="form-input" id="classTrainer" style="width:160px" onchange="clsPage=0;loadClasses()">
+                <option value="">전체 트레이너</option>
+            </select>
+            <input type="date" class="form-input" id="dateFilter" style="width:150px" onchange="clsPage=0;loadClasses()">
             <button class="btn btn-primary" onclick="openClassModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                 수업 등록
@@ -361,30 +418,28 @@
         </div>
     </div>
 
-    <!-- ── 패널: 개인 스케줄 (캘린더 대신 트레이너별 목록) ── -->
+    <!-- ── 패널: 개인 스케줄 (주별 캘린더 + 트레이너 필터, 2026-11-15) ── -->
     <div id="panel-schedule" style="display:none;padding:0">
         <div class="schedule-filter-bar">
             <div class="attn-filter-group">
                 <label class="attn-filter-label">트레이너</label>
                 <select class="field-input" id="schedTrainer" style="width:180px" onchange="loadPersonalSchedule()">
-                    <option value="">트레이너를 선택하세요</option>
+                    <option value="">전체</option>
                 </select>
             </div>
-            <div class="attn-filter-group">
-                <label class="attn-filter-label">시작일</label>
-                <input type="date" class="field-input" id="schedFrom" style="width:150px" onchange="loadPersonalSchedule()">
-            </div>
-            <div class="attn-filter-group">
-                <label class="attn-filter-label">종료일</label>
-                <input type="date" class="field-input" id="schedTo" style="width:150px" onchange="loadPersonalSchedule()">
+            <div class="sched-weeknav">
+                <button class="btn btn-secondary" onclick="moveSchedWeek(-1)">&lt; 이전 주</button>
+                <span id="schedWeekLabel" style="font-size:14px;font-weight:600;min-width:190px;text-align:center;display:inline-block"></span>
+                <button class="btn btn-secondary" onclick="moveSchedWeek(1)">다음 주 &gt;</button>
+                <button class="btn btn-secondary" onclick="moveSchedWeek(0)">이번 주</button>
             </div>
             <span style="font-size:12px;color:var(--text-muted)">
                 <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:3px"></span>PT &nbsp;
                 <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--success);margin-right:3px"></span>원포인트
             </span>
         </div>
-        <div id="schedList" style="margin:0 24px 32px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)">
-            <div class="schedule-empty">트레이너를 선택하면 해당 트레이너의 개인 스케줄을 확인할 수 있습니다.</div>
+        <div id="schedWeek" style="margin:0 24px 32px">
+            <div class="schedule-empty">로딩 중...</div>
         </div>
     </div>
 
@@ -839,10 +894,28 @@ const donutCharts = {};
 const classTypeLabel = { GROUP: '그룹 루틴', PT: 'PT 루틴', OT: 'OT' };
 const classTypeBadge = { GROUP: 'badge-active', PT: 'badge-admin', OT: 'badge-pending' };
 
-function initClasses() {
+/* 트레이너 드롭다운 공용 로더 — '수업 목록'과 '개인 스케줄'이 같은 목록을 쓴다.
+   탭을 오갈 때마다 같은 API를 다시 부르지 않도록 한 번만 받아 캐시한다. */
+let trainerOptionsCache = null;
+async function fillTrainerSelect(selectId, allLabel) {
+    if (!trainerOptionsCache) {
+        const res  = await fetch('/api/staff?role=TRAINER&page=0&size=100');
+        const json = await res.json();
+        trainerOptionsCache = json.data?.staff || [];
+    }
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const keep = sel.value;
+    sel.innerHTML = `<option value="">${allLabel}</option>` +
+        trainerOptionsCache.map(t => `<option value="${t.id}">${escHtml(t.name)}</option>`).join('');
+    sel.value = keep;
+}
+
+async function initClasses() {
     if (classLoaded) return;
     classLoaded = true;
     document.getElementById('dateFilter').valueAsDate = new Date();
+    await fillTrainerSelect('classTrainer', '전체 트레이너');
     loadClasses();
     loadSideStats();
 }
@@ -856,9 +929,14 @@ function filterClassType(type, btn) {
 }
 
 async function loadClasses() {
-    const date = document.getElementById('dateFilter').value;
+    const date      = document.getElementById('dateFilter').value;
+    const trainerId = document.getElementById('classTrainer').value;
     try {
-        const res  = await fetch(`/api/classes?type=${currentClassType}&date=${date}&page=${clsPage}&size=${clsPageSize}`);
+        const params = new URLSearchParams({
+            type: currentClassType, date, page: clsPage, size: clsPageSize,
+        });
+        if (trainerId) params.set('trainerId', trainerId);
+        const res  = await fetch(`/api/classes?${params}`);
         const json = await res.json();
         renderClassTable(json.data.classes, json.data.total);
     } catch(e) {
@@ -1048,62 +1126,176 @@ function closeAttendeeModal() { document.getElementById('attendeeModal').classLi
    개인 스케줄 (캘린더 대신 트레이너 선택 후 목록으로 확인)
 ═══════════════════════════════════════════════════════════ */
 let scheduleLoaded = false;
+let schedWeekStart = null;   // 주의 월요일
+
+function mondayOf(d) {
+    const x = new Date(d);
+    const diff = (x.getDay() + 6) % 7;      // 월=0
+    x.setDate(x.getDate() - diff);
+    x.setHours(0, 0, 0, 0);
+    return x;
+}
+const fmtDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 async function initSchedule() {
     if (scheduleLoaded) return;
     scheduleLoaded = true;
-    const res  = await fetch('/api/staff?role=TRAINER&page=0&size=100');
-    const json = await res.json();
-    const trainers = json.data?.staff || [];
-    const sel = document.getElementById('schedTrainer');
-    sel.innerHTML = '<option value="">트레이너를 선택하세요</option>' +
-        trainers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    // 기본값은 '전체' — 특정 트레이너를 고르지 않아도 지점 전체 일정이 보인다(2026-11-15).
+    await fillTrainerSelect('schedTrainer', '전체');
 
-    const today = new Date();
-    const monthAgo = new Date(); monthAgo.setMonth(monthAgo.getMonth() - 1);
-    const monthLater = new Date(); monthLater.setMonth(monthLater.getMonth() + 2);
-    document.getElementById('schedFrom').value = monthAgo.toISOString().slice(0,10);
-    document.getElementById('schedTo').value   = monthLater.toISOString().slice(0,10);
+    schedWeekStart = mondayOf(new Date());
+    loadPersonalSchedule();
+}
+
+function moveSchedWeek(delta) {
+    if (delta === 0) schedWeekStart = mondayOf(new Date());
+    else {
+        const d = new Date(schedWeekStart);
+        d.setDate(d.getDate() + delta * 7);
+        schedWeekStart = d;
+    }
+    loadPersonalSchedule();
 }
 
 async function loadPersonalSchedule() {
+    if (!schedWeekStart) schedWeekStart = mondayOf(new Date());
     const trainerId = document.getElementById('schedTrainer').value;
-    const list = document.getElementById('schedList');
-    if (!trainerId) {
-        list.innerHTML = '<div class="schedule-empty">트레이너를 선택하면 해당 트레이너의 개인 스케줄을 확인할 수 있습니다.</div>';
-        return;
-    }
-    const from = document.getElementById('schedFrom').value;
-    const to   = document.getElementById('schedTo').value;
-    list.innerHTML = '<div class="schedule-empty">로딩 중...</div>';
+    const from = new Date(schedWeekStart);
+    const to   = new Date(schedWeekStart); to.setDate(to.getDate() + 6);
+
+    document.getElementById('schedWeekLabel').textContent =
+        `${from.getFullYear()}. ${from.getMonth()+1}. ${from.getDate()} ~ ${to.getMonth()+1}. ${to.getDate()}`;
+
+    const wrap = document.getElementById('schedWeek');
+    wrap.innerHTML = '<div class="schedule-empty">로딩 중...</div>';
     try {
-        const res  = await fetch(`/api/classes/schedules/trainer/${trainerId}?fromDate=${from}&toDate=${to}`);
+        const params = new URLSearchParams({ fromDate: fmtDate(from), toDate: fmtDate(to) });
+        if (trainerId) params.set('trainerId', trainerId);
+        const res  = await fetch(`/api/classes/schedules/range?${params}`);
         const json = await res.json();
-        renderPersonalSchedule(json.data || []);
-    } catch(e) {
-        list.innerHTML = '<div class="schedule-empty">일정을 불러올 수 없습니다.</div>';
+        renderSchedWeek(json.data || []);
+    } catch (e) {
+        wrap.innerHTML = '<div class="schedule-empty">일정을 불러올 수 없습니다.</div>';
     }
 }
 
-function renderPersonalSchedule(items) {
-    const list = document.getElementById('schedList');
-    if (!items.length) {
-        list.innerHTML = '<div class="schedule-empty">해당 기간에 등록된 일정이 없습니다.</div>';
-        return;
-    }
-    list.innerHTML = items.map(s => {
-        const typeBadgeClass = s.type === 'PT' ? 'badge-admin' : 'badge-active';
-        const typeText = s.type === 'PT' ? 'PT' : '원포인트';
-        return `<div class="sched-item">
-            <span class="badge ${typeBadgeClass}" style="flex-shrink:0">${typeText}</span>
-            <div class="sched-date">${s.scheduleDate}</div>
-            <div class="sched-time">${s.startTime ? s.startTime.substring(0,5) : ''} ~ ${s.endTime ? s.endTime.substring(0,5) : ''}</div>
-            <div class="sched-info">
-                ${s.memberName ? `회원: ${s.memberName}` : '<span style="color:var(--text-muted)">배정된 회원 없음</span>'}
-                ${s.memo ? `<div class="sched-memo">${s.memo}</div>` : ''}
-            </div>
+/* 시간축 캘린더 상수 — 앱과 동일하게 00~24시 1시간 단위.
+   전 범위를 그려두고 첫 일정 위치로 자동 스크롤한다(일정이 범위 밖으로 잘리지 않게). */
+const TG_HOUR_H = 48;
+
+/* "HH:mm" / "HH:mm:ss" → 분. 파싱 불가면 null. */
+function tgMinutes(t) {
+    if (!t) return null;
+    const m = /^(\d{1,2}):(\d{2})/.exec(t);
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+/* 겹치는 일정을 가로로 나눠 배치한다(구글 캘린더 방식).
+   '전체' 필터에서는 여러 트레이너의 일정이 같은 시간대에 겹치는 게 정상이라 필요함. */
+function tgLayout(list) {
+    const evs = list.map(s => {
+        const st = tgMinutes(s.startTime);
+        let en = tgMinutes(s.endTime);
+        if (en === null || en <= st) en = (st ?? 0) + 60;   // 종료시각 이상치는 1시간으로 간주
+        return { s, start: st, end: en };
+    }).filter(e => e.start !== null)
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    // 서로 겹치는 묶음(cluster) 단위로 열 개수를 정한다
+    let cluster = [], clusterEnd = -1;
+    const flush = () => {
+        const cols = [];                       // cols[i] = 그 열의 마지막 종료 시각
+        cluster.forEach(e => {
+            let c = cols.findIndex(end => end <= e.start);
+            if (c === -1) { c = cols.length; cols.push(0); }
+            cols[c] = e.end;
+            e.col = c;
+        });
+        cluster.forEach(e => e.cols = cols.length);
+        cluster = [];
+    };
+    evs.forEach(e => {
+        if (cluster.length && e.start >= clusterEnd) flush();
+        cluster.push(e);
+        clusterEnd = Math.max(clusterEnd, e.end);
+    });
+    if (cluster.length) flush();
+    return evs;
+}
+
+function renderSchedWeek(items) {
+    const wrap = document.getElementById('schedWeek');
+    const byDate = {};
+    items.forEach(s => {
+        (byDate[s.scheduleDate] = byDate[s.scheduleDate] || []).push(s);
+    });
+
+    const dayNames = ['월','화','수','목','금','토','일'];
+    const now      = new Date();
+    const todayStr = fmtDate(now);
+
+    // 1행: 시각 열 머리 + 요일 7칸 (sticky)
+    let html = '<div class="tg-grid"><div class="tg-hcell"></div>';
+    for (let i = 0; i < 7; i++) {
+        const d   = new Date(schedWeekStart); d.setDate(d.getDate() + i);
+        const key = fmtDate(d);
+        const cnt = (byDate[key] || []).length;
+        const cls = (i === 6 ? ' sun' : (i === 5 ? ' sat' : '')) + (key === todayStr ? ' today' : '');
+        html += `<div class="tg-hcell${cls}">${dayNames[i]}
+            <span class="sub">${d.getMonth()+1}/${d.getDate()}${cnt ? ' · ' + cnt + '건' : ''}</span>
         </div>`;
-    }).join('');
+    }
+
+    // 2행: 시각 열
+    html += '<div class="tg-timecol">';
+    for (let h = 0; h < 24; h++) {
+        html += `<div class="tg-hour">${String(h).padStart(2,'0')}:00</div>`;
+    }
+    html += '</div>';
+
+    // 2행: 요일별 컬럼 — 1시간 격자 + 실제 시각 위치에 일정 블록
+    let firstTop = null;
+    for (let i = 0; i < 7; i++) {
+        const d     = new Date(schedWeekStart); d.setDate(d.getDate() + i);
+        const key   = fmtDate(d);
+        const isTdy = key === todayStr;
+        html += `<div class="tg-col${isTdy ? ' today' : ''}">`;
+        for (let h = 0; h < 24; h++) html += '<div class="tg-slot"></div>';
+
+        if (isTdy) {
+            const top = (now.getHours() * 60 + now.getMinutes()) / 60 * TG_HOUR_H;
+            html += `<div class="tg-now" style="top:${top.toFixed(1)}px"></div>`;
+        }
+
+        tgLayout(byDate[key] || []).forEach(e => {
+            const op   = e.s.type !== 'PT';
+            const top  = e.start / 60 * TG_HOUR_H;
+            const hgt  = Math.max((e.end - e.start) / 60 * TG_HOUR_H, 20);   // 짧은 일정도 글자가 보이게
+            const w     = 100 / e.cols;
+            const short = hgt < 34;
+            // 좁게 쪼개졌거나 낮은 블록은 종료시각까지 다 못 넣는다 — 시작시각만 표시
+            const time  = (short || e.cols > 2)
+                ? (e.s.startTime||'').substring(0,5)
+                : `${(e.s.startTime||'').substring(0,5)}~${(e.s.endTime||'').substring(0,5)}`;
+            if (firstTop === null || top < firstTop) firstTop = top;
+            html += `<div class="tg-ev${op ? ' op' : ''}${short ? ' short' : ''}"
+                 style="top:${top.toFixed(1)}px;height:${hgt.toFixed(1)}px;left:${(e.col*w).toFixed(2)}%;width:${w.toFixed(2)}%"
+                 title="${(e.s.startTime||'').substring(0,5)}~${(e.s.endTime||'').substring(0,5)} ${escHtml(e.s.memberName || '회원 미배정')} / ${op ? '원포인트' : 'PT'}${e.s.trainerName ? ' / ' + escHtml(e.s.trainerName) : ''}${e.s.memo ? ' / ' + escHtml(e.s.memo) : ''}">
+                <div class="t">${time}</div>
+                <div class="m">${short ? ' ' : ''}${escHtml(e.s.memberName || '회원 미배정')}</div>
+                <div class="tr">${op ? '원포인트' : 'PT'}${e.s.trainerName ? ' · ' + escHtml(e.s.trainerName) : ''}</div>
+            </div>`;
+        });
+        html += '</div>';
+    }
+    html += '</div>';
+
+    wrap.innerHTML = `<div class="tg-scroll" id="schedScroll">${html}</div>`;
+
+    // 첫 일정(없으면 07시)이 바로 보이도록 스크롤 — 24시간 전체를 그려서 기본 위치가 00시다
+    const sc = document.getElementById('schedScroll');
+    if (sc) sc.scrollTop = Math.max((firstTop !== null ? firstTop : 7 * TG_HOUR_H) - TG_HOUR_H, 0);
 }
 
 /* ═══════════════════════════════════════════════════════════

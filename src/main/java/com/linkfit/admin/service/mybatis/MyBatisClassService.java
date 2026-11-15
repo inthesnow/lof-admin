@@ -18,13 +18,13 @@ public class MyBatisClassService implements ClassService {
     }
 
     @Override
-    public List<ClassSession> findAll(String type, String date, int page, int size, Long gymId) {
-        return classMapper.findAll(type, date, page * size, size, gymId);
+    public List<ClassSession> findAll(String type, String date, String trainerId, int page, int size, Long gymId) {
+        return classMapper.findAll(type, date, trainerId, page * size, size, gymId);
     }
 
     @Override
-    public long count(String type, String date, Long gymId) {
-        return classMapper.count(type, date, gymId);
+    public long count(String type, String date, String trainerId, Long gymId) {
+        return classMapper.count(type, date, trainerId, gymId);
     }
 
     @Override

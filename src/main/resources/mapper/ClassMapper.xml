@@ -34,6 +34,7 @@
         WHERE gym_id = #{gymId}
         <if test="type != null and type != ''">AND type=#{type}</if>
         <if test="date != null and date != ''">AND class_date=#{date}</if>
+        <if test="trainerId != null and trainerId != ''">AND trainer_id=#{trainerId}</if>
         ORDER BY class_date DESC, start_time ASC
         LIMIT #{size} OFFSET #{offset}
     </select>
@@ -43,6 +44,7 @@
         WHERE gym_id = #{gymId}
         <if test="type != null and type != ''">AND type=#{type}</if>
         <if test="date != null and date != ''">AND class_date=#{date}</if>
+        <if test="trainerId != null and trainerId != ''">AND trainer_id=#{trainerId}</if>
     </select>
 
     <select id="findById" resultMap="classResultMap">
