@@ -117,6 +117,23 @@
         WHERE u.user_id = #{id}
     </update>
 
+    <!--
+      권한 회수 시 이 트레이너에게 걸려 있던 담당 배정도 함께 끊는다.
+      예전엔 users.role만 MEMBER로 되돌리고 배정은 그대로 남겨서, 회원들이 더 이상
+      트레이너가 아닌 계정을 계속 담당으로 물고 있었다 — 그 상태에서는 후기 등록처럼
+      role을 검사하는 기능이 조용히 실패한다(2026-11-17 리포트).
+    -->
+    <update id="clearAssignedMembersProfile">
+        UPDATE user_profiles
+        SET trainer_id = NULL
+        WHERE trainer_id = #{id}
+    </update>
+
+    <delete id="deleteTrainerMemberLinks">
+        DELETE FROM trainer_members
+        WHERE trainer_id = #{id}
+    </delete>
+
     <update id="updateRole">
         UPDATE users u
         JOIN user_gym ug ON ug.user_id = u.user_id AND ug.gym_id = #{gymId} AND ug.is_active = 1

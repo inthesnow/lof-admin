@@ -6,6 +6,8 @@ import com.linkfit.admin.mapper.CrmUserMapper;
 import com.linkfit.admin.mapper.StaffMapper;
 import com.linkfit.admin.mapper.UserAuthMapper;
 import com.linkfit.admin.service.StaffService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +18,8 @@ import java.util.UUID;
 
 @Service
 public class MyBatisStaffService implements StaffService {
+
+    private static final Logger log = LoggerFactory.getLogger(MyBatisStaffService.class);
 
     private final StaffMapper staffMapper;
     private final CrmUserMapper crmUserMapper;
@@ -141,6 +145,12 @@ public class MyBatisStaffService implements StaffService {
     @Transactional
     public void revokeTrainer(String id, Long gymId) {
         staffMapper.revokeTrainer(id, gymId);
+        // 담당 배정을 같이 끊지 않으면 회원들이 "트레이너가 아닌 계정"을 담당으로 물고 남는다.
+        // 그 상태에선 후기 등록처럼 역할을 검사하는 기능이 실패한다(2026-11-17 리포트).
+        int cleared = staffMapper.clearAssignedMembersProfile(id);
+        int unlinked = staffMapper.deleteTrainerMemberLinks(id);
+        log.info("[Staff] 트레이너 권한 회수 - id={}, 담당 해제 회원={}, trainer_members 삭제={}",
+                id, cleared, unlinked);
         crmUserMapper.deactivateByAppUserId(id);
     }
 

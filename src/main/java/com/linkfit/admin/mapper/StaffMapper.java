@@ -26,6 +26,9 @@ public interface StaffMapper {
     Long findGymIdByUserId(@Param("userId") String userId);
     void update(@Param("staff") Staff staff, @Param("gymId") Long gymId);
     void revokeTrainer(@Param("id") String id, @Param("gymId") Long gymId);
+    // 권한 회수와 함께 끊어야 하는 담당 배정 — 남겨두면 role이 아닌 계정을 담당으로 물게 된다.
+    int clearAssignedMembersProfile(@Param("id") String id);
+    int deleteTrainerMemberLinks(@Param("id") String id);
     void updateRole(@Param("id") String id, @Param("role") String role, @Param("gymId") Long gymId);
 
     Map<String, Object> findDashboard(@Param("appUserId") String appUserId, @Param("gymId") Long gymId);
